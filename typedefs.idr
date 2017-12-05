@@ -1,31 +1,56 @@
-infixr 10 .+.
-infixr 10 .*.
+import Data.Fin
+import Data.Vect
 
-data Ty = Ty0 | Ty1 | (.+.) Ty Ty | (.*.) Ty Ty
+%default total
 
-interpTy : Ty -> Type
-interpTy Ty0 = Void
-interpTy Ty1 = Unit
-interpTy (a .+. b) = Either (interpTy a) (interpTy b)
-interpTy (a .*. b) = Pair (interpTy a) (interpTy b)
+data TDef : (n:Nat) -> Type where
+  T0 : TDef n
+  T1 : TDef n
+  TSum : TDef n -> TDef n -> TDef n
+  TProd : TDef n -> TDef n -> TDef n
+  TVar : Fin (S n) -> TDef (S n)
+  TMu : TDef (S n) -> TDef n
 
-bit : Ty
-bit = Ty1 .+. Ty1
 
-pow : Nat -> Ty -> Ty
-pow Z _ = Ty1
-pow (S z) a = a .*. (pow z a)
+data Mu : (F : Type -> Type) -> Type where
+  Inn : {F : Type -> Type} -> F (Mu F) -> Mu F
 
-nibble : Ty
-nibble = pow 4 bit
 
-byte : Ty
+Ty : Vect n Type -> TDef n -> Type
+Ty tvars T0 = Void
+Ty tvars T1 = Unit
+Ty tvars (TSum x y) = Either (Ty tvars x) (Ty tvars y)
+Ty tvars (TProd x y) = Pair (Ty tvars x) (Ty tvars y)
+Ty tvars (TVar v) = Vect.index v tvars
+Ty tvars (TMu m) = Mu (\y => Ty (y :: tvars) m)
+
+
+bit : TDef Z
+bit = TSum T1 T1
+
+pow : Nat -> TDef n -> TDef n
+pow Z _ = T1
+pow (S n) a = TProd a (pow n a)
+
+byte : TDef Z
 byte = pow 8 bit
 
--- (pow 2 nibble) =iso= byte ???
--- find normal form in O(n) max?
+parens : String -> String
+parens s = "(" ++ s ++ ")"
+curly : String -> String
+curly s = "{" ++ s ++ "}"
+showOp : String -> String -> String -> String
+showOp op x y = parens $ x ++ " " ++ op ++ " " ++ y
 
-showTy : Ty -> String
+showTDef : TDef n -> String
+showTDef T0 = "0"
+showTDef T1 = "1"
+showTDef (TSum x y) =  showOp "+" (showTDef x) (showTDef y)
+showTDef (TProd x y) =  showOp "*" (showTDef x) (showTDef y)
+showTDef (TVar x) = curly $ show $ toNat x
+showTDef (TMu x) = "u" ++ (showTDef x)
+
+{-
 showTy x =
   case x of
     Ty0 => "0"
@@ -37,7 +62,7 @@ showTy x =
     parens s = "(" ++ s ++ ")"
     showOp : String -> Ty -> Ty -> String
     showOp op x y = parens $ (showTy x) ++ " " ++ op ++ " " ++ (showTy y)
-
+-}
 
 -- interpreteren van type definities
 --   tau : Ty -> Type
