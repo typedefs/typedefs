@@ -1,11 +1,10 @@
+-- module Typedefs
 import Data.Fin
 import Data.Vect
+import Types
+import Parse
 
 %default total
-
-Name : Type
-Name = String
-
 
 data TDef : (n:Nat) -> Type where
   T0 : TDef n
@@ -109,6 +108,8 @@ main : IO ()
 main = do
      putStrLn $ showTDef Main.list
 
+     putStrLn ""
+     Parse.testSuite
 
 {-q
 showTy x =
