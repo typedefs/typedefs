@@ -22,40 +22,42 @@ Its constructors are:
 
 To interpret a type definition as an *Idris* type, there is a `Ty` function,
 which you can think of as having this type
-
-> Ty : (α₁ ... αⱼ) → (TDef j) → Type 
-
+```idris
+Ty : (α₁ ... αⱼ) → (TDef j) → Type 
+```
 The function `Ty` takes a vector of `Type`s of length `j`, and a type
 definition with `j` holes. It returns an idris `Type`.
 
 For example, define `bit` to be a zero-argument type definition `1 + 1`.
-
+```idris
     bit : TDef Z
     bit = TSum T1 T1
-
+```
 Then to interpret this type as an Idris `Type`, run
+```idris
 
     Ty [] bit
     Either () () : Type
-
+```
 To define a parametric recursive type, such as list,
-
-> (a : type) -> mu (nil : 1 + cons : (a * list a))
-
+```idris
+(a : type) -> mu (nil : 1 + cons : (a * list a))
+```
 in code, try this
-
+```idris
     list : TDef 1
     list = TMu "list" (
          [ ("nil", T1)
          , ("cons", TProd (TVar 1) (TVar 0)
          ]
     )
-
+```
 Then to interpret it, try
+```idris
 
     Ty [(Ty [] bit)] list
     Mu [Either () ()]
        (TSum T1 (TProd (TVar 1) (TVar 0)) : Type
-
+```
 ...
 
