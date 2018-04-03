@@ -6,12 +6,12 @@ example, `idris typedefs.idr`:
 	"(1 + {0})" : String
 
 
-# Tutorial(-ish)
+# Quick introduction
 
 We have the `TDef` data-type family that represents a "Type Definition".
 It is indexed by a `n:Nat` argument, the number of type variables.
 
-It's constructors are
+Its constructors are:
 
 - `T0`, the *empty* type
 - `T1`, the *unit* type
@@ -25,8 +25,8 @@ which you can think of as having this type
 
 > Ty : (α₁ ... αⱼ) → (TDef j) → Type 
 
-The function `Ty` takes a vector of `Type`'s and a type definition with that
-many holes. It returns an idris `Type`.
+The function `Ty` takes a vector of `Type`s of length `j`, and a type
+definition with `j` holes. It returns an idris `Type`.
 
 For example, define `bit` to be a zero-argument type definition `1 + 1`.
 
