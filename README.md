@@ -41,7 +41,7 @@ Then to interpret this type as an Idris `Type`, run
 ```
 To define a parametric recursive type, such as list,
 ```idris
-(a : type) -> mu (nil : 1 + cons : (a * list a))
+list : (a : type) -> mu (nil : 1 + cons : (a * list a))
 ```
 in code, try this
 ```idris
