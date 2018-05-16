@@ -27,9 +27,11 @@ primType = do
 mutual
   binOp : BinOpType -> (AST.TDef -> AST.TDef -> AST.TDef) -> Grammar TypeToken True AST.TDef
   binOp op ctor = do
+    match (Tok.Punct LParen)
     match (Tok.BinOp op)
     x <- typedef
     y <- typedef
+    match (Tok.Punct RParen)
     pure (ctor x y)
 
   prod : Grammar TypeToken True AST.TDef
@@ -40,9 +42,11 @@ mutual
 
   mu : Grammar TypeToken True AST.TDef
   mu = do
+    match (Tok.Punct LParen)
     match Tok.Mu
     name <- ident
     def <- primType -- TODO
+    match (Tok.Punct RParen)
     pure $ AST.Mu name def
 
   typedef : Grammar TypeToken True AST.TDef
@@ -77,8 +81,15 @@ mutual
 
   testSuite : IO ()
   testSuite = do
+    putStrLn "-- well-formed terms -----------------------------------------------------------"
+    putStrLn ""
     Parse.test "Unit"
-    Parse.test "mu list Unit"
-    Parse.test "* Unit Unit"
-    Parse.test "+ Unit Void"
-    Parse.test "+ Unit * Unit Void"
+    Parse.test "(mu list Unit)"
+    Parse.test "(* Unit Unit)"
+    Parse.test "(+ Unit Void)"
+    Parse.test "(+ Unit (* Unit Void))"
+
+    putStrLn "-- ill-formed terms ------------------------------------------------------------"
+    putStrLn ""
+    Parse.test "(+ Unit * Unit Void)"
+    Parse.test "(+ Unit Unit Void)"

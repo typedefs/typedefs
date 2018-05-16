@@ -12,13 +12,20 @@ Eq BinOpType where
   (==) ProdBO ProdBO = True
   (==) _      _      = False
 
+data ParenType = LParen | RParen
+
+Eq ParenType where
+  (==) LParen LParen = True
+  (==) RParen RParen = True
+  (==) _      _      = False
+
 data TypeKind
   = Ident
   | PrimType
   | Var
   | Mu
   | BinOp BinOpType
-  | Punct
+  | Punct ParenType
   | Whitespace
 
 TokenKind TypeKind where
@@ -27,7 +34,7 @@ TokenKind TypeKind where
   TokType Var              = Int
   TokType Mu               = Unit
   TokType (BinOp o)        = String
-  TokType Punct            = ()
+  TokType (Punct p)        = ()
   TokType Whitespace       = ()
 
   tokValue Ident       str = str
@@ -35,7 +42,7 @@ TokenKind TypeKind where
   tokValue Var         str = cast str
   tokValue Mu          str = ()
   tokValue (BinOp o)   str = str
-  tokValue Punct       str = ()
+  tokValue (Punct p)   str = ()
   tokValue Whitespace  str = ()
 
 Eq TypeKind where
@@ -44,7 +51,7 @@ Eq TypeKind where
   (==) Var        Var        = True
   (==) Mu         Mu         = True
   (==) (BinOp o1) (BinOp o2) = o1 == o2
-  (==) Punct      Punct      = True
+  (==) (Punct p1) (Punct p2) = p1 == p2
   (==) Whitespace Whitespace = True
   (==) _          _          = False
 
@@ -53,8 +60,8 @@ Show TypeKind where
   show PrimType   = "PrimType"
   show Var        = "Var"
   show Mu         = "Mu"
-  show BinOp      = "BinOp"
-  show Punct      = "Punct"
+  show (BinOp x)  = "BinOp"
+  show (Punct x)  = "Punct"
   show Whitespace = "Whitespace"
 
 TypeToken : Type

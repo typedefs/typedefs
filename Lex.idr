@@ -25,6 +25,12 @@ prod = exact "*"
 sum : Lexer
 sum = exact "+"
 
+lparen : Lexer
+lparen = exact "("
+
+rparen : Lexer
+rparen = exact ")"
+
 typedefsTokenMap : TokenMap (Token TypeKind)
 typedefsTokenMap = toTokenMap
   [ (spaces   , Tok.Whitespace)
@@ -33,6 +39,8 @@ typedefsTokenMap = toTokenMap
   , (ident    , Tok.Ident)
   , (sum      , Tok.BinOp SumBO)
   , (prod     , Tok.BinOp ProdBO)
+  , (lparen   , Tok.Punct LParen)
+  , (rparen   , Tok.Punct RParen)
   ]
 
 typedef : String -> Maybe (List TypeToken)
