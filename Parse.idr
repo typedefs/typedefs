@@ -45,7 +45,7 @@ mutual
     match (Tok.Punct LParen)
     match Tok.Mu
     name <- ident
-    def <- primType -- TODO
+    def <- typedef
     match (Tok.Punct RParen)
     pure $ AST.Mu name def
 
@@ -85,6 +85,7 @@ mutual
     putStrLn ""
     Parse.test "Unit"
     Parse.test "(mu list Unit)"
+    Parse.test "(mu list (* Unit Unit))"
     Parse.test "(* Unit Unit)"
     Parse.test "(+ Unit Void)"
     Parse.test "(+ Unit (* Unit Void))"
