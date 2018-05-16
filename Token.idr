@@ -34,8 +34,8 @@ TokenKind TypeKind where
   TokType Var              = Int
   TokType Mu               = Unit
   TokType (BinOp o)        = String
-  TokType (Punct p)        = ()
-  TokType Whitespace       = ()
+  TokType (Punct p)        = Unit
+  TokType Whitespace       = Unit
 
   tokValue Ident       str = str
   tokValue PrimType    str = str
