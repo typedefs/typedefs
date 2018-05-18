@@ -1,10 +1,14 @@
--- module Typedefs
+module Typedefs
+
 import Data.Fin
 import Data.Vect
 import Types
-import Parse
 
 %default total
+
+%access public
+
+export
 
 -- ||| @n The number of type variables in the type
 data TDef : (n:Nat) -> Type where
@@ -68,10 +72,10 @@ test = Ty [] bit
 maybe : TDef 1
 maybe = TSum T1 (TVar 0)
 
-nothing : (A : Type) -> Ty [A] Main.maybe
+nothing : (A : Type) -> Ty [A] Typedefs.maybe
 nothing _ = Left ()
 
-just : (A : Type) -> A -> Ty [A] Main.maybe
+just : (A : Type) -> A -> Ty [A] Typedefs.maybe
 just A = Right
 
 ----- example: list --
@@ -89,7 +93,7 @@ list = TMu "list" ([("nil", T1), ("cons", TProd (TVar 1) (TVar 0))])
 ||| `A`s.
 |||
 ||| @A The (Idris-side) element type of the list to construct
-nil : (A : Type) -> Ty [A] Main.list
+nil : (A : Type) -> Ty [A] Typedefs.list
 nil x = Inn $ Left ()
 
 ||| Like `nil`, but we construct a new, non-empty list by taking an existing
@@ -99,7 +103,7 @@ nil x = Inn $ Left ()
 ||| @A the (Idris-side) type of elements of the list to construct
 ||| @x the head of the list to construct
 ||| @xs the tail of the list to construct
-cons : (A : Type) -> (x : A) -> (xs : Ty [A] Main.list) -> Ty [A] Main.list
+cons : (A : Type) -> (x : A) -> (xs : Ty [A] Typedefs.list) -> Ty [A] Typedefs.list
 cons A x xs = Inn $ Right (x, xs)
 
 ------- compile to Idris ? -----
@@ -139,14 +143,6 @@ mutual
   showTDefs []          = ""
   showTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showTDefs xs
-
-
-main : IO ()
-main = do
-     putStrLn $ showTDef Main.list
-
-     putStrLn ""
-     Parse.testSuite
 
 {-q
 showTy x =
