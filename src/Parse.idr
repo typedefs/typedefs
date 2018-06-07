@@ -54,27 +54,3 @@ mutual
         <|> prod
         <|> sum
         <|> mu
-
-  parseTypedef : List TypeToken -> Maybe AST.TDef
-  parseTypedef toks =
-    case parse typedef (filter (not . Lex.isTDWhitespace) toks) of
-         Right (t, []) => Just t
-         _             => Nothing
-
-  astify : String -> Maybe AST.TDef
-  astify str = do
-    tokens <- Lex.typedef str
-    parseTypedef tokens
-
-  ------------------------------------------------------------------------------
-
-  test : String -> IO ()
-  test str = (do
-    putStrLn . show $ map text          <$> tokens
-    putStrLn . show $ map (show . kind) <$> tokens
-    putStrLn . show $ astify str
-    putStrLn ""
-    )
-    where
-      tokens : Maybe (List TypeToken)
-      tokens = filter (not . Lex.isTDWhitespace) <$> Lex.typedef str
