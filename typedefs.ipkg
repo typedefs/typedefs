@@ -1,0 +1,22 @@
+package typedefs
+
+executable = examples
+
+main = Examples
+
+modules = Types
+        , Token
+        , Lex
+        , AST
+        , Parse
+        , Typedefs
+
+        -- tests
+        , Test.Typedefs
+        , Test.Parse
+
+tests = Test.Typedefs.testSuite
+
+sourcedir = src
+
+pkgs = contrib

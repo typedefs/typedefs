@@ -18,7 +18,7 @@ Its constructors are:
 - `TSum`, the *coproduct* type
 - `TProd`, the *product* type
 - `TMu`, the *μ* type
-- `TVar`, a type variable, referencing using *De Bruijn* indexes.
+- `TVar`, a type variable, referencing using *De Bruijn* indices.
 
 To interpret a type definition as an *Idris* type, there is a `Ty` function,
 which you can think of as having this type
@@ -59,5 +59,8 @@ Then to interpret it, try
     Mu [Either () ()]
        (TSum T1 (TProd (TVar 1) (TVar 0)) : Type
 ```
-...
 
+# More information
+
+See [Examples.idr](src/Examples.idr). There is also a [work-in-progress document](https://hackmd.io/22MJzoZFRBycNiDgN1nKKg)
+describing the work in progress.
