@@ -7,6 +7,7 @@ import Types
 import Token as Tok
 import AST as AST
 
+%default total
 %access public
 export
 
@@ -47,10 +48,19 @@ mutual
     name <- ident
     def <- typedef
     match (Tok.Punct RParen)
-    pure $ AST.Mu name def
+    pure $ AST.Mu name [def]
+
+  var : Grammar TypeToken True AST.TDef
+  var = do
+    match (Tok.Punct LParen)
+    match Tok.Var
+    n <- match Tok.Number
+    match (Tok.Punct RParen)
+    pure (AST.Var n)
 
   typedef : Grammar TypeToken True AST.TDef
   typedef = primType
         <|> prod
         <|> sum
         <|> mu
+        <|> var

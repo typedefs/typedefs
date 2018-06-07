@@ -2,6 +2,7 @@ module Token
 
 import Text.Lexer
 
+%default total
 %access public
 export
 
@@ -26,24 +27,29 @@ data TypeKind
   | Mu
   | BinOp BinOpType
   | Punct ParenType
+  | Number
   | Whitespace
 
 TokenKind TypeKind where
-  TokType Ident            = String
-  TokType PrimType         = String
-  TokType Var              = Int
-  TokType Mu               = Unit
-  TokType (BinOp o)        = String
-  TokType (Punct p)        = Unit
-  TokType Whitespace       = Unit
+  TokType t = case t of
+    Ident         => String
+    PrimType      => String
+    Var           => Unit
+    Mu            => Unit
+    (BinOp o)     => String
+    (Punct p)     => Unit
+    Number        => Nat
+    Whitespace    => Unit
 
-  tokValue Ident       str = str
-  tokValue PrimType    str = str
-  tokValue Var         str = cast str
-  tokValue Mu          str = ()
-  tokValue (BinOp o)   str = str
-  tokValue (Punct p)   str = ()
-  tokValue Whitespace  str = ()
+  tokValue t str = case t of
+    Ident        => str
+    PrimType     => str
+    Var          => ()
+    Mu           => ()
+    (BinOp o)    => str
+    (Punct p)    => ()
+    Number       => cast str
+    Whitespace   => ()
 
 Eq TypeKind where
   (==) Ident      Ident      = True
@@ -53,6 +59,7 @@ Eq TypeKind where
   (==) (BinOp o1) (BinOp o2) = o1 == o2
   (==) (Punct p1) (Punct p2) = p1 == p2
   (==) Whitespace Whitespace = True
+  (==) Number     Number     = True
   (==) _          _          = False
 
 Show TypeKind where
@@ -63,6 +70,7 @@ Show TypeKind where
   show (BinOp x)  = "BinOp"
   show (Punct x)  = "Punct"
   show Whitespace = "Whitespace"
+  show Number     = "Number"
 
 TypeToken : Type
 TypeToken = Token TypeKind

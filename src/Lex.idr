@@ -19,6 +19,9 @@ primType = exact "Unit" <|> exact "Void"
 mu : Lexer
 mu = exact "mu"
 
+var : Lexer
+var = exact "var"
+
 prod : Lexer
 prod = exact "*"
 
@@ -31,12 +34,18 @@ lparen = exact "("
 rparen : Lexer
 rparen = exact ")"
 
+nat : Lexer
+nat = digits
+
 typedefsTokenMap : TokenMap (Token TypeKind)
 typedefsTokenMap = toTokenMap
   [ (spaces   , Tok.Whitespace)
+  , (nat      , Tok.Number)
+  , (var      , Tok.Var)
   , (mu       , Tok.Mu)
   , (primType , Tok.PrimType)
   , (ident    , Tok.Ident)
+  , (digits   , Tok.Number)
   , (sum      , Tok.BinOp SumBO)
   , (prod     , Tok.BinOp ProdBO)
   , (lparen   , Tok.Punct LParen)
