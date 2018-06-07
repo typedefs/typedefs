@@ -6,4 +6,4 @@ export
 
 testSuite : IO ()
 testSuite = do
-     Test.Parse.testSuite
+  Test.Parse.testSuite
