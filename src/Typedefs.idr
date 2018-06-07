@@ -93,35 +93,3 @@ mutual
   showTDefs []          = ""
   showTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showTDefs xs
-
-{-q
-showTy x =
-  case x of
-    Ty0 => "0"
-    Ty1 => "1"
-    (a .+. b) => showOp "+" a b
-    (a .*. b) => showOp "*" a b
-  where
-    parens : String -> String
-    parens s = "(" ++ s ++ ")"
-    showOp : String -> Ty -> Ty -> String
-    showOp op x y = parens $ (showTy x) ++ " " ++ op ++ " " ++ (showTy y)
--}
-
--- interpreteren van type definities
---   tau : Ty -> Type
--- codec voor type definities
---   serialise : Ty -> Bits
---   deserialise : Bits -> Ty
--- codec voor termen van type
---   serialise : (t:Ty) -> x:(tau t) -> Bits
---   deserialise : Bits -> (t:Ty ** tau t)
-
--- prf (a .+. (b .+. c)) == ((a .+. b) .+. c)
-
--- prf Ty codec :
---   forall t:Ty. (serialise . deserialise) t == t
-
--- prf Term codec :
---   forall t:Ty. forall (x:tau t). (deserialise . serialise) t x == t
-
