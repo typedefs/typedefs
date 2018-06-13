@@ -10,6 +10,7 @@ modules = Types
         , AST
         , Parse
         , Typedefs
+        , Provider
 
         -- tests
         , Test.Typedefs
@@ -19,4 +20,4 @@ tests = Test.Typedefs.testSuite
 
 sourcedir = src
 
-pkgs = contrib
+pkgs = contrib, tparsec
