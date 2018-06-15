@@ -63,4 +63,4 @@ Then to interpret it, try
 # More information
 
 See [Examples.idr](src/Examples.idr). There is also a [work-in-progress document](https://hackmd.io/22MJzoZFRBycNiDgN1nKKg)
-describing the work in progress.
+describing the work in progress, and [Jelle's musings on Typedefs and regular languages](hackmd.io/4htwL7Z6QlCyimKc98exJA).
