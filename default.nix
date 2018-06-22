@@ -7,5 +7,6 @@ stdenv.mkDerivation rec {
   buildInputs = [
     idris
     idrisPackages.contrib
+    idrisPackages.tparsec
   ];
 }
