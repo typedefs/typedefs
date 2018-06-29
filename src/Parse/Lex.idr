@@ -36,7 +36,7 @@ rparen = exact ")"
 nat : Lexer
 nat = digits
 
-typedefsTokenMap : TokenMap (Token TypeKind)
+typedefsTokenMap : TokenMap TypeToken
 typedefsTokenMap = toTokenMap
   [ (spaces   , Tok.Whitespace)
   , (nat      , Tok.Number)
@@ -45,8 +45,8 @@ typedefsTokenMap = toTokenMap
   , (primType , Tok.PrimType)
   , (ident    , Tok.Ident)
   , (digits   , Tok.Number)
-  , (sum      , Tok.BinOp SumBO)
-  , (prod     , Tok.BinOp ProdBO)
+  , (sum      , Tok.NOp SumNO)
+  , (prod     , Tok.NOp ProdNO)
   , (lparen   , Tok.Punct LParen)
   , (rparen   , Tok.Punct RParen)
   ]

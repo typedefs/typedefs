@@ -23,15 +23,13 @@ astify str = do
   parseTypedef tokens
 
 testParseAST : String -> IO ()
-testParseAST str = (do
-  putStrLn . show $ map text          <$> tokens
-  putStrLn . show $ map (show . kind) <$> tokens
-  putStrLn . show $ astify str
-  putStrLn ""
-  )
+testParseAST str = do printLn $ map Token.text    <$> tokens
+                      printLn $ map (show . kind) <$> tokens
+                      printLn $ astify str
+                      putStrLn ""
   where
-    tokens : Maybe (List TypeToken)
-    tokens = filter (not . Lex.isTDWhitespace) <$> Lex.typedef str
+  tokens : Maybe (List TypeToken)
+  tokens = filter (not . Lex.isTDWhitespace) <$> Lex.typedef str
 
 testSuite : IO ()
 testSuite = do
@@ -46,9 +44,10 @@ testSuite = do
   testParseAST "(mu list (* Unit Unit))"
   testParseAST "(* Unit Unit)"
   testParseAST "(+ Unit Void)"
+  testParseAST "(+ Unit Unit Void)"
+  testParseAST "(* Void Unit Void)"
   testParseAST "(+ Unit (* (var 0) Void))"
 
   putStrLn "-- ill-formed terms ------------------------------------------------------------"
   putStrLn ""
   testParseAST "(+ Unit * Unit Void)"
-  testParseAST "(+ Unit Unit Void)"
