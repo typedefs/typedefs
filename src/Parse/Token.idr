@@ -1,10 +1,9 @@
-module Token
+module Parse.Token
 
 import Text.Lexer
 
 %default total
-%access public
-export
+%access public export
 
 data BinOpType = SumBO | ProdBO
 

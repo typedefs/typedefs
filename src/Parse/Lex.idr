@@ -1,10 +1,9 @@
-module Lex
+module Parse.Lex
 
 import Text.Lexer
-import Token as Tok
+import Parse.Token as Tok
 
-%access public
-export
+%access public export
 
 isTDWhitespace : TypeToken -> Bool
 isTDWhitespace tok = kind tok == Tok.Whitespace

@@ -6,9 +6,10 @@ main = Examples
 
 modules = Types
         , Token
-        , Lex
-        , AST
+        , Parse.Lex
+        , Parse.AST
         , Parse
+        , TParse
         , Typedefs
         , Provider
 

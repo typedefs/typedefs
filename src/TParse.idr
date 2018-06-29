@@ -16,8 +16,8 @@ Parser' = Parser (SizedList Char) Char Maybe
 andbox : All (Box (Parser' s) :-> Box (Parser' t) :-> Box (Parser' (s, t)))
 andbox {s} {t} p q = map2 {a=Parser' s} {b=Parser' t} (\p, q => and p q) p q
 
-tdef : All (Parser' AST.TDef)
-tdef = 
+tdefAst : All (Parser' AST.TDef)
+tdefAst = 
   fix (Parser' AST.TDef) $ \rec => 
     alts [ cmap AST.Void                      $ withSpaces (string "Void")
          , cmap AST.Unit                      $ withSpaces (string "Unit")
@@ -27,6 +27,7 @@ tdef =
          , map (\(nam,el) => AST.Mu nam [el]) $ parens (rand (withSpaces (string "mu")) (and (withSpaces alphas) rec))
          ]
 
+-- TODO included in latest TParsec         
 parseMaybe : (Tokenizer tok, MonadRun mn) =>
         String -> (All (Parser (SizedList tok) tok mn a)) -> Maybe a
 parseMaybe str p =

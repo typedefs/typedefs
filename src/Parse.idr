@@ -2,14 +2,14 @@ module Parse
 
 import Text.Lexer
 import Text.Parser
-import Lex as Lex
+
 import Types
-import Token as Tok
 import AST as AST
+import Parse.Lex as Lex
+import Parse.Token as Tok
 
 %default total
-%access public
-export
+%access public export
 
 ident : Grammar TypeToken True String
 ident = do
