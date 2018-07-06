@@ -12,7 +12,7 @@ import TParse
 
 testParseAST : String -> IO ()
 testParseAST str = do putStrLn $ "'" ++ str ++ "'"
-                      putStrLn . show $ parseMaybe str tdefAst
+                      putStrLn . show $ TParse.parseMaybe str tdefAst
                       putStrLn ""
 
 testSuite : IO ()
@@ -29,8 +29,11 @@ testSuite = do
   testParseAST "(* Unit Unit)"
   testParseAST "(+ Unit Void)"
   testParseAST "(+ Unit (* (var 0) Void))"
+  testParseAST "(+ Unit Unit Void)"
+  testParseAST "(+ Unit Unit Void (* Unit Void))"
 
   putStrLn "-- ill-formed terms ------------------------------------------------------------"
   putStrLn ""
+  testParseAST "(*)"
+  testParseAST "(+ Unit)"
   testParseAST "(+ Unit * Unit Void)"
-  testParseAST "(+ Unit Unit Void)"
