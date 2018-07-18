@@ -1,9 +1,5 @@
 package typedefs
 
-executable = examples
-
-main = Examples
-
 modules = Types
         , Token
         , Lex
@@ -11,10 +7,6 @@ modules = Types
         , Parse
         , Typedefs
         , Provider
-
-        -- tests
-        , Test.Typedefs
-        , Test.Parse
 
 tests = Test.Typedefs.testSuite
 

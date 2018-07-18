@@ -1,9 +1,12 @@
+sources=src
 executable=examples
 
-${executable}: src
+all: build ${executable}
+
+build: ${sources}
 	idris --build typedefs.ipkg
-run:
-	./${executable}
+install: ${sources}
+	idris --install typedefs.ipkg
 test:
 	idris --testpkg typedefs.ipkg
 repl: ${sources}
@@ -12,3 +15,8 @@ doc:
 	idris --mkdoc typedefs.ipkg
 clean:
 	idris --clean typedefs.ipkg
+
+${executable}: ${sources}
+	idris --build typedefs-examples.ipkg
+run:
+	./${executable}

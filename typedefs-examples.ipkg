@@ -1,0 +1,11 @@
+package typedefs-examples
+
+executable = examples
+
+main = Examples
+
+tests = Test.Typedefs.testSuite
+
+sourcedir = src
+
+pkgs = contrib, tparsec
