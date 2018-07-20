@@ -97,7 +97,7 @@ curly : String -> String
 curly s = "{" ++ s ++ "}"
 
 showOp : String -> List String -> String
-showOp op xs = parens $ op ++ " " ++ unwords xs
+showOp op xs = parens $ unwords $ intersperse op xs
 
 mutual
   showTDef : TDef n -> String
