@@ -57,7 +57,6 @@ mutual
     where 
     args []                 = T0
     args [(_,m)]            = m
-    args [(_,m),(_,l)]      = TSum [m, l]
     args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
 
 ------ meta ----------

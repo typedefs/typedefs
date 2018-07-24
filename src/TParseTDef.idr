@@ -19,11 +19,11 @@ length = S . length . tail
 toVect : (nel : NEList a) -> Vect (length nel) a
 toVect (MkNEList h t) = h :: fromList t
 
--- `Vect n (m : Nat ** P m)` decorated with chained proofs of maximality
-data VMax : Nat -> Nat -> (Nat -> Type) -> Type where
-  VMEnd : (x : Nat) -> (px : p x) -> VMax (S Z) x p
-  VMConsLess : (x : Nat) -> (px : p x) -> VMax k y p -> LTE x y -> VMax (S k) y p
-  VMConsMore : (x : Nat) -> (px : p x) -> VMax k y p -> LTE y x -> VMax (S k) x p
+-- `Vect (S n) (m : Nat ** P m)` decorated with chained proofs of maximality
+data VMax : (len : Nat) -> (max : Nat) -> (p : Nat -> Type) -> Type where
+  VMEnd      : (x : Nat) -> (px : p x)                                -> VMax (S Z)   x   p
+  VMConsLess : (x : Nat) -> (px : p x) -> VMax len max p -> LTE x max -> VMax (S len) max p
+  VMConsMore : (x : Nat) -> (px : p x) -> VMax len max p -> LTE max x -> VMax (S len) x   p
 
 -- find maximum and decorate input Vect
 toVMax : Vect (S k) (n ** p n) -> (m ** VMax (S k) m p)
@@ -54,20 +54,20 @@ minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
 weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
-weakenTDef T0             m    prf = T0
-weakenTDef T1             m    prf = T1
+weakenTDef T0             _    _   = T0
+weakenTDef T1             _    _   = T1
 weakenTDef (TSum xs)      m    prf =
   TSum $ assert_total $ map (\t => weakenTDef t m prf) xs
 weakenTDef (TProd xs)     m    prf =
   TProd $ assert_total $ map (\t => weakenTDef t m prf) xs
-weakenTDef (TVar i)       Z    prf = absurd prf
+weakenTDef (TVar _)       Z    prf = absurd prf
 weakenTDef (TVar {n} i)  (S m) prf =
   let prf' = fromLteSucc prf in
   rewrite sym $ minusPlus n m prf' in
   rewrite plusCommutative (m `minus` n) n in
   TVar $ weakenN ((-) m n {smaller = prf'}) i
-weakenTDef (TMu nm xs)    m    prf =
-  TMu nm $ assert_total $ map (\(nm', td) => (nm', weakenTDef td (S m) (LTESucc prf))) xs
+weakenTDef (TMu nam xs)   m    prf =
+  TMu nam $ assert_total $ map (\(nm, td) => (nm, weakenTDef td (S m) (LTESucc prf))) xs
 
 ---
 
@@ -78,39 +78,37 @@ tdef : All (Parser' (n ** TDef n))
 tdef = fix _ $ \rec =>
   alts [ cmap (Z ** T0) $ withSpaces (string "Void")
        , cmap (Z ** T0) $ withSpaces (string "Unit")
-       , map (\((n1**x),nel) =>
+       , map (\(x,nel) =>
                -- find the upper bound and weaken all elements to it
-               let vs = (n1**x) :: (head nel) :: (Vect.fromList $ tail nel)
-                   (mx**vx) = toVMax vs
-                  in
-               (mx ** TProd $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))) $
+               let (mx**vx) = toVMax (x :: toVect nel) in
+               (mx ** TProd $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
+             ) $
          parens (rand (withSpaces (char '*'))
                 (map2 {a=Parser' _} {b=Parser' _}
                       (\p, q => and p q)
                       (map {a=Parser' _} withSpaces rec)
                       (map {a=Parser' _} (nelist . withSpaces) rec)))
-       , map (\((n1**x),nel) =>
-               let vs = (n1**x) :: (head nel) :: (Vect.fromList $ tail nel)
-                   (mx**vx) = toVMax vs
-                  in
-               (mx ** TSum $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))) $
+       , map (\(x,nel) =>
+               let (mx**vx) = toVMax (x :: toVect nel) in
+               (mx ** TSum $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
+             ) $
          parens (rand (withSpaces (char '+'))
                 (map2 {a=Parser' _} {b=Parser' _}
                       (\p, q => and p q)
                       (map {a=Parser' _} withSpaces rec)
                       (map {a=Parser' _} (nelist . withSpaces) rec)))
-       , map (\n => (S n ** TVar (last {n}))) $
+       , map (\n => (S n ** TVar $ last {n})) $
          parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
        , guardM (\(nam, nel) =>
-                 -- rountrip through Vect/VMax to avoid introducing decorated List
+                 -- roundtrip through Vect/VMax to avoid introducing decorated List
                  let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
                        -- push names under sigma to fit in VMax
-                       map (\(nam',(n**td)) => (n**(nam',td))) $ toVect nel
+                       map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
                      (mx**vx) = toVMax vs
                    in
                  case mx of
                    Z => Nothing
-                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nam',td)) => (nam', weakenTDef td (S m) lte)) (fromVMax vx))
+                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
                 ) $
          parens (rand (withSpaces (string "mu"))
                       (and (withSpaces alphas)
