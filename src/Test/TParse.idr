@@ -1,35 +1,19 @@
-module Test.Parse
+module Test.TParse
 
-import Text.Parser
+import TParsec
+import TParsec.Running
 
 import AST as AST
-import Typedefs as Typedefs
-import Parse
-import Parse.Lex as Lex
-import Parse.Token as Tok
+import TParse
 
 %access public export
 
 -- TODO render errors
-parseTypedef : List TypeToken -> Maybe AST.TDef
-parseTypedef toks =
-  case parse typedef (filter (not . Lex.isTDWhitespace) toks) of
-       Right (t, []) => Just t
-       _             => Nothing
-
-astify : String -> Maybe AST.TDef
-astify str = do
-  tokens <- Lex.typedef str
-  parseTypedef tokens
 
 testParseAST : String -> IO ()
-testParseAST str = do printLn $ map Token.text    <$> tokens
-                      printLn $ map (show . kind) <$> tokens
-                      printLn $ astify str
+testParseAST str = do putStrLn $ "'" ++ str ++ "'"
+                      putStrLn . show $ TParse.parseMaybe str tdefAst
                       putStrLn ""
-  where
-  tokens : Maybe (List TypeToken)
-  tokens = filter (not . Lex.isTDWhitespace) <$> Lex.typedef str
 
 testSuite : IO ()
 testSuite = do

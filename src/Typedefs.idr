@@ -19,10 +19,10 @@ data TDef : (n:Nat) -> Type where
   T1 :                                         TDef n
 
   ||| The coproduct type
-  TSum :  TDef n -> TDef n                  -> TDef n
+  TSum :            Vect (2 + k) (TDef n)   -> TDef n
 
   ||| The product type
-  TProd : TDef n -> TDef n                  -> TDef n
+  TProd :           Vect (2 + k) (TDef n)   -> TDef n
 
   ||| A type variable
   ||| @i De Bruijn index
@@ -40,21 +40,32 @@ mutual
   ||| typedef. The De Bruijn indices in the `TVar`s in this typedef will be
   ||| mapped onto (i.e. instantiated at) the Idris types in `tvars`.
   Ty : Vect n Type -> TDef n -> Type
-  Ty tvars T0          = Void
-  Ty tvars T1          = Unit
-  Ty tvars (TSum x y)  = Either (Ty tvars x) (Ty tvars y)
-  Ty tvars (TProd x y) = Pair   (Ty tvars x) (Ty tvars y)
-  Ty tvars (TVar v)    = Vect.index v tvars
-  Ty tvars (TMu _ m)   = Mu tvars (args m)
-    where args []          = T0
-          args [(_,m)]     = m
-          args ((_,m)::ms) = TSum m (args ms)
+  Ty     tvars T0         = Void
+  Ty     tvars T1         = Unit
+  Ty {n} tvars (TSum xs)  = tsum xs
+    where
+    tsum : Vect (2 + _) (TDef n) -> Type
+    tsum [x, y]              = Either (Ty tvars x) (Ty tvars y)
+    tsum (x :: y :: z :: zs) = Either (Ty tvars x) (tsum (y :: z :: zs))
+  Ty {n} tvars (TProd xs) = tprod xs
+    where
+    tprod : Vect (2 + _) (TDef n) -> Type
+    tprod [x, y]              = Pair (Ty tvars x) (Ty tvars y)
+    tprod (x :: y :: z :: zs) = Pair (Ty tvars x) (tprod (y :: z :: zs))
+  Ty     tvars (TVar v)   = Vect.index v tvars
+  Ty     tvars (TMu _ m)  = Mu tvars (args m)
+    where 
+    args []                 = T0
+    args [(_,m)]            = m
+    args [(_,m),(_,l)]      = TSum [m, l]
+    args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
 
 ------ meta ----------
 
 pow : Nat -> TDef n -> TDef n
-pow Z _ = T1
-pow (S n) a = TProd a (pow n a)
+pow Z         _ = T1
+pow (S Z)     a = a
+pow (S (S n)) a = TProd (a :: a :: replicate n a)
 
 ------- compile to Idris ? -----
 
@@ -62,12 +73,20 @@ defType : String -> String -> String
 defType name def = name ++ " : Type\n" ++ name ++ " = " ++ def
 
 compileClosed : TDef n -> String
-compileClosed T0          = "Void"
-compileClosed T1          = "Unit"
-compileClosed (TSum x y)  = "Either (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
-compileClosed (TProd x y) = "Pair (" ++ compileClosed x ++ ") (" ++  compileClosed y ++ ")"
-compileClosed (TMu _ x)   = "TMu: nope"
-compileClosed (TVar x)    = "TVar: nope"
+compileClosed T0         = "Void"
+compileClosed T1         = "Unit"
+compileClosed (TSum xs)  = tsum xs 
+  where
+  tsum : Vect (2 + _) (TDef n) -> String
+  tsum [x, y]              = "Either (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
+  tsum (x :: y :: z :: zs) = "Either (" ++ compileClosed x ++ ") (" ++ tsum (y :: z :: zs) ++ ")"
+compileClosed (TProd xs) = tprod xs
+  where
+  tprod : Vect (2 + _) (TDef n) -> String
+  tprod [x, y]              = "Pair (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
+  tprod (x :: y :: z :: zs) = "Pair (" ++ compileClosed x ++ ") (" ++ tprod (y :: z :: zs) ++ ")"
+compileClosed (TMu _ x)  = "TMu: nope"
+compileClosed (TVar x)   = "TVar: nope"
 
 -------- printing -------
 
@@ -77,17 +96,17 @@ parens s = "(" ++ s ++ ")"
 curly : String -> String
 curly s = "{" ++ s ++ "}"
 
-showOp : String -> String -> String -> String
-showOp op x y = parens $ x ++ " " ++ op ++ " " ++ y
+showOp : String -> List String -> String
+showOp op xs = parens $ unwords $ intersperse op xs
 
 mutual
   showTDef : TDef n -> String
-  showTDef T0          = "0"
-  showTDef T1          = "1"
-  showTDef (TSum x y)  = showOp "+" (showTDef x) (showTDef y)
-  showTDef (TProd x y) = showOp "*" (showTDef x) (showTDef y)
-  showTDef (TVar x)    = curly $ show $ toNat x
-  showTDef (TMu n ms)  = n ++ " = mu [" ++ (showTDefs ms) ++ "]"
+  showTDef T0         = "0"
+  showTDef T1         = "1"
+  showTDef (TSum xs)  = showOp "+" (toList $ assert_total $ map showTDef xs)
+  showTDef (TProd xs) = showOp "*" (toList $ assert_total $ map showTDef xs)
+  showTDef (TVar x)   = curly $ show $ toNat x
+  showTDef (TMu n ms) = n ++ " = mu [" ++ (showTDefs ms) ++ "]"
 
   showTDefs : List (Pair Name (TDef n)) -> String
   showTDefs []          = ""

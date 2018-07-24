@@ -1,16 +1,16 @@
-module Token
+module Parse.Token
 
 import Text.Lexer
 
 %default total
-%access public
-export
+%access public export
 
-data BinOpType = SumBO | ProdBO
+-- two n-ary operations
+data NOpType = SumNO | ProdNO
 
-Eq BinOpType where
-  (==) SumBO  SumBO  = True
-  (==) ProdBO ProdBO = True
+Eq NOpType where
+  (==) SumNO  SumNO  = True
+  (==) ProdNO ProdNO = True
   (==) _      _      = False
 
 data ParenType = LParen | RParen
@@ -25,7 +25,7 @@ data TypeKind
   | PrimType
   | Var
   | Mu
-  | BinOp BinOpType
+  | NOp NOpType
   | Punct ParenType
   | Number
   | Whitespace
@@ -36,7 +36,7 @@ TokenKind TypeKind where
     PrimType      => String
     Var           => Unit
     Mu            => Unit
-    (BinOp o)     => String
+    (NOp o)       => String
     (Punct p)     => Unit
     Number        => Nat
     Whitespace    => Unit
@@ -46,7 +46,7 @@ TokenKind TypeKind where
     PrimType     => str
     Var          => ()
     Mu           => ()
-    (BinOp o)    => str
+    (NOp o)      => str
     (Punct p)    => ()
     Number       => cast str
     Whitespace   => ()
@@ -56,7 +56,7 @@ Eq TypeKind where
   (==) PrimType   PrimType   = True
   (==) Var        Var        = True
   (==) Mu         Mu         = True
-  (==) (BinOp o1) (BinOp o2) = o1 == o2
+  (==) (NOp o1)   (NOp o2)   = o1 == o2
   (==) (Punct p1) (Punct p2) = p1 == p2
   (==) Whitespace Whitespace = True
   (==) Number     Number     = True
@@ -67,10 +67,18 @@ Show TypeKind where
   show PrimType   = "PrimType"
   show Var        = "Var"
   show Mu         = "Mu"
-  show (BinOp x)  = "BinOp"
+  show (NOp x)    = "NOp"
   show (Punct x)  = "Punct"
   show Whitespace = "Whitespace"
   show Number     = "Number"
 
 TypeToken : Type
 TypeToken = Token TypeKind
+
+-- for debug
+
+Show k => Show (Token k) where
+  show (Tok k t) = "Token '" ++ t ++ "':" ++ show k
+
+Show a => Show (TokenData a) where
+  show (MkToken l c a) = "TokenData l:" ++ show l ++ " c:" ++ show c ++ " " ++ show a

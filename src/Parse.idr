@@ -2,14 +2,14 @@ module Parse
 
 import Text.Lexer
 import Text.Parser
-import Lex as Lex
+
 import Types
-import Token as Tok
 import AST as AST
+import Parse.Lex as Lex
+import Parse.Token as Tok
 
 %default total
-%access public
-export
+%access public export
 
 ident : Grammar TypeToken True String
 ident = do
@@ -26,20 +26,20 @@ primType = do
     _      => fail "unrecognised primitive type"
 
 mutual
-  binOp : BinOpType -> (AST.TDef -> AST.TDef -> AST.TDef) -> Grammar TypeToken True AST.TDef
-  binOp op ctor = do
+  nOp : NOpType -> (AST.TDef -> AST.TDef -> List (AST.TDef) -> AST.TDef) -> Grammar TypeToken True AST.TDef
+  nOp op ctor = do
     match (Tok.Punct LParen)
-    match (Tok.BinOp op)
+    match (Tok.NOp op)
     x <- typedef
     y <- typedef
-    match (Tok.Punct RParen)
-    pure (ctor x y)
+    zs <- assert_total $ manyTill (match $ Tok.Punct RParen) typedef
+    pure (ctor x y zs)
 
   prod : Grammar TypeToken True AST.TDef
-  prod = binOp ProdBO AST.Prod
+  prod = nOp ProdNO AST.Prod
 
   sum : Grammar TypeToken True AST.TDef
-  sum = binOp SumBO AST.Sum
+  sum = nOp SumNO AST.Sum
 
   mu : Grammar TypeToken True AST.TDef
   mu = do
