@@ -53,21 +53,29 @@ minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
-weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
-weakenTDef T0             _    _   = T0
-weakenTDef T1             _    _   = T1
-weakenTDef (TSum xs)      m    prf =
-  TSum $ assert_total $ map (\t => weakenTDef t m prf) xs
-weakenTDef (TProd xs)     m    prf =
-  TProd $ assert_total $ map (\t => weakenTDef t m prf) xs
-weakenTDef (TVar _)       Z    prf = absurd prf
-weakenTDef (TVar {n} i)  (S m) prf =
-  let prf' = fromLteSucc prf in
-  rewrite sym $ minusPlus n m prf' in
-  rewrite plusCommutative (m `minus` n) n in
-  TVar $ weakenN ((-) m n {smaller = prf'}) i
-weakenTDef (TMu nam xs)   m    prf =
-  TMu nam $ assert_total $ map (\(nm, td) => (nm, weakenTDef td (S m) (LTESucc prf))) xs
+mutual                            
+  weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
+  weakenTDef T0             _    _   = T0
+  weakenTDef T1             _    _   = T1
+  weakenTDef (TSum xs)      m    prf = TSum $ weakenTDefs xs m prf
+  weakenTDef (TProd xs)     m    prf = TProd $ weakenTDefs xs m prf
+  weakenTDef (TVar _)       Z    prf = absurd prf
+  weakenTDef (TVar {n} i)  (S m) prf =
+    let prf' = fromLteSucc prf in
+    rewrite sym $ minusPlus n m prf' in
+    rewrite plusCommutative (m `minus` n) n in
+    TVar $ weakenN (m-n) i
+  weakenTDef (TMu nam xs)   m    prf =
+    TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+
+  weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
+  weakenTDefs []      _ _   = []
+  weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
+
+  weakenNTDefs : List (Name, TDef n) -> (m : Nat) -> LTE n m -> List (Name, TDef m)
+  weakenNTDefs []          _ _   = []
+  weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
+
 
 ---
 
@@ -91,22 +99,25 @@ tdef = fix _ $ \rec =>
                    in
                  case mx of
                    Z => Nothing
-                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
+                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) 
+                                                            (fromVMax vx))
                 ) $
          parens (rand (withSpaces (string "mu"))
                       (and (withSpaces alphas)
-                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) rec)))
+                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) 
+                                              rec)))
        ]
   where
   nary : All (Box (Parser' (n ** TDef n)) 
           :-> Cst  Char 
-          :-> Cst ({k, m : Nat} -> Vect (2 + k) (TDef m) -> TDef m) 
+          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m) 
           :->      Parser' (n ** TDef n))
   nary rec sym con = 
     map (\(x,nel) =>
           -- find the upper bound and weaken all elements to it
           let (mx**vx) = toVMax (x :: toVect nel) in
-          (mx ** con {k=length $ tail nel} {m=mx} $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
+          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte) 
+                           (fromVMax vx))
         ) $
         parens (rand (withSpaces (char sym))
            (map2 {a=Parser' _} {b=Parser' _}
