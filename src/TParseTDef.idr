@@ -12,6 +12,13 @@ import Types
 %default total
 %access public export
 
+-- TODO included in latest TParsec
+length : NEList a -> Nat
+length = S . length . tail  
+
+toVect : (nel : NEList a) -> Vect (length nel) a
+toVect (MkNEList h t) = h :: fromList t
+
 -- `Vect n (m : Nat ** P m)` decorated with chained proofs of maximality
 data VMax : Nat -> Nat -> (Nat -> Type) -> Type where
   VMEnd : (x : Nat) -> (px : p x) -> VMax (S Z) x p
@@ -96,9 +103,9 @@ tdef = fix _ $ \rec =>
          parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
        , guardM (\(nam, nel) =>
                  -- rountrip through Vect/VMax to avoid introducing decorated List
-                 let vs : Vect (S (length (tail nel))) (n : Nat ** (String, TDef n)) =
+                 let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
                        -- push names under sigma to fit in VMax
-                       map (\(nam', (n ** td)) => (n ** (nam', td))) $ Vect.fromList $ NEList.toList nel
+                       map (\(nam',(n**td)) => (n**(nam',td))) $ toVect nel
                      (mx**vx) = toVMax vs
                    in
                  case mx of
