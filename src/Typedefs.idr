@@ -112,3 +112,6 @@ mutual
   showTDefs []          = ""
   showTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showTDefs xs
+
+Show (TDef n) where
+  show = showTDef

@@ -12,6 +12,7 @@ import Types
 %default total
 %access public export
 
+-- `Vect n (m : Nat ** P m)` decorated with chained proofs of maximality
 data VMax : Nat -> Nat -> (Nat -> Type) -> Type where
   VMEnd : (x : Nat) -> (px : p x) -> VMax (S Z) x p
   VMConsLess : (x : Nat) -> (px : p x) -> VMax k y p -> LTE x y -> VMax (S k) y p
@@ -19,10 +20,11 @@ data VMax : Nat -> Nat -> (Nat -> Type) -> Type where
 
 toVMax : Vect (S k) (n ** p n) -> (m ** VMax (S k) m p)
 toVMax [(x**px)] = (x ** VMEnd x px)
-toVMax ((x**px)::y::ys) = let (m**vmax) = toVMax (y::ys) in 
-                           case isLTE x m of 
-                             Yes prf =>   (m ** VMConsLess x px vmax prf)
-                             No contra => (x ** VMConsMore x px vmax (notLTImpliesGTE $ contra . lteSuccLeft))  
+toVMax ((x**px)::y::ys) = 
+  let (m**vmax) = toVMax (y::ys) in 
+  case isLTE x m of 
+    Yes prf =>   (m ** VMConsLess x px vmax prf)
+    No contra => (x ** VMConsMore x px vmax (notLTImpliesGTE $ contra . lteSuccLeft))  
 
 fromVMax : VMax k m p -> Vect k (n ** (LTE n m, p n))
 fromVMax {m} vm = go lteRefl vm
@@ -35,9 +37,9 @@ fromVMax {m} vm = go lteRefl vm
 ---
 
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
-minusPlus  Z     Z    lte = Refl
+minusPlus  Z     m    _   = rewrite plusZeroRightNeutral (m `minus` 0) in 
+                            minusZeroRight m
 minusPlus (S _)  Z    lte = absurd lte
-minusPlus  Z    (S m) lte = cong $ plusZeroRightNeutral m
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in 
                             cong $ minusPlus n m (fromLteSucc lte)
 
@@ -75,8 +77,8 @@ tdef = fix (Parser' (n ** TDef n)) $ \rec =>
          parens (rand (withSpaces (char '*')) 
                 (map2 {a=Parser' _} {b=Parser' _} 
                       (\p, q => and p q) 
-                      rec 
-                      (map {a=Parser' _} nelist rec)))
+                      (map {a=Parser' _} withSpaces rec)
+                      (map {a=Parser' _} (nelist . withSpaces) rec)))
        , map (\((n1**x),nel) => 
                let vs = (n1**x) :: (head nel) :: (Vect.fromList $ tail nel)
                    (mx**vx) = toVMax vs
@@ -86,6 +88,19 @@ tdef = fix (Parser' (n ** TDef n)) $ \rec =>
          parens (rand (withSpaces (char '+')) 
                 (map2 {a=Parser' _} {b=Parser' _} 
                       (\p, q => and p q) 
-                      rec 
-                      (map {a=Parser' _} nelist rec)))
+                      (map {a=Parser' _} withSpaces rec)
+                      (map {a=Parser' _} (nelist . withSpaces) rec)))
+       , map (\n => (S n ** TVar (last {n}))) $ 
+         parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
+       , guardM (\(nam, nel) => 
+                 let vs : Vect (S (length (tail nel))) (n : Nat ** (String, TDef n)) = map (\(nam', (n ** td)) => (n ** (nam', td))) (Vect.fromList $ NEList.toList nel) 
+                     (mx**vx) = toVMax vs
+                     vs' = fromVMax vx 
+                   in
+                 case mx of 
+                   Z => Nothing
+                   S m => Just (m ** TMu nam $ toList $ map (\(n**(lte,nam',td)) => (nam', weakenTDef td (S m) lte)) vs') 
+                ) $ 
+         parens (rand (withSpaces (string "mu")) (and (withSpaces alphas) 
+                                                 (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) rec)))
        ]
