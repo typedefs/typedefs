@@ -77,26 +77,9 @@ Parser' = Parser (SizedList Char) Char Maybe
 tdef : All (Parser' (n ** TDef n))
 tdef = fix _ $ \rec =>
   alts [ cmap (Z ** T0) $ withSpaces (string "Void")
-       , cmap (Z ** T0) $ withSpaces (string "Unit")
-       , map (\(x,nel) =>
-               -- find the upper bound and weaken all elements to it
-               let (mx**vx) = toVMax (x :: toVect nel) in
-               (mx ** TProd $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
-             ) $
-         parens (rand (withSpaces (char '*'))
-                (map2 {a=Parser' _} {b=Parser' _}
-                      (\p, q => and p q)
-                      (map {a=Parser' _} withSpaces rec)
-                      (map {a=Parser' _} (nelist . withSpaces) rec)))
-       , map (\(x,nel) =>
-               let (mx**vx) = toVMax (x :: toVect nel) in
-               (mx ** TSum $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
-             ) $
-         parens (rand (withSpaces (char '+'))
-                (map2 {a=Parser' _} {b=Parser' _}
-                      (\p, q => and p q)
-                      (map {a=Parser' _} withSpaces rec)
-                      (map {a=Parser' _} (nelist . withSpaces) rec)))
+       , cmap (Z ** T1) $ withSpaces (string "Unit")
+       , nary rec '*' TProd
+       , nary rec '+' TSum
        , map (\n => (S n ** TVar $ last {n})) $
          parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
        , guardM (\(nam, nel) =>
@@ -114,3 +97,19 @@ tdef = fix _ $ \rec =>
                       (and (withSpaces alphas)
                            (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) rec)))
        ]
+  where
+  nary : All (Box (Parser' (n ** TDef n)) 
+          :-> Cst  Char 
+          :-> Cst ({k, m : Nat} -> Vect (2 + k) (TDef m) -> TDef m) 
+          :->      Parser' (n ** TDef n))
+  nary rec sym con = 
+    map (\(x,nel) =>
+          -- find the upper bound and weaken all elements to it
+          let (mx**vx) = toVMax (x :: toVect nel) in
+          (mx ** con {k=length $ tail nel} {m=mx} $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
+        ) $
+        parens (rand (withSpaces (char sym))
+           (map2 {a=Parser' _} {b=Parser' _}
+                 (\p, q => and p q)
+                 (map {a=Parser' _} withSpaces rec)
+                 (map {a=Parser' _} (nelist . withSpaces) rec)))
