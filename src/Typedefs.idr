@@ -57,7 +57,6 @@ mutual
     where 
     args []                 = T0
     args [(_,m)]            = m
-    args [(_,m),(_,l)]      = TSum [m, l]
     args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
 
 ------ meta ----------
@@ -96,19 +95,27 @@ parens s = "(" ++ s ++ ")"
 curly : String -> String
 curly s = "{" ++ s ++ "}"
 
-showOp : String -> List String -> String
-showOp op xs = parens $ unwords $ intersperse op xs
+square : String -> String
+square s = "[" ++ s ++ "]"
 
 mutual
   showTDef : TDef n -> String
   showTDef T0         = "0"
   showTDef T1         = "1"
-  showTDef (TSum xs)  = showOp "+" (toList $ assert_total $ map showTDef xs)
-  showTDef (TProd xs) = showOp "*" (toList $ assert_total $ map showTDef xs)
+  showTDef (TSum xs)  = parens $ showOp "+" xs
+  showTDef (TProd xs) = parens $ showOp "*" xs
   showTDef (TVar x)   = curly $ show $ toNat x
-  showTDef (TMu n ms) = n ++ " = mu [" ++ (showTDefs ms) ++ "]"
+  showTDef (TMu n ms) = n ++ " = mu " ++ square (showNTDefs ms)
 
-  showTDefs : List (Pair Name (TDef n)) -> String
-  showTDefs []          = ""
-  showTDefs [(n,x)]     = n ++ ": " ++ showTDef x
-  showTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showTDefs xs
+  showOp : String -> Vect k (TDef n) -> String
+  showOp _  []         = "" 
+  showOp _  [x]        = showTDef x 
+  showOp op (x::y::ys) = showTDef x ++ " " ++ op ++ " " ++ showOp op (y::ys)
+
+  showNTDefs : List (Name, TDef n) -> String
+  showNTDefs []          = ""
+  showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
+  showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs
+
+Show (TDef n) where
+  show = showTDef

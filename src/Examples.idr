@@ -29,7 +29,7 @@ just a = Right
 
 ||| `TDef 1` means the `list` type we're defining contains 1 type variable
 list : TDef 1
-list = TMu "list" ([("nil", T1), ("cons", TProd [TVar 1, TVar 0])])
+list = TMu "list" [("nil", T1), ("cons", TProd [TVar 1, TVar 0])]
 
 ||| The `Ty` function applied in the result type takes a typedef and constructs
 ||| a corresponding Idris type. In this example, the typedef is `list : TDef 1`,
