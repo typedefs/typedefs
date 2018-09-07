@@ -1,0 +1,13 @@
+package typedefs-examples
+
+executable = examples.js
+
+main = Examples
+
+tests = Test.Typedefs.testSuite
+
+sourcedir = src
+
+pkgs = contrib, tparsec
+
+opts = "--codegen javascript"

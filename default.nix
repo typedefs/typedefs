@@ -63,4 +63,5 @@ let
 in {
   typedefs = usepkgs.callPackage ./typedefs.nix {};
   typedefs-examples = usepkgs.callPackage ./typedefs-examples.nix {};
+  typedefs-examples-js = usepkgs.callPackage ./typedefs-examples-js.nix {};
 }
