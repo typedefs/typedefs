@@ -5,7 +5,7 @@ let
 in
 
 build-idris-package {
-  name = "typedefs-examples-js";
+  name = "typedefs-parser-js";
   version = "dev";
   src = ./.;
 
@@ -16,11 +16,12 @@ build-idris-package {
   ];
 
   postInstall = ''
-    install -D examples.js $out/bin/typedefs-examples.js
+    install -D parser.js $out/share/typedefs/js/typedefs-parser.js
+    install -D js/typedefs-parser.html $out/share/typedefs/js/typedefs-parser.html
   '';
 
   meta = {
-    description = "Programming language agnostic type construction language based on polynomials - examples";
+    description = "Programming language agnostic type construction language based on polynomials - parser - JavaScript";
     homepage = "http://typedefs.com";
   };
 }

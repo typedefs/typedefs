@@ -1,0 +1,13 @@
+package typedefs-parser-js
+
+executable = parser.js
+
+main = ParserJS
+
+tests = Test.Typedefs.testSuite
+
+sourcedir = src
+
+pkgs = contrib, tparsec, js
+
+opts = "--codegen javascript"

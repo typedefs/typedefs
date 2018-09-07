@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Typedefs parser</title>
+  </head>
+  <body>
+    <h1>Typedefs parser</h1>
+
+    <form>
+      <p>
+        <label>Source:</label><br/>
+        <input type="text" id="s" name="s" size="80" />
+        <input type="submit" value="Parse" />
+      </p>
+      <p>
+        <label>Result:</label><br/>
+        <input type="text" id="r" size="80" />
+      </p>
+    </form>
+
+    <script>
+      function getSource() { return decodeURI(location.search.substring(3)).replace(/\+/g, ' ') }
+      function setSource(s) { document.getElementById("s").value = s }
+      function setResult(r) { document.getElementById("r").value = r }
+      setSource(getSource());
+    </script>
+    <script src="typedefs-parser.js"></script>
+  </body>
+</html>
