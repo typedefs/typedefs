@@ -6,7 +6,7 @@ import Typedefs
 ------ example: bits -
 
 bit : TDef Z
-bit = TSum T1 T1
+bit = TSum [T1, T1]
 
 byte : TDef Z
 byte = pow 8 bit
@@ -17,7 +17,7 @@ test = Ty [] bit
 ----- example: maybe -
 
 maybe : TDef 1
-maybe = TSum T1 (TVar 0)
+maybe = TSum [T1, TVar 0]
 
 nothing : (a : Type) -> Ty [a] Main.maybe
 nothing _ = Left ()
@@ -29,7 +29,7 @@ just a = Right
 
 ||| `TDef 1` means the `list` type we're defining contains 1 type variable
 list : TDef 1
-list = TMu "list" ([("nil", T1), ("cons", TProd (TVar 1) (TVar 0))])
+list = TMu "list" [("nil", T1), ("cons", TProd [TVar 1, TVar 0])]
 
 ||| The `Ty` function applied in the result type takes a typedef and constructs
 ||| a corresponding Idris type. In this example, the typedef is `list : TDef 1`,
