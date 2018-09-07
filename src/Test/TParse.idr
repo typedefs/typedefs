@@ -12,7 +12,7 @@ import TParse
 
 testParseAST : String -> IO ()
 testParseAST str = do putStrLn $ "'" ++ str ++ "'"
-                      putStrLn . show $ TParse.parseMaybe str tdefAst
+                      putStrLn . show $ parseMaybe str tdefAst
                       putStrLn ""
 
 testSuite : IO ()

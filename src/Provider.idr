@@ -11,8 +11,9 @@ import TParse
 %default total
 
 provideTP : String -> IO (Provider AST.TDef)
-provideTP s = case TParsec.Running.parseMaybe s tdef of
+provideTP s = case parseMaybe s tdef of
   Just r => pure $ Provide r
   Nothing => pure $ Error "parse error"
 
 %provide (typdef : AST.TDef) with provideTP "(mu list (* Unit Unit))"
+x
