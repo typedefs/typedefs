@@ -5,8 +5,7 @@
   , noBase ? false
   , name
   , version
-  , ipkgName ? "*"
-  , extraInstallPhase ? ""
+  , ipkgName ? name
   , extraBuildInputs ? []
   , ...
   }@attrs:
@@ -16,8 +15,8 @@ let
     ++ lib.optional (!noBase) idrisPackages.base;
   idris-with-packages = idrisPackages.with-packages allIdrisDeps;
   newAttrs = builtins.removeAttrs attrs [
-    "idrisDeps" "extraBuildInputs" "extraInstallPhase"
-    "name" "version" "ipkgName" "noBase" "noPrelude"
+    "idrisDeps" "noPrelude" "noBase"
+    "name" "version" "ipkgName" "extraBuildInputs"
   ] // {
     meta = attrs.meta // {
       platforms = attrs.meta.platforms or idrisPackages.idris.meta.platforms;
@@ -34,23 +33,29 @@ stdenv.mkDerivation ({
   # opts = -i ../../path/to/package
   # rather than the declarative pkgs attribute so we have to rewrite the path.
   postPatch = ''
+    runHook prePatch
     sed -i ${ipkgName}.ipkg -e "/^opts/ s|-i \\.\\./|-i ${idris-with-packages}/libs/|g"
   '';
 
   buildPhase = ''
+    runHook preBuild
     idris --build ${ipkgName}.ipkg
+    runHook postBuild
   '';
 
   checkPhase = ''
+    runHook preCheck
     if grep -q test ${ipkgName}.ipkg; then
       idris --testpkg ${ipkgName}.ipkg
     fi
+    runHook postCheck
   '';
 
   installPhase = ''
+    runHook preInstall
     idris --install ${ipkgName}.ipkg --ibcsubdir $out/libs
     IDRIS_DOC_PATH=$out/doc idris --installdoc ${ipkgName}.ipkg || true
-    ${extraInstallPhase}
+    runHook postInstall
   '';
 
 } // newAttrs)

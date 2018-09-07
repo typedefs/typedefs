@@ -2,12 +2,10 @@
 
 let
   build-idris-package = pkgs.callPackage ./.build-idris-package.nix {};
-  name = "typedefs-examples";
 in
 
 build-idris-package {
-  inherit name;
-  ipkgName = name;
+  name = "typedefs-examples";
   version = "dev";
   src = ./.;
 
@@ -16,7 +14,7 @@ build-idris-package {
     tparsec
   ];
 
-  extraInstallPhase = ''
+  postInstall = ''
     install -D examples $out/bin/typedefs-examples
   '';
 

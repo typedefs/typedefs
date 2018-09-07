@@ -2,12 +2,10 @@
 
 let
   build-idris-package = pkgs.callPackage ./.build-idris-package.nix {};
-  name = "typedefs";
 in
 
 build-idris-package {
-  inherit name;
-  ipkgName = name;
+  name = "typedefs";
   version = "dev";
   src = ./.;
 
