@@ -11,9 +11,9 @@ import TParse
 %default total
 
 provideTP : String -> IO (Provider AST.TDef)
-provideTP s = case parseMaybe s tdef of
+provideTP s = case parseMaybe s tdefAst of
   Just r => pure $ Provide r
   Nothing => pure $ Error "parse error"
 
-%provide (typdef : AST.TDef) with provideTP "(mu list (* Unit Unit))"
-x
+-- FIXME: parse error
+-- %provide (typedef : AST.TDef) with provideTP "(mu list (* Unit Unit))"
