@@ -11,7 +11,7 @@ build-idris-package {
 
   idrisDeps = with idrisPackages; [
     contrib
-    idrisPackages.tparsec
+    tparsec
   ];
 
   meta = {

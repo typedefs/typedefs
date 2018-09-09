@@ -2,8 +2,9 @@ package typedefs
 
 modules = Types
         , Token
+        , AST
         , Parse.Lex
-        , Parse.AST
+        , Parse.Token
         , Parse
         , TParse
         , Typedefs
