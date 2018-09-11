@@ -2,7 +2,7 @@ module TParse
 
 import TParsec
 import TParsec.Running
-import TParsec.NEList
+import Data.NEList
 
 import AST as AST
 import Types
@@ -11,7 +11,7 @@ import Types
 %access public export
 
 Parser' : Type -> Nat -> Type
-Parser' = Parser (SizedList Char) Char Maybe
+Parser' = Parser TParsecU (sizedtok Char) --(SizedList Char) Char Maybe
 
 tdefAst : All (Parser' AST.TDef)
 tdefAst =

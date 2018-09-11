@@ -4,20 +4,13 @@ import Data.Vect
 
 import TParsec
 import TParsec.Running
-import TParsec.NEList
+import Data.NEList
 
 import Typedefs
 import Types
 
 %default total
 %access public export
-
--- TODO included in latest TParsec
-length : NEList a -> Nat
-length = S . length . tail  
-
-toVect : (nel : NEList a) -> Vect (length nel) a
-toVect (MkNEList h t) = h :: fromList t
 
 -- `Vect (S n) (m : Nat ** P m)` decorated with chained proofs of maximality
 data VMax : (len : Nat) -> (max : Nat) -> (p : Nat -> Type) -> Type where
@@ -80,12 +73,13 @@ mutual
 ---
 
 Parser' : Type -> Nat -> Type
-Parser' = Parser (SizedList Char) Char Maybe
+Parser' = Parser TParsecU (sizedtok Char)
 
 tdef : All (Parser' (n ** TDef n))
 tdef = fix _ $ \rec =>
-  alts [ cmap (Z ** T0) $ withSpaces (string "Void")
-       , cmap (Z ** T1) $ withSpaces (string "Unit")
+  withSpaces $
+  alts [ cmap (Z ** T0) $ string "Void"
+       , cmap (Z ** T1) $ string "Unit"
        , nary rec '*' TProd
        , nary rec '+' TSum
        , map (\n => (S n ** TVar $ last {n})) $
@@ -104,7 +98,7 @@ tdef = fix _ $ \rec =>
                 ) $
          parens (rand (withSpaces (string "mu"))
                       (and (withSpaces alphas)
-                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) 
+                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                               rec)))
        ]
   where
