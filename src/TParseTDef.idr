@@ -1,23 +1,16 @@
 module TParse
 
-import Data.Vect
-
 import TParsec
 import TParsec.Running
-import TParsec.NEList
+import Data.NEList
 
 import Typedefs
 import Types
 
+import Data.Vect
+
 %default total
 %access public export
-
--- TODO included in latest TParsec
-length : NEList a -> Nat
-length = S . length . tail  
-
-toVect : (nel : NEList a) -> Vect (length nel) a
-toVect (MkNEList h t) = h :: fromList t
 
 -- `Vect (S n) (m : Nat ** P m)` decorated with chained proofs of maximality
 data VMax : (len : Nat) -> (max : Nat) -> (p : Nat -> Type) -> Type where
@@ -53,7 +46,7 @@ minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
-mutual                            
+mutual
   weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
   weakenTDef T0             _    _   = T0
   weakenTDef T1             _    _   = T1
@@ -80,12 +73,13 @@ mutual
 ---
 
 Parser' : Type -> Nat -> Type
-Parser' = Parser (SizedList Char) Char Maybe
+Parser' = Parser TParsecU (sizedtok Char)
 
 tdef : All (Parser' (n ** TDef n))
 tdef = fix _ $ \rec =>
-  alts [ cmap (Z ** T0) $ withSpaces (string "Void")
-       , cmap (Z ** T1) $ withSpaces (string "Unit")
+  withSpaces $
+  alts [ cmap (Z ** T0) $ string "Void"
+       , cmap (Z ** T1) $ string "Unit"
        , nary rec '*' TProd
        , nary rec '+' TSum
        , map (\n => (S n ** TVar $ last {n})) $
@@ -99,24 +93,24 @@ tdef = fix _ $ \rec =>
                    in
                  case mx of
                    Z => Nothing
-                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) 
+                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
                                                             (fromVMax vx))
                 ) $
          parens (rand (withSpaces (string "mu"))
                       (and (withSpaces alphas)
-                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) 
+                           (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                               rec)))
        ]
   where
-  nary : All (Box (Parser' (n ** TDef n)) 
-          :-> Cst  Char 
-          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m) 
+  nary : All (Box (Parser' (n ** TDef n))
+          :-> Cst  Char
+          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
           :->      Parser' (n ** TDef n))
-  nary rec sym con = 
+  nary rec sym con =
     map (\(x,nel) =>
           -- find the upper bound and weaken all elements to it
           let (mx**vx) = toVMax (x :: toVect nel) in
-          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte) 
+          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
                            (fromVMax vx))
         ) $
         parens (rand (withSpaces (char sym))

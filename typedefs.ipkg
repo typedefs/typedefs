@@ -6,6 +6,7 @@ modules = Types
         , Parse.Token
         , Parse
         , TParse
+        , TParseTDef
         , Typedefs
         , Provider
         , Test.Typedefs

@@ -45,7 +45,7 @@ stdenv.mkDerivation ({
 
   checkPhase = ''
     runHook preCheck
-    if grep -q test ${ipkgName}.ipkg; then
+    if grep -q tests ${ipkgName}.ipkg; then
       idris --testpkg ${ipkgName}.ipkg
     fi
     runHook postCheck
