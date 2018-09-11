@@ -8,6 +8,8 @@ example, `idris typedefs.idr`:
 
 # Quick introduction
 
+For some background on algebraic data types, see [The algebra (and calculus!) of algebraic data types](https://codewords.recurse.com/issues/three/algebra-and-calculus-of-algebraic-data-types) by Joel Burget.
+
 We have the `TDef` data-type family that represents a "Type Definition".
 It is indexed by a `n:Nat` argument, the number of type variables.
 
@@ -23,7 +25,7 @@ Its constructors are:
 To interpret a type definition as an *Idris* type, there is a `Ty` function,
 which you can think of as having this type
 ```idris
-Ty : (α₁ ... αⱼ) → (TDef j) → Type 
+Ty : (α₁ ... αⱼ) → (TDef j) → Type
 ```
 The function `Ty` takes a vector of `Type`s of length `j`, and a type
 definition with `j` holes. It returns an idris `Type`.
