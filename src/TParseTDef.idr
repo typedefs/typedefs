@@ -1,13 +1,13 @@
 module TParse
 
-import Data.Vect
-
 import TParsec
 import TParsec.Running
 import Data.NEList
 
 import Typedefs
 import Types
+
+import Data.Vect
 
 %default total
 %access public export
@@ -46,7 +46,7 @@ minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
-mutual                            
+mutual
   weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
   weakenTDef T0             _    _   = T0
   weakenTDef T1             _    _   = T1
@@ -93,7 +93,7 @@ tdef = fix _ $ \rec =>
                    in
                  case mx of
                    Z => Nothing
-                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) 
+                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
                                                             (fromVMax vx))
                 ) $
          parens (rand (withSpaces (string "mu"))
@@ -102,15 +102,15 @@ tdef = fix _ $ \rec =>
                                               rec)))
        ]
   where
-  nary : All (Box (Parser' (n ** TDef n)) 
-          :-> Cst  Char 
-          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m) 
+  nary : All (Box (Parser' (n ** TDef n))
+          :-> Cst  Char
+          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
           :->      Parser' (n ** TDef n))
-  nary rec sym con = 
+  nary rec sym con =
     map (\(x,nel) =>
           -- find the upper bound and weaken all elements to it
           let (mx**vx) = toVMax (x :: toVect nel) in
-          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte) 
+          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
                            (fromVMax vx))
         ) $
         parens (rand (withSpaces (char sym))
