@@ -20,11 +20,11 @@
     </form>
 
     <script>
-      function getSource() { return decodeURI(location.search.substring(3)).replace(/[\r\n+]/g, ' ') }
+      function getSource() { return unescape(decodeURI(location.search.substring(3)).replace(/[\r\n+]/g, ' ')) }
       function setSource(s) { document.getElementById("s").value = s }
       function setResult(r) { document.getElementById("r").value = r }
 
-      setSource(decodeURI(location.search.substring(3)).replace(/[+]/g, ' '));
+      setSource(unescape(decodeURI(location.search.substring(3)).replace(/[+]/g, ' ')));
     </script>
     <script src="typedefs-parser.js"></script>
   </body>
