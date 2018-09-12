@@ -1,7 +1,6 @@
 module Test.Typedefs
 
 import Test.TParse
-import Test.Parse
 
 export
 testTParse : IO ()

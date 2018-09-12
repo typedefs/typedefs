@@ -1,18 +1,12 @@
 package typedefs
 
 modules = Types
-        , AST
-        , Parse.Lex
-        , Parse.Token
-        , Parse
-        , TParse
         , TParseTDef
         , Typedefs
         , Provider
         , Test.Typedefs
 
 tests = Test.Typedefs.testTParse
-      , Test.Typedefs.testParse
 
 sourcedir = src
 
