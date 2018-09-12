@@ -4,15 +4,19 @@ Programming language agnostic type construction language based on polynomials.
 
 See http://typedefs.com/
 
-## Example
+## Examples
 
-`idris typedefs.idr`:
+```
+$ cd src
+$ idris Examples.idr
+```
 
-	*typedefs> showTDef list
-	"list = mu [nil: 1, cons: ({1} * {0})]" : String
-	*typedefs> showTDef maybe
-	"(1 + {0})" : String
-
+```
+*Examples> showTDef list
+"list = mu [nil: 1, cons: ({1} * {0})]" : String
+*Examples> showTDef maybe
+"(1 + {0})" : String
+```
 
 ## Quick introduction
 
@@ -35,6 +39,7 @@ which you can think of as having this type
 ```idris
 Ty : (α₁ ... αⱼ) → (TDef j) → Type
 ```
+
 The function `Ty` takes a vector of `Type`s of length `j`, and a type
 definition with `j` holes. It returns an idris `Type`.
 
@@ -43,17 +48,20 @@ For example, define `bit` to be a zero-argument type definition `1 + 1`.
     bit : TDef Z
     bit = TSum T1 T1
 ```
+
 Then to interpret this type as an Idris `Type`, run
 ```idris
 
     Ty [] bit
     Either () () : Type
 ```
+
 To define a parametric recursive type, such as list,
 ```idris
 list : (a : type) -> mu (nil : 1 + cons : (a * list a))
 ```
-in code, try this
+
+in code, try
 ```idris
     list : TDef 1
     list = TMu "list" (
@@ -62,6 +70,7 @@ in code, try this
          ]
     )
 ```
+
 Then to interpret it, try
 ```idris
 
@@ -92,16 +101,21 @@ Build a specific package:
 ### Makefile
 
 Build everything:
+
 `make`
 
 Build a specific package:
+
 `make build pkg=typedefs`
 
 Build documentation:
+
 `make doc-all`
 
 Run tests:
+
 `make test-all`
 
 Clean up:
+
 `make clean-all`
