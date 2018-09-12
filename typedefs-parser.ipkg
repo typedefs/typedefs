@@ -4,8 +4,6 @@ executable = parser
 
 main = Parser
 
-tests = Test.Typedefs.testSuite
-
 sourcedir = src
 
-pkgs = contrib, tparsec, effects
+pkgs = contrib, tparsec
