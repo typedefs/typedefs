@@ -4,6 +4,8 @@ Programming language agnostic type construction language based on polynomials.
 
 See http://typedefs.com/
 
+[![Build Status](https://travis-ci.com/typedefs/typedefs.svg?branch=master)](https://travis-ci.com/typedefs/typedefs)
+
 ## Examples
 
 ```
