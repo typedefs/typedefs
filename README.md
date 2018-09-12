@@ -1,4 +1,12 @@
-example, `idris typedefs.idr`:
+# Typedefs
+
+Programming language agnostic type construction language based on polynomials.
+
+See http://typedefs.com/
+
+## Example
+
+`idris typedefs.idr`:
 
 	*typedefs> showTDef list
 	"list = mu [nil: 1, cons: ({1} * {0})]" : String
@@ -6,7 +14,7 @@ example, `idris typedefs.idr`:
 	"(1 + {0})" : String
 
 
-# Quick introduction
+## Quick introduction
 
 For some background on algebraic data types, see [The algebra (and calculus!) of algebraic data types](https://codewords.recurse.com/issues/three/algebra-and-calculus-of-algebraic-data-types) by Joel Burget.
 
@@ -62,7 +70,38 @@ Then to interpret it, try
        (TSum T1 (TProd (TVar 1) (TVar 0)) : Type
 ```
 
-# More information
+## More information
 
 See [Examples.idr](src/Examples.idr). There is also a [work-in-progress document](https://hackmd.io/22MJzoZFRBycNiDgN1nKKg)
 describing the work in progress, and [Jelle's musings on Typedefs and regular languages](https://hackmd.io/4htwL7Z6QlCyimKc98exJA).
+
+## Building
+
+Nix package descriptions and a Makefile is provided with build instructions.
+
+### Nix packages
+
+Build everything:
+
+`nix-build`
+
+Build a specific package:
+
+`nix-build -A typedefs.nix`
+
+### Makefile
+
+Build everything:
+`make`
+
+Build a specific package:
+`make build pkg=typedefs`
+
+Build documentation:
+`make doc-all`
+
+Run tests:
+`make test-all`
+
+Clean up:
+`make clean-all`
