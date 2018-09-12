@@ -1,137 +1,86 @@
 module Test.Parse
 
-import Text.Parser
+import TParsec
+import TParsec.Running
 
-import AST as AST
-import Typedefs as Typedefs
+import Typedefs
 import Parse
-import Parse.Lex as Lex
-import Parse.Token as Tok
 
 import Specdris.Spec
 
 %access public export
-
--- TODO render errors
-parseTypedef : List TypeToken -> Maybe AST.TDef
-parseTypedef toks =
-  case parse typedef (filter (not . Lex.isTDWhitespace) toks) of
-       Right (t, []) => Just t
-       _             => Nothing
-
-astify : String -> Maybe AST.TDef
-astify str = do
-  tokens <- Lex.typedef str
-  parseTypedef tokens
-
-showAST : String -> String
-showAST str = do
-  show $ astify str
-
-testParseAST : String -> IO ()
-testParseAST str = do printLn $ map Token.text    <$> tokens
-                      printLn $ map (show . kind) <$> tokens
-                      printLn $ astify str
-                      putStrLn ""
-  where
-  tokens : Maybe (List TypeToken)
-  tokens = filter (not . Lex.isTDWhitespace) <$> Lex.typedef str
-
 
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "well-formed terms" $ do
 
-    it "Void" $ do
-      showAST "Void"
-        `shouldBe` "Just Void"
+    it "\"0\"" $ do
+      showTDef "0"
+        `shouldBe` "Just (0 ** 0)"
 
-    it "Unit" $ do
-      showAST "Unit"
-        `shouldBe` "Just Unit"
+    it "\"1\"" $ do
+      showTDef "1"
+        `shouldBe` "Just (0 ** 1)"
 
-    it "(var 123)" $ do
-      showAST "(var 123)"
-        `shouldBe` "Just (Var 123)"
+    it "\"(var 123)\"" $ do
+      showTDef "(var 123)"
+        `shouldBe` "Just (124 ** {123})"
 
-    it "(var 0) " $ do
-      showAST "(var 0) "
-        `shouldBe` "Just (Var 0)"
+    it "\"(var 0)\"" $ do
+      showTDef "(var 0)"
+        `shouldBe` "Just (1 ** {0})"
 
-    it "(mu list Unit)" $ do
-      showAST "(mu list Unit)"
-        `shouldBe` "Just (Mu \"list\" [Unit])"
+    it "\"(var 0) \"" $ do
+      showTDef "(var 0) "
+        `shouldBe` "Just (1 ** {0})"
 
-    it "(mu list (* Unit Unit))" $ do
-      showAST "(mu list (* Unit Unit))"
-        `shouldBe` "Just (Mu \"list\" [(Prod Unit Unit)])"
+    it "\"(mu list (cons (* (var 1) (var 0))))\"" $ do
+      showTDef "(mu list (cons (* (var 1) (var 0))))"
+        `shouldBe` "Just (1 ** list = mu [cons: ({1} * {0})])"
 
-    it "(mu list (cons (* (var 1) (var 0))))" $ do
-      showAST "(mu list (cons (* (var 1) (var 0))))"
-        `shouldBe` "Just (Mu \"list\" [(Prod (Var 1) (Var 0))])"
+    it "\"(mu list (nil 1) (cons (* (var 1) (var 0))))\"" $ do
+      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0))))"
+        `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "(mu list (nil Unit) (cons (* (var 1) (var 0))))" $ do
-      showAST "(mu list (nil Unit) (cons (* (var 1) (var 0))))"
-        `shouldBe` "Just (Mu \"list\" [Unit, (Prod (Var 1) (Var 0))])"
+    it "\"(mu list (nil 1) (cons (* (var 1) (var 0)) ))\"" $ do
+      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0)) ))"
+        `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "(* Unit Unit)" $ do
-      showAST "(* Unit Unit)"
-        `shouldBe` "Just (Prod Unit Unit)"
+    it "\"(* 1 1)\"" $ do
+      showTDef "(* 1 1)"
+        `shouldBe` "Just (0 ** (1 * 1))"
 
-    it "(+ Unit Void)" $ do
-      showAST "(+ Unit Void)"
-        `shouldBe` "Just (Sum Unit Void)"
+    it "\"(+ 1 0)\"" $ do
+      showTDef "(+ 1 0)"
+        `shouldBe` "Just (0 ** (1 + 0))"
 
-    it "(+ Unit (* (var 0) Void))" $ do
-      showAST "(+ Unit (* (var 0) Void))"
-        `shouldBe` "Just (Sum Unit (Prod (Var 0) Void))"
+    it "\"(+ 1 (* (var 0) 0))\"" $ do
+      showTDef "(+ 1 (* (var 0) 0))"
+        `shouldBe` "Just (1 ** (1 + ({0} * 0)))"
 
-    it "(+ Unit Unit Void)" $ do
-      showAST "(+ Unit Unit Void)"
-        `shouldBe` "Just (Sum Unit Unit Void)"
+    it "\"(+ 1 1 0)\"" $ do
+      showTDef "(+ 1 1 0)"
+        `shouldBe` "Just (0 ** (1 + 1 + 0))"
 
-    it "(+ Unit Unit Void (* Unit Void))" $ do
-      showAST "(+ Unit Unit Void (* Unit Void))"
-        `shouldBe` "Just (Sum Unit Unit Void (Prod Unit Void))"
+    it "\"(+ 1 1 0 (* 1 0))\"" $ do
+      showTDef "(+ 1 1 0 (* 1 0))"
+        `shouldBe` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
 
   describe "ill-formed terms" $ do
 
-    it "(*)" $ do
-      showAST "(*)"
+    it "\"(*)\" - <2 operands" $ do
+      showTDef "(*)"
         `shouldBe` "Nothing"
 
-    it "(+ Unit)" $ do
-      showAST "(+ Unit)"
+    it "\"(+ 1)\" - <2 operands" $ do
+      showTDef "(+ 1)"
         `shouldBe` "Nothing"
 
-    it "(+ Unit * Unit Void)" $ do
-      showAST "(+ Unit * Unit Void)"
+    it "\"(mu list (nil 1))\" - no free variables under mu" $ do
+      showTDef "(mu list (nil 1))"
         `shouldBe` "Nothing"
 
-testTokens : IO ()
-testTokens = do
-
-  putStrLn "-- well-formed terms -----------------------------------------------------------"
-  putStrLn ""
-
-  testParseAST "Void"
-  testParseAST "Unit"
-  testParseAST "(var 123)"
-  testParseAST "(var 0)"
-  testParseAST "(mu list Unit)"
-  testParseAST "(mu list (* Unit Unit))"
-  testParseAST "(mu list (cons (* (var 1) (var 0))))"
-  testParseAST "(mu list (nil Unit) (cons (* (var 1) (var 0))))"
-  testParseAST "(* Unit Unit)"
-  testParseAST "(+ Unit Void)"
-  testParseAST "(+ Unit (* (var 0) Void))"
-  testParseAST "(+ Unit Unit Void)"
-  testParseAST "(+ Unit Unit Void (* Unit Void))"
-
-  putStrLn "-- ill-formed terms ------------------------------------------------------------"
-  putStrLn ""
-
-  testParseAST "(*)"
-  testParseAST "(+ Unit)"
-  testParseAST "(+ Unit * Unit Void)"
+    it "\"(+ 1 * 1 0)\" - malformed" $ do
+      showTDef "(+ 1 * 1 0)"
+        `shouldBe` "Nothing"
