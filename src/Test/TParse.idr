@@ -19,12 +19,12 @@ testSuite = spec $ do
 
   describe "well-formed terms" $ do
 
-    it "\"Void\"" $ do
-      showTDef "Void"
+    it "\"0\"" $ do
+      showTDef "0"
         `shouldBe` "Just (0 ** 0)"
 
-    it "\"Unit\"" $ do
-      showTDef "Unit"
+    it "\"1\"" $ do
+      showTDef "1"
         `shouldBe` "Just (0 ** 1)"
 
     it "\"(var 123)\"" $ do
@@ -43,32 +43,32 @@ testSuite = spec $ do
       showTDef "(mu list (cons (* (var 1) (var 0))))"
         `shouldBe` "Just (1 ** list = mu [cons: ({1} * {0})])"
 
-    it "\"(mu list (nil Unit) (cons (* (var 1) (var 0))))\"" $ do
-      showTDef "(mu list (nil Unit) (cons (* (var 1) (var 0))))"
+    it "\"(mu list (nil 1) (cons (* (var 1) (var 0))))\"" $ do
+      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0))))"
         `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "\"(mu list (nil Unit) (cons (* (var 1) (var 0)) ))\"" $ do
-      showTDef "(mu list (nil Unit) (cons (* (var 1) (var 0)) ))"
+    it "\"(mu list (nil 1) (cons (* (var 1) (var 0)) ))\"" $ do
+      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0)) ))"
         `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "\"(* Unit Unit)\"" $ do
-      showTDef "(* Unit Unit)"
+    it "\"(* 1 1)\"" $ do
+      showTDef "(* 1 1)"
         `shouldBe` "Just (0 ** (1 * 1))"
 
-    it "\"(+ Unit Void)\"" $ do
-      showTDef "(+ Unit Void)"
+    it "\"(+ 1 0)\"" $ do
+      showTDef "(+ 1 0)"
         `shouldBe` "Just (0 ** (1 + 0))"
 
-    it "\"(+ Unit (* (var 0) Void))\"" $ do
-      showTDef "(+ Unit (* (var 0) Void))"
+    it "\"(+ 1 (* (var 0) 0))\"" $ do
+      showTDef "(+ 1 (* (var 0) 0))"
         `shouldBe` "Just (1 ** (1 + ({0} * 0)))"
 
-    it "\"(+ Unit Unit Void)\"" $ do
-      showTDef "(+ Unit Unit Void)"
+    it "\"(+ 1 1 0)\"" $ do
+      showTDef "(+ 1 1 0)"
         `shouldBe` "Just (0 ** (1 + 1 + 0))"
 
-    it "\"(+ Unit Unit Void (* Unit Void))\"" $ do
-      showTDef "(+ Unit Unit Void (* Unit Void))"
+    it "\"(+ 1 1 0 (* 1 0))\"" $ do
+      showTDef "(+ 1 1 0 (* 1 0))"
         `shouldBe` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
 
   describe "ill-formed terms" $ do
@@ -77,14 +77,14 @@ testSuite = spec $ do
       showTDef "(*)"
         `shouldBe` "Nothing"
 
-    it "\"(+ Unit)\" - <2 operands" $ do
-      showTDef "(+ Unit)"
+    it "\"(+ 1)\" - <2 operands" $ do
+      showTDef "(+ 1)"
         `shouldBe` "Nothing"
 
-    it "\"(mu list (nil Unit))\" - no free variables under mu" $ do
-      showTDef "(mu list (nil Unit))"
+    it "\"(mu list (nil 1))\" - no free variables under mu" $ do
+      showTDef "(mu list (nil 1))"
         `shouldBe` "Nothing"
 
-    it "\"(+ Unit * Unit Void)\" - malformed" $ do
-      showTDef "(+ Unit * Unit Void)"
+    it "\"(+ 1 * 1 0)\" - malformed" $ do
+      showTDef "(+ 1 * 1 0)"
         `shouldBe` "Nothing"

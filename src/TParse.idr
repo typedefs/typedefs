@@ -16,8 +16,8 @@ Parser' = Parser TParsecU (sizedtok Char) --(SizedList Char) Char Maybe
 tdefAst : All (Parser' AST.TDef)
 tdefAst =
   fix (Parser' AST.TDef) $ \rec =>
-    alts [ cmap AST.Void                                      $ withSpaces (string "Void")
-         , cmap AST.Unit                                      $ withSpaces (string "Unit")
+    alts [ cmap AST.Void                                      $ withSpaces (string "0")
+         , cmap AST.Unit                                      $ withSpaces (string "1")
          , map (\(x,nel) => AST.Prod x (head nel) (tail nel)) $ parens (rand (withSpaces (char '*'))
                                                                              (map2 {a=Parser' _} {b=Parser' _}
                                                                                    (\p, q => and p q)

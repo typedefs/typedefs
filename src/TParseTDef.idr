@@ -78,8 +78,8 @@ Parser' = Parser TParsecU (sizedtok Char)
 tdef : All (Parser' (n ** TDef n))
 tdef = fix _ $ \rec =>
   withSpaces $
-  alts [ cmap (Z ** T0) $ string "Void"
-       , cmap (Z ** T1) $ string "Unit"
+  alts [ cmap (Z ** T0) $ string "0"
+       , cmap (Z ** T1) $ string "1"
        , nary rec '*' TProd
        , nary rec '+' TSum
        , map (\n => (S n ** TVar $ last {n})) $
