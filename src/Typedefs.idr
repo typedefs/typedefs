@@ -10,7 +10,8 @@ import Types
 
 export
 
--- ||| @n The number of type variables in the type
+||| Type definition
+||| @n The number of type variables in the type
 data TDef : (n:Nat) -> Type where
   ||| The empty type
   T0 :                                         TDef n
@@ -54,7 +55,7 @@ mutual
     tprod (x :: y :: z :: zs) = Pair (Ty tvars x) (tprod (y :: z :: zs))
   Ty     tvars (TVar v)   = Vect.index v tvars
   Ty     tvars (TMu _ m)  = Mu tvars (args m)
-    where 
+    where
     args []                 = T0
     args [(_,m)]            = m
     args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
@@ -74,7 +75,7 @@ defType name def = name ++ " : Type\n" ++ name ++ " = " ++ def
 compileClosed : TDef n -> String
 compileClosed T0         = "Void"
 compileClosed T1         = "Unit"
-compileClosed (TSum xs)  = tsum xs 
+compileClosed (TSum xs)  = tsum xs
   where
   tsum : Vect (2 + _) (TDef n) -> String
   tsum [x, y]              = "Either (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
@@ -108,8 +109,8 @@ mutual
   showTDef (TMu n ms) = n ++ " = mu " ++ square (showNTDefs ms)
 
   showOp : String -> Vect k (TDef n) -> String
-  showOp _  []         = "" 
-  showOp _  [x]        = showTDef x 
+  showOp _  []         = ""
+  showOp _  [x]        = showTDef x
   showOp op (x::y::ys) = showTDef x ++ " " ++ op ++ " " ++ showOp op (y::ys)
 
   showNTDefs : List (Name, TDef n) -> String
