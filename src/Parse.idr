@@ -1,4 +1,4 @@
-module TParse
+module Parse
 
 import TParsec
 import TParsec.Running
@@ -69,7 +69,6 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
-
 ---
 
 Parser' : Type -> Nat -> Type
@@ -118,3 +117,6 @@ tdef = fix _ $ \rec =>
                  (\p, q => and p q)
                  (map {a=Parser' _} withSpaces rec)
                  (map {a=Parser' _} (nelist . withSpaces) rec)))
+
+showTDef : String -> String
+showTDef str = show $ parseMaybe str tdef

@@ -1,18 +1,14 @@
-module Test.TParse
+module Test.Parse
 
 import TParsec
 import TParsec.Running
 
 import Typedefs
-import TParseTDef
+import Parse
 
 import Specdris.Spec
 
 %access public export
-
-showTDef : String -> String
-showTDef str =
-  show $ parseMaybe str tdef
 
 testSuite : IO ()
 testSuite = spec $ do

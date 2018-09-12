@@ -2,11 +2,7 @@ import TParsec
 import TParsec.Running
 
 import Typedefs
-import TParseTDef
-
-showTDef : String -> String
-showTDef str = do
-  show $ parseMaybe str tdef
+import Parse
 
 getSource : JS_IO String
 getSource = foreign FFI_JS "getSource()" _

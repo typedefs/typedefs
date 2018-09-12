@@ -3,13 +3,13 @@ module Provider
 import TParsec
 import TParsec.Running
 
-import Types
-import TParseTDef
+import Typedefs
+import Parse
 
 %language TypeProviders
 %default total
 
-provideTP : String -> IO (Provider TDef)
+provideTP : String -> IO (Provider (n ** TDef n))
 provideTP s = case parseMaybe s tdef of
   Just r => pure $ Provide r
   Nothing => pure $ Error "parse error"
