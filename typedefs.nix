@@ -13,10 +13,8 @@ build-idris-package {
   src = ./.;
 
   idrisDeps = with idrisPackages; [
-    contrib
     tparsec
     specdris
-    js
   ];
 
   meta = {

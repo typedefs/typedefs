@@ -10,4 +10,4 @@ tests = Test.Typedefs.testParse
 
 sourcedir = src
 
-pkgs = contrib, tparsec, specdris
+pkgs = tparsec, specdris

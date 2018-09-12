@@ -9,14 +9,13 @@ See http://typedefs.com/
 ## Examples
 
 ```
-$ cd src
-$ idris Examples.idr
+$ idris -i src examples/Examples.idr
 ```
 
 ```
-*Examples> showTDef list
+*examples/Examples> showTDef list
 "list = mu [nil: 1, cons: ({1} * {0})]" : String
-*Examples> showTDef maybe
+*examples/Examples> showTDef maybe
 "(1 + {0})" : String
 ```
 
@@ -104,7 +103,11 @@ Build a specific package:
 
 Build everything:
 
-`make`
+```
+make build-lib
+sudo make install-lib
+make build-rest
+```
 
 Build a specific package:
 
@@ -117,6 +120,10 @@ Build documentation:
 Run tests:
 
 `make test-all`
+
+Install:
+
+`sudo make install-all`
 
 Clean up:
 
