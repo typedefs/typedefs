@@ -16,6 +16,7 @@ build-idris-package {
     contrib
     tparsec
     specdris
+    js
   ];
 
   meta = {
