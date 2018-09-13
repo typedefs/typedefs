@@ -3,7 +3,9 @@ package typedefs
 modules = Types
         , Parse
         , Typedefs
+        , TermCodec
         , Provider
+        , Backend.Haskell
         , Test.Typedefs
 
 tests = Test.Typedefs.testParse

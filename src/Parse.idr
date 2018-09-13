@@ -60,12 +60,14 @@ mutual
     TVar $ weakenN (m-n) i
   weakenTDef (TMu nam xs)   m    prf =
     TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TName nam x)   m    prf =
+    TName nam $ weakenTDef x m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
   weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
 
-  weakenNTDefs : List (Name, TDef n) -> (m : Nat) -> LTE n m -> List (Name, TDef m)
+  weakenNTDefs : Vect k (Name, TDef n) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef m)
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
@@ -92,13 +94,15 @@ tdef = fix _ $ \rec =>
                    in
                  case mx of
                    Z => Nothing
-                   S m => Just (m ** TMu nam $ toList $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
-                                                            (fromVMax vx))
+                   S m => Just (m ** TMu nam $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
+                                                   (fromVMax vx))
                 ) $
          parens (rand (withSpaces (string "mu"))
                       (and (withSpaces alphas)
                            (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                               rec)))
+       , map (\(nm, (n**td)) => (n ** TName nm td)) $ 
+         parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec)))
        ]
   where
   nary : All (Box (Parser' (n ** TDef n))
