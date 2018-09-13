@@ -5,6 +5,7 @@ let
   tparsec = pkgs.callPackage ./.tparsec.nix {
     inherit build-idris-package;
   };
+  typedefs = pkgs.callPackage ./typedefs.nix { };
 in
 
 build-idris-package {
@@ -13,15 +14,13 @@ build-idris-package {
   src = ./.;
 
   idrisDeps = with idrisPackages; [
-    contrib
-    tparsec
-    specdris
+    typedefs
     js
   ];
 
   postInstall = ''
-    install -D parser.js $out/share/typedefs/js/typedefs-parser.js
-    install -D js/typedefs-parser.html $out/share/typedefs/js/typedefs-parser.html
+    install -D typedefs_parser.js $out/share/typedefs/js/typedefs-parser.js
+    install -D parser.js/typedefs-parser.html $out/share/typedefs/js/typedefs-parser.html
   '';
 
   meta = {

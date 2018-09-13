@@ -1,9 +1,9 @@
 package typedefs-parser
 
-executable = parser
+executable = typedefs_parser
 
 main = Parser
 
-sourcedir = src
+sourcedir = parser
 
-pkgs = contrib, tparsec
+pkgs = typedefs

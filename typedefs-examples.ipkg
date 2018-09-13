@@ -1,11 +1,9 @@
 package typedefs-examples
 
-executable = examples
+executable = typedefs_examples
 
 main = Examples
 
-tests = Test.Typedefs.testSuite
+sourcedir = examples
 
-sourcedir = src
-
-pkgs = contrib, tparsec
+pkgs = typedefs

@@ -2,8 +2,12 @@ pkg=
 
 all: build-all doc-all test-all
 
-build-all:
+build-all: build-lib install-lib build-rest
+
+build-lib:
 	make build pkg=typedefs
+
+build-rest:
 	make build pkg=typedefs-examples
 	make build pkg=typedefs-parser
 	make build pkg=typedefs-parser-js
@@ -13,6 +17,15 @@ doc-all:
 
 test-all:
 	make test pkg=typedefs
+
+install-lib:
+	make install pkg=typedefs
+
+install-all:
+	make install pkg=typedefs
+	make install pkg=typedefs-examples
+	make install pkg=typedefs-parser
+	make install pkg=typedefs-parser-js
 
 clean-all:
 	make clean pkg=typedefs
