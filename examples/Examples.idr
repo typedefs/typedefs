@@ -3,6 +3,7 @@ import Data.Fin
 
 import Types
 import Typedefs
+import TermCodec
 import Backend.Haskell
 
 ------ example: bits -
@@ -79,6 +80,11 @@ listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, nat, TVar 0])]
   where
   nat : TDef 1
   nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
+
+serializeTest : String
+serializeTest = 
+  let ts = the (Vect 1 (t : Type ** t -> String)) [(_ ** show {ty=Int})] in 
+  serialize {ts} Main.maybe (Main.just Int 6)
 
 main : IO ()
 main = do

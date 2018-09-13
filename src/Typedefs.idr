@@ -27,41 +27,38 @@ data TDef : (n:Nat) -> Type where
 
   ||| A type variable
   ||| @i De Bruijn index
-  TVar :            (i:Fin (S n))           -> TDef (S n)
+  TVar :            (i:Fin (S n))             -> TDef (S n)
 
   ||| Mu
-  TMu :   Name   -> List (Name, TDef (S n)) -> TDef n
+  TMu :   Name   -> Vect k (Name, TDef (S n)) -> TDef n
 
-  TName : Name  -> TDef n -> TDef n
+  TName : Name   -> TDef n                    -> TDef n
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
     Inn : Ty (Mu tvars m :: tvars) m -> Mu tvars m
+
+  args : Vect k (String, TDef (S n)) -> TDef (S n)
+  args []                 = T0
+  args [(_,m)]            = m
+  args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd ms)
+
+  Tnary : Vect n Type -> Vect (2 + k) (TDef n) -> (Type -> Type -> Type) -> Type   
+  Tnary tvars [x, y]              c = c (Ty tvars x) (Ty tvars y)
+  Tnary tvars (x :: y :: z :: zs) c = c (Ty tvars x) (Tnary tvars (y :: z :: zs) c)
 
   ||| Interpret a type definition as an Idris `Type`. In `tvars : Vect n`, we
   ||| need to provide an Idris type for each of the `n` type variables in the
   ||| typedef. The De Bruijn indices in the `TVar`s in this typedef will be
   ||| mapped onto (i.e. instantiated at) the Idris types in `tvars`.
   Ty : Vect n Type -> TDef n -> Type
-  Ty     tvars T0         = Void
-  Ty     tvars T1         = Unit
-  Ty {n} tvars (TSum xs)  = tsum xs
-    where
-    tsum : Vect (2 + _) (TDef n) -> Type
-    tsum [x, y]              = Either (Ty tvars x) (Ty tvars y)
-    tsum (x :: y :: z :: zs) = Either (Ty tvars x) (tsum (y :: z :: zs))
-  Ty {n} tvars (TProd xs) = tprod xs
-    where
-    tprod : Vect (2 + _) (TDef n) -> Type
-    tprod [x, y]              = Pair (Ty tvars x) (Ty tvars y)
-    tprod (x :: y :: z :: zs) = Pair (Ty tvars x) (tprod (y :: z :: zs))
-  Ty     tvars (TVar v)   = Vect.index v tvars
-  Ty     tvars (TMu _ m)  = Mu tvars (args m)
-    where
-    args []                 = T0
-    args [(_,m)]            = m
-    args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
-  Ty   tvars (TName _ t) = Ty tvars t
+  Ty     tvars T0          = Void
+  Ty     tvars T1          = Unit
+  Ty {n} tvars (TSum xs)   = Tnary tvars xs Either 
+  Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
+  Ty     tvars (TVar v)    = Vect.index v tvars
+  Ty     tvars (TMu _ m)   = Mu tvars (args m)
+  Ty     tvars (TName _ t) = Ty tvars t
 
 ------ meta ----------
 
@@ -118,7 +115,7 @@ mutual
   showOp _  [x]        = showTDef x
   showOp op (x::y::ys) = showTDef x ++ " " ++ op ++ " " ++ showOp op (y::ys)
 
-  showNTDefs : List (Name, TDef n) -> String
+  showNTDefs : Vect k (Name, TDef n) -> String
   showNTDefs []          = ""
   showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs

@@ -15,8 +15,8 @@ Env k = Vect k (Either String String) -- left free / right bound
 withSep : String -> (a -> String) -> Vect k a -> String
 withSep sep fn xs = concat $ intersperse sep $ map fn xs
 
-withSep' : String -> (a -> String) -> List a -> String
-withSep' sep fn xs = concat $ intersperse sep $ map fn xs
+--withSep' : String -> (a -> String) -> List a -> String
+--withSep' sep fn xs = concat $ intersperse sep $ map fn xs
 
 guardPar : String -> String
 guardPar str = if any isSpace $ unpack str then parens str else str
@@ -47,7 +47,7 @@ makeDefs {n} e (TMu nam cs) =
              freeVars = withSep " " (either id (const "")) $ snd $ Vect.filter isLeft e
              dataName = if freeVars == "" then nam else nam ++ " " ++ freeVars
              newEnv = (Right (if freeVars == "" then dataName else parens dataName) :: e)
-             args = withSep' " | " (mkArg newEnv) cs
+             args = withSep " | " (mkArg newEnv) cs
            in
              do res <- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
                 put (nam :: st)
