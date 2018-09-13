@@ -32,6 +32,8 @@ data TDef : (n:Nat) -> Type where
   ||| Mu
   TMu :   Name   -> List (Name, TDef (S n)) -> TDef n
 
+  TName : Name  -> TDef n -> TDef n
+
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
     Inn : Ty (Mu tvars m :: tvars) m -> Mu tvars m
@@ -59,6 +61,7 @@ mutual
     args []                 = T0
     args [(_,m)]            = m
     args ((_,m)::(_,l)::ms) = TSum (m :: l :: map snd (fromList ms))
+  Ty   tvars (TName _ t) = Ty tvars t
 
 ------ meta ----------
 
@@ -87,6 +90,7 @@ compileClosed (TProd xs) = tprod xs
   tprod (x :: y :: z :: zs) = "Pair (" ++ compileClosed x ++ ") (" ++ tprod (y :: z :: zs) ++ ")"
 compileClosed (TMu _ x)  = "TMu: nope"
 compileClosed (TVar x)   = "TVar: nope"
+compileClosed (TName n x)   = "TName " ++ n ++ ": nope"
 
 -------- printing -------
 
@@ -107,6 +111,7 @@ mutual
   showTDef (TProd xs) = parens $ showOp "*" xs
   showTDef (TVar x)   = curly $ show $ toNat x
   showTDef (TMu n ms) = n ++ " = mu " ++ square (showNTDefs ms)
+  showTDef (TName n x) = n ++ square (showTDef x)
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""

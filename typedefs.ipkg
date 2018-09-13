@@ -4,6 +4,7 @@ modules = Types
         , Parse
         , Typedefs
         , Provider
+        , Backend.Haskell
         , Test.Typedefs
 
 tests = Test.Typedefs.testParse

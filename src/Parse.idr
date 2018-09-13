@@ -60,6 +60,8 @@ mutual
     TVar $ weakenN (m-n) i
   weakenTDef (TMu nam xs)   m    prf =
     TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TName nam x)   m    prf =
+    TName nam $ weakenTDef x m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
@@ -99,6 +101,8 @@ tdef = fix _ $ \rec =>
                       (and (withSpaces alphas)
                            (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                               rec)))
+       , map (\(nm, (n**td)) => (n ** TName nm td)) $ 
+         parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec)))
        ]
   where
   nary : All (Box (Parser' (n ** TDef n))
