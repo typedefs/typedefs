@@ -11,6 +11,7 @@ build-idris-package {
   name = "typedefs";
   version = "dev";
   src = ./.;
+  doCheck = true;
 
   idrisDeps = with idrisPackages; [
     tparsec
