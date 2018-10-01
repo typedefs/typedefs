@@ -2,37 +2,35 @@ module Typedefs
 
 import Data.Fin
 import Data.Vect
+
 import Types
 
 %default total
-
-%access public
-
-export
+%access public export
 
 ||| Type definition
 ||| @n The number of type variables in the type
 data TDef : (n:Nat) -> Type where
   ||| The empty type
-  T0 :                                         TDef n
+  T0    :                                      TDef n
 
   ||| The unit type
-  T1 :                                         TDef n
+  T1    :                                      TDef n
 
   ||| The coproduct type
-  TSum :            Vect (2 + k) (TDef n)   -> TDef n
+  TSum  :         Vect (2 + k) (TDef n)     -> TDef n
 
   ||| The product type
-  TProd :           Vect (2 + k) (TDef n)   -> TDef n
+  TProd :         Vect (2 + k) (TDef n)     -> TDef n
 
   ||| A type variable
   ||| @i De Bruijn index
-  TVar :            (i:Fin (S n))             -> TDef (S n)
+  TVar  :         (i:Fin (S n))             -> TDef (S n)
 
   ||| Mu
-  TMu :   Name   -> Vect k (Name, TDef (S n)) -> TDef n
+  TMu   : Name -> Vect k (Name, TDef (S n)) -> TDef n
 
-  TName : Name   -> TDef n                    -> TDef n
+  TName : Name -> TDef n                    -> TDef n
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -66,6 +64,39 @@ pow : Nat -> TDef n -> TDef n
 pow Z         _ = T1
 pow (S Z)     a = a
 pow (S (S n)) a = TProd (a :: a :: replicate n a)
+
+-- TODO add to stdlib?
+minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
+minusPlus  Z     m    _   = rewrite plusZeroRightNeutral (m `minus` 0) in
+                            minusZeroRight m
+minusPlus (S _)  Z    lte = absurd lte
+minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
+                            cong $ minusPlus n m (fromLteSucc lte)
+
+mutual
+  weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
+  weakenTDef T0             _    _   = T0
+  weakenTDef T1             _    _   = T1
+  weakenTDef (TSum xs)      m    prf = TSum $ weakenTDefs xs m prf
+  weakenTDef (TProd xs)     m    prf = TProd $ weakenTDefs xs m prf
+  weakenTDef (TVar _)       Z    prf = absurd prf
+  weakenTDef (TVar {n} i)  (S m) prf =
+    let prf' = fromLteSucc prf in
+    rewrite sym $ minusPlus n m prf' in
+    rewrite plusCommutative (m `minus` n) n in
+    TVar $ weakenN (m-n) i
+  weakenTDef (TMu nam xs)   m    prf =
+    TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TName nam x)   m    prf =
+    TName nam $ weakenTDef x m prf
+
+  weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
+  weakenTDefs []      _ _   = []
+  weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
+
+  weakenNTDefs : Vect k (Name, TDef n) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef m)
+  weakenNTDefs []          _ _   = []
+  weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
 ------- compile to Idris ? -----
 

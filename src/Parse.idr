@@ -38,41 +38,6 @@ fromVMax {m} vm = go lteRefl vm
 
 ---
 
--- TODO add to stdlib?
-minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
-minusPlus  Z     m    _   = rewrite plusZeroRightNeutral (m `minus` 0) in
-                            minusZeroRight m
-minusPlus (S _)  Z    lte = absurd lte
-minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
-                            cong $ minusPlus n m (fromLteSucc lte)
-
-mutual
-  weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
-  weakenTDef T0             _    _   = T0
-  weakenTDef T1             _    _   = T1
-  weakenTDef (TSum xs)      m    prf = TSum $ weakenTDefs xs m prf
-  weakenTDef (TProd xs)     m    prf = TProd $ weakenTDefs xs m prf
-  weakenTDef (TVar _)       Z    prf = absurd prf
-  weakenTDef (TVar {n} i)  (S m) prf =
-    let prf' = fromLteSucc prf in
-    rewrite sym $ minusPlus n m prf' in
-    rewrite plusCommutative (m `minus` n) n in
-    TVar $ weakenN (m-n) i
-  weakenTDef (TMu nam xs)   m    prf =
-    TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
-  weakenTDef (TName nam x)   m    prf =
-    TName nam $ weakenTDef x m prf
-
-  weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
-  weakenTDefs []      _ _   = []
-  weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
-
-  weakenNTDefs : Vect k (Name, TDef n) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef m)
-  weakenNTDefs []          _ _   = []
-  weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
-
----
-
 Parser' : Type -> Nat -> Type
 Parser' = Parser TParsecU (sizedtok Char)
 
@@ -86,7 +51,6 @@ tdef = fix _ $ \rec =>
        , map (\n => (S n ** TVar $ last {n})) $
          parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
        , guardM (\(nam, nel) =>
-                 -- roundtrip through Vect/VMax to avoid introducing decorated List
                  let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
                        -- push names under sigma to fit in VMax
                        map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
