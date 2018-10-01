@@ -6,7 +6,9 @@ modules = Types
         , TermCodec
         , Provider
         , Backend.Haskell
+        
         , Test.Typedefs
+        , Test.Haskell
 
 tests = Test.Typedefs.testParse
 
