@@ -9,4 +9,4 @@ setResult = foreign FFI_JS "setResult(%0)" _
 
 main : JS_IO ()
 main = do
-  setResult $ showTDef !getSource
+  setResult $ parseThenShowTDef !getSource

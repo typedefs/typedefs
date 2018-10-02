@@ -10,81 +10,50 @@ import Specdris.Spec
 
 %access public export
 
+itShouldParseAs : String -> String -> Tree (Either SpecInfo (IO' ffi SpecResult))
+itShouldParseAs input exp = it (quote input) $ (parseThenShowTDef input) `shouldBe` exp
+  where
+    quote : String -> String
+    quote s = "\"" ++ s ++ "\""
+
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "Parser tests: well-formed terms" $ do
+    "0" `itShouldParseAs` "Just (0 ** 0)"
 
-    it "\"0\"" $ 
-      showTDef "0"
-        `shouldBe` "Just (0 ** 0)"
+    "1" `itShouldParseAs` "Just (0 ** 1)"
 
-    it "\"1\"" $ 
-      showTDef "1"
-        `shouldBe` "Just (0 ** 1)"
+    "(var 123)" `itShouldParseAs` "Just (124 ** {123})"
 
-    it "\"(var 123)\"" $ 
-      showTDef "(var 123)"
-        `shouldBe` "Just (124 ** {123})"
+    "(var 0)" `itShouldParseAs` "Just (1 ** {0})"
 
-    it "\"(var 0)\"" $ 
-      showTDef "(var 0)"
-        `shouldBe` "Just (1 ** {0})"
+    "(var 0) " `itShouldParseAs` "Just (1 ** {0})"
 
-    it "\"(var 0) \"" $ 
-      showTDef "(var 0) "
-        `shouldBe` "Just (1 ** {0})"
+    "(name maybe (+ 1 (var 0)))" `itShouldParseAs` "Just (1 ** maybe[(1 + {0})])"
 
-    it "\"(name maybe (+ 1 (var 0)))\"" $
-      showTDef "(name maybe (+ 1 (var 0)))"
-        `shouldBe` "Just (1 ** maybe[(1 + {0})])"
+    "(mu list (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** list = mu [cons: ({1} * {0})])"
 
-    it "\"(mu list (cons (* (var 1) (var 0))))\"" $ 
-      showTDef "(mu list (cons (* (var 1) (var 0))))"
-        `shouldBe` "Just (1 ** list = mu [cons: ({1} * {0})])"
+    "(mu list (nil 1) (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "\"(mu list (nil 1) (cons (* (var 1) (var 0))))\"" $ 
-      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0))))"
-        `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
+    "(mu list (nil 1) (cons (* (var 1) (var 0)) ))" `itShouldParseAs` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
 
-    it "\"(mu list (nil 1) (cons (* (var 1) (var 0)) ))\"" $ 
-      showTDef "(mu list (nil 1) (cons (* (var 1) (var 0)) ))"
-        `shouldBe` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
+    "(* 1 1)" `itShouldParseAs` "Just (0 ** (1 * 1))"
 
-    it "\"(* 1 1)\"" $ 
-      showTDef "(* 1 1)"
-        `shouldBe` "Just (0 ** (1 * 1))"
+    "(+ 1 0)" `itShouldParseAs` "Just (0 ** (1 + 0))"
 
-    it "\"(+ 1 0)\"" $ 
-      showTDef "(+ 1 0)"
-        `shouldBe` "Just (0 ** (1 + 0))"
+    "(+ 1 (* (var 0) 0))" `itShouldParseAs` "Just (1 ** (1 + ({0} * 0)))"
 
-    it "\"(+ 1 (* (var 0) 0))\"" $ 
-      showTDef "(+ 1 (* (var 0) 0))"
-        `shouldBe` "Just (1 ** (1 + ({0} * 0)))"
+    "(+ 1 1 0)" `itShouldParseAs` "Just (0 ** (1 + 1 + 0))"
 
-    it "\"(+ 1 1 0)\"" $ 
-      showTDef "(+ 1 1 0)"
-        `shouldBe` "Just (0 ** (1 + 1 + 0))"
-
-    it "\"(+ 1 1 0 (* 1 0))\"" $ 
-      showTDef "(+ 1 1 0 (* 1 0))"
-        `shouldBe` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
+    "(+ 1 1 0 (* 1 0))" `itShouldParseAs` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
 
   describe "Parser tests: ill-formed terms" $ do
 
-    it "\"(*)\" - <2 operands" $ 
-      showTDef "(*)"
-        `shouldBe` "Nothing"
+    "(*)" `itShouldParseAs` "Nothing"
 
-    it "\"(+ 1)\" - <2 operands" $ 
-      showTDef "(+ 1)"
-        `shouldBe` "Nothing"
+    "(+ 1)" `itShouldParseAs` "Nothing"
 
-    it "\"(mu list (nil 1))\" - no free variables under mu" $ 
-      showTDef "(mu list (nil 1))"
-        `shouldBe` "Nothing"
+    "(mu list (nil 1))" `itShouldParseAs` "Nothing"
 
-    it "\"(+ 1 * 1 0)\" - malformed" $ 
-      showTDef "(+ 1 * 1 0)"
-        `shouldBe` "Nothing"
+    "(+ 1 * 1 0)" `itShouldParseAs` "Nothing"
