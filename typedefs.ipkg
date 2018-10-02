@@ -9,8 +9,9 @@ modules = Types
         
         , Test.Typedefs
         , Test.Haskell
+        , Test.TermCodec
 
-tests = Test.Typedefs.testParse
+tests = Test.Typedefs.testSuite
 
 sourcedir = src
 
