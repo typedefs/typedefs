@@ -35,6 +35,10 @@ testSuite = spec $ do
       showTDef "(var 0) "
         `shouldBe` "Just (1 ** {0})"
 
+    it "\"(name maybe (+ 1 (var 0)))\"" $
+      showTDef "(name maybe (+ 1 (var 0)))"
+        `shouldBe` "Just (1 ** maybe[(1 + {0})])"
+
     it "\"(mu list (cons (* (var 1) (var 0))))\"" $ 
       showTDef "(mu list (cons (* (var 1) (var 0))))"
         `shouldBe` "Just (1 ** list = mu [cons: ({1} * {0})])"
