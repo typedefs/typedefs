@@ -15,4 +15,4 @@ testSuite : IO ()
 testSuite = spec $ do
 
   describe "TermCodec" $ do
-    it "serialize something" $ (serialize {ts=[]} (T1) ()) `shouldBe` "(left 1)"
+    it "serialize something" $ (serialize {ts=[]} (T1) ()) `shouldBe` "()"
