@@ -139,7 +139,7 @@ mutual
   showTDef (TProd xs) = parens $ showOp "*" xs
   showTDef (TVar x)   = curly $ show $ toNat x
   showTDef (TMu n ms) = n ++ " = mu " ++ square (showNTDefs ms)
-  showTDef (TName n x) = n ++ square (showTDef x)
+  showTDef (TName n x) = n ++ " " ++ square (showTDef x)
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""

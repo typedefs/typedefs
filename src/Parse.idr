@@ -88,3 +88,6 @@ tdef = fix _ $ \rec =>
 
 parseThenShowTDef : String -> String
 parseThenShowTDef str = show $ parseMaybe str tdef
+
+parseThenStrFun : String -> ((n ** TDef n) -> String) -> String
+parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseMaybe str tdef
