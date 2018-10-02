@@ -86,5 +86,5 @@ tdef = fix _ $ \rec =>
                  (map {a=Parser' _} withSpaces rec)
                  (map {a=Parser' _} (nelist . withSpaces) rec)))
 
-showTDef : String -> String
-showTDef str = show $ parseMaybe str tdef
+parseThenShowTDef : String -> String
+parseThenShowTDef str = show $ parseMaybe str tdef
