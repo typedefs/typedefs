@@ -15,7 +15,7 @@ mutual
   serializeMu {ts} {td} (Inn x) = assert_total $ serialize {ts=(Mu (map DPair.fst ts) td ** serializeMu)::ts} td x
 
   serialize : {ts : Vect n (t: Type ** t -> String)} -> (t : TDef n) -> (tm : Ty (map DPair.fst ts) t) -> String
-  serialize                                  T1                                  ()        = 
+  serialize                                T1                                   ()        =
     "()"
   
   serialize                                (TSum [x,y])                         (Left l)  = 
@@ -27,7 +27,7 @@ mutual
   serialize                                (TSum (x::y::z::zs))                 (Left l)  = 
     "(left " ++ serialize x l ++ ")"
   
-  serialize                           (TSum (x::y::z::zs))                 (Right r) = 
+  serialize                                (TSum (x::y::z::zs))                 (Right r) =
     "(right " ++ serialize  (TSum (y::z::zs)) r ++ ")"
   
   serialize                                (TProd [x,y])                        (a, b)    = 
