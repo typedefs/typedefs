@@ -90,4 +90,4 @@ parseTDef : String -> Maybe (n : Nat ** TDef n)
 parseTDef str = parseMaybe str tdef
 
 parseThenShowTDef : String -> String
-parseThenShowTDef str = show $ parseMaybe str tdef
+parseThenShowTDef str = show $ parseTDef str
