@@ -1,7 +1,12 @@
 import Typedefs
 import Parse
+import Backend.Haskell
 
 main : IO ()
 main = do
   [_, str] <- getArgs
-  putStrLn $ parseThenShowTDef str
+  let tpm = parseTDef str
+  putStrLn $ "parsed typedef: "
+  putStrLn $ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => show $ DPair.snd tp) tpm
+  putStrLn $ ""
+  putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => generate $ DPair.snd tp) tpm
