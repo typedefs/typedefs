@@ -86,8 +86,11 @@ tdef = fix _ $ \rec =>
                  (map {a=Parser' _} withSpaces rec)
                  (map {a=Parser' _} (nelist . withSpaces) rec)))
 
+parseTDef : String -> Maybe (n : Nat ** TDef n)
+parseTDef str = parseMaybe str tdef
+
 parseThenShowTDef : String -> String
-parseThenShowTDef str = show $ parseMaybe str tdef
+parseThenShowTDef str = show $ parseTDef str
 
 parseThenStrFun : String -> ((n ** TDef n) -> String) -> String
-parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseMaybe str tdef
+parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str
