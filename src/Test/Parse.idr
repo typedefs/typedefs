@@ -30,7 +30,7 @@ testSuite = spec $ do
 
     "(var 0) " `itShouldParseAs` "Just (1 ** {0})"
 
-    "(name maybe (+ 1 (var 0)))" `itShouldParseAs` "Just (1 ** maybe[(1 + {0})])"
+    "(name maybe (+ 1 (var 0)))" `itShouldParseAs` "Just (1 ** maybe [(1 + {0})])"
 
     "(mu list (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** list = mu [cons: ({1} * {0})])"
 

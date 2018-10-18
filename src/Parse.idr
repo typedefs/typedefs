@@ -91,3 +91,6 @@ parseTDef str = parseMaybe str tdef
 
 parseThenShowTDef : String -> String
 parseThenShowTDef str = show $ parseTDef str
+
+parseThenStrFun : String -> ((n ** TDef n) -> String) -> String
+parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str
