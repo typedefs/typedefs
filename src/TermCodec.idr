@@ -61,3 +61,16 @@ mutual
                                                       parens (rand (string "inn") 
                                                                    (withSpaces $ assert_total $ chooseParser (args td) ((Mu (map DPair.fst ts) (args td) ** muParser ts)::ts)))
   chooseParser (TName _ td)          ts             = chooseParser td ts
+  
+aux : {P : Type -> Nat -> Type} -> Vect n (t : Type ** All (P t)) -> All (\h => Vect n (t : Type ** P t h))
+aux []             = []
+aux ((t**f) :: xs) = (t ** f) :: aux xs
+
+auxFst : {P : Type -> Nat -> Type} -> (ts : Vect n (t : Type ** All (P t))) -> map DPair.fst (aux ts) = map DPair.fst ts
+auxFst []             = Refl
+auxFst ((t**f) :: xs) = cong $ auxFst xs
+
+deserialize : (td : TDef n) -> String -> (ts : Vect n (t : Type ** All (Parser' t))) -> Maybe (Ty (map DPair.fst ts) td)
+deserialize td s {ts} = 
+--  parseMaybe s (chooseParser td (aux ts)))
+  ?wat
