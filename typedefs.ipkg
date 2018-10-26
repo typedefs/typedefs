@@ -3,13 +3,15 @@ package typedefs
 modules = Types
         , Parse
         , Typedefs
-        , TermCodec
+        , TermParse
+        , TermWrite
         , Provider
         , Backend.Haskell
         
         , Test.Typedefs
         , Test.Haskell
-        , Test.TermCodec
+        , Test.TermParse
+        , Test.TermWrite
 
 tests = Test.Typedefs.testSuite
 
