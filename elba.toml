@@ -1,0 +1,21 @@
+[package]
+name = "typedefs/typedefs"
+version = "0.1.0"
+authors = []
+
+[dependencies]
+"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/" }
+
+[targets.lib]
+path = "src"
+mods = ["Types"
+       ,"Parse"
+       ,"Typedefs"
+       ,"TermParse"
+       ,"TermWrite"
+       ,"Provider"
+       ,"Backend.Haskell"
+       ]
+
+opts = ["--total"]
+
