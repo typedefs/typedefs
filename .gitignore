@@ -1,2 +1,6 @@
 *.ibc
 *.exe
+
+typedefs_parser.js
+typedefs_examples
+typedefs_parser
