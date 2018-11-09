@@ -15,21 +15,21 @@ Env k = Vect k (Either String String) -- left=free / right=bound
 withSep : String -> (a -> String) -> Vect k a -> String
 withSep sep fn xs = concat $ intersperse sep $ map fn xs
 
-guardPar : String -> String
-guardPar str = if any isSpace $ unpack str then parens str else str
+--guardPar : String -> String
+--guardPar str = if any isSpace $ unpack str then parens str else str
 
 makeType : Env n -> TDef n -> String
 makeType     _ T0            = ?T0
 makeType     _ T1            = "unit"
-makeType {n} e (TSum xs)     = ?TSum -- tsum xs
+makeType {n} e (TSum xs)     = tsum xs
   where
   tsum : Vect (2 + _) (TDef n) -> String
-  tsum [x, y]              = "Either " ++ guardPar (makeType e x) ++ " " ++ guardPar (makeType e y)
-  tsum (x :: y :: z :: zs) = "Either " ++ guardPar (makeType e x) ++ " " ++ parens (tsum (y :: z :: zs))
+  tsum [x, y]              = "either" ++ (parens $ (makeType e x) ++ ", " ++ makeType e y)
+  tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
 makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
-makeType     e (TVar v)      = either id id $ Vect.index v e
+makeType     e (TVar v)      = ?TVar -- either id id $ Vect.index v e
 makeType     _ (TMu nam _)   = ?TMu
-makeType     _ (TName nam _) = ?TName
+makeType     _ (TName nam _) = nam
 
 makeDefs : Env n -> TDef n -> State (List Name) String
 makeDefs _ T0           = pure ""
@@ -81,3 +81,6 @@ generateType {n} = makeType (freshEnv n)
 generate : TDef n -> String
 generate {n} td = evalState (makeDefs (freshEnv n) td) []      
 
+-- type definitions to be included in all outputs
+helperTypes : String
+helperTypes = "type either('a,'b) = Left('a) | Right('b)"
