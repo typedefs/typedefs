@@ -1,0 +1,23 @@
+[package]
+name = "typedefs/typedefs"
+version = "0.1.0"
+authors = []
+
+[dependencies]
+"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/" }
+
+[dev_dependencies]
+"pheymann/specdris" = { git = "https://github.com/pheymann/specdris/" }
+
+[targets.lib]
+path = "src"
+mods = ["Types"
+       ,"Parse"
+       ,"Typedefs"
+       ,"TermCodec"
+       ,"Provider"
+       ,"Backend.Haskell"
+       ]
+       
+opts = ["--total"]
+
