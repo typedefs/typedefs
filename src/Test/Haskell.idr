@@ -31,6 +31,9 @@ nat = TMu "Nat" [("Z", T1), ("S", TVar 0)]
 listNat : TDef 0 
 listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
 
+parametricSynonym : TDef 1
+parametricSynonym = TName "foo" maybe2
+
 testSuite : IO ()
 testSuite = spec $ do
 
@@ -64,4 +67,7 @@ testSuite = spec $ do
       generate listNat
         `shouldBe` "\ndata Nat = Z | S Nat\n\ndata ListNat = NilN | ConsN Nat ListNat\n" 
 
+    it "foo" $
+      generate parametricSynonym
+        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype foo x0 = Maybe2 x0\n"
 
