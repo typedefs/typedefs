@@ -5,6 +5,7 @@ import Types
 import Typedefs
 import TermCodec
 import Backend.Haskell
+import Backend.ReasonML
 
 ------ example: bits -
 
@@ -27,6 +28,17 @@ nothing _ = Left ()
 
 just : (a : Type) -> a -> Ty [a] Main.maybe
 just a = Right
+
+------ example: either -
+
+either : TDef 2
+either = TSum [TVar 0, TVar 1]
+
+left : {a : Type} -> {b : Type} -> a -> Ty [a,b] Main.either
+left a = Left a
+
+right : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either
+right b = Right b
 
 ----- example: list --
 
@@ -67,6 +79,15 @@ nothing2 a = Inn (Left ())
 just2 : (a : Type) -> a -> Ty [a] Main.maybe2
 just2 a x = Inn (Right x)
 
+either2 : TDef 2
+either2 = TMu "Either" [("Left", TVar 1), ("Right", TVar 2)]
+
+left2 : {a : Type} -> {b : Type} -> a -> Ty [a,b] Main.either2
+left2 x = Inn (Left x)
+
+right2 : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either2
+right2 x = Inn (Right x)
+
 -- Example: List Nat
 
 listNat : TDef 0 
@@ -80,6 +101,7 @@ listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, nat, TVar 0])]
   where
   nat : TDef 1
   nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
+  
 
 serializeTest : String
 serializeTest = 
