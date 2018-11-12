@@ -6,6 +6,7 @@ modules = Types
         , TermCodec
         , Provider
         , Backend.Haskell
+        , Backend.ReasonML
         
         , Test.Typedefs
         , Test.Haskell
