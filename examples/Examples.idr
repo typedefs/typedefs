@@ -82,9 +82,7 @@ listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, nat, TVar 0])]
   nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
 
 serializeTest : String
-serializeTest =
-  let ts = the (Vect 1 (t : Type ** t -> String)) [(_ ** show {ty=Int})] in
-  serialize {ts} Main.maybe (Main.just Int 6)
+serializeTest = serialize [Int] [show] Main.maybe (Main.just Int 6)
 
 main : IO ()
 main = do
