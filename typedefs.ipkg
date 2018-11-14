@@ -10,6 +10,7 @@ modules = Types
         
         , Test.Typedefs
         , Test.Haskell
+        , Test.ReasonML
         , Test.TermCodec
 
 tests = Test.Typedefs.testSuite

@@ -21,7 +21,7 @@ formatVar = ("'" ++) . lowercase
 
 
 makeType : Env n -> TDef n -> String
-makeType     _ T0            = ?emptyType
+makeType     _ T0            = "void"
 makeType     _ T1            = "unit"
 makeType {n} e (TSum xs)     = tsum xs
   where
@@ -61,7 +61,7 @@ makeDefs e (TName nam body) =
      if List.elem nam st then pure "" 
        else let 
           freeVars = withSep ", " (either formatVar (const "")) $ snd $ Vect.filter isLeft e
-          typeName = if freeVars == "" then nam else nam ++ parens freeVars
+          typeName = if freeVars == "" then lowercase nam else lowercase nam ++ parens freeVars
          in
         do res <- makeDefs e body 
            put (nam :: st)
@@ -85,6 +85,6 @@ generate {n} td = evalState (makeDefs (freshEnv n) td) []
 
 -- type definitions to be included in all outputs
 helperTypes : String
-helperTypes = "type either('a,'b) = Left('a) | Right('b)"
+helperTypes = "type void;\n\ntype either('a,'b) = Left('a) | Right('b);\n"
 
 
