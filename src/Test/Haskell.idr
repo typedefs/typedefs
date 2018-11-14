@@ -69,5 +69,5 @@ testSuite = spec $ do
 
     it "foo" $
       generate parametricSynonym
-        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype foo x0 = Maybe2 x0\n"
+        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype Foo x0 = Maybe2 x0\n"
 
