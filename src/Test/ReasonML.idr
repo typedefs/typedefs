@@ -66,3 +66,7 @@ testSuite = spec $ do
     it "listNat" $ 
       generate listNat
         `shouldBe` "\ntype nat = Z | S(nat);\n\ntype listNat = NilN | ConsN(nat, listNat);\n"
+
+    it "parametricSynonym" $
+      generate parametricSynonym
+        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype foo('x0) = maybe2('x0);\n" 
