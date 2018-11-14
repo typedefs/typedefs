@@ -19,6 +19,10 @@ withSep sep fn xs = concat $ intersperse sep $ map fn xs
 formatVar : String -> String
 formatVar = ("'" ++) . lowercase
 
+-- TODO would be nice if type was `(e : Env n) -> Vect (fst (Vect.filter isLeft e)) String`, 
+-- since it then could be used by several backends. I'm having trouble getting it to typecheck.
+getFreeVars : Env n -> String
+getFreeVars e = withSep ", " (either formatVar (const "")) $ snd $ Vect.filter isLeft e
 
 makeType : Env n -> TDef n -> String
 makeType     _ T0            = "void"
@@ -30,7 +34,8 @@ makeType {n} e (TSum xs)     = tsum xs
   tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
 makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
 makeType     e (TVar v)      = either formatVar lowercase $ Vect.index v e
-makeType     _ (TMu nam _)   = lowercase nam
+makeType     e (TMu nam _)   = let freeVars = getFreeVars e
+                                in if freeVars == "" then lowercase nam else lowercase nam ++ parens freeVars
 makeType     _ (TName nam _) = lowercase nam
 
 makeDefs : Env n -> TDef n -> State (List Name) String
@@ -43,7 +48,7 @@ makeDefs e (TMu nam cs) =
   do st <- get 
      if List.elem nam st then pure "" 
       else let
-         freeVars = withSep ", " (either formatVar (const "")) $ snd $ Vect.filter isLeft e
+         freeVars = getFreeVars e
          dataName = if freeVars == "" then nam else nam ++ parens freeVars
          newEnv = Right (if freeVars == "" then dataName else dataName) :: e
          args = withSep " | " (mkArg newEnv) cs
@@ -60,7 +65,7 @@ makeDefs e (TName nam body) =
   do st <- get 
      if List.elem nam st then pure "" 
        else let 
-          freeVars = withSep ", " (either formatVar (const "")) $ snd $ Vect.filter isLeft e
+          freeVars = getFreeVars e
           typeName = if freeVars == "" then lowercase nam else lowercase nam ++ parens freeVars
          in
         do res <- makeDefs e body 
