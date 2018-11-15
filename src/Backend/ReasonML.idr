@@ -3,21 +3,15 @@ module Backend.ReasonML
 import Data.Vect
 import Control.Monad.State
 
+import Backend.Utils
 import Types
 import Typedefs
 
 %default partial
 %access public export
 
-Env : Nat -> Type
-Env k = Vect k (Either String String) -- left=free / right=bound
-
-withSep : String -> (a -> String) -> Vect k a -> String
-withSep sep fn xs = concat $ intersperse sep $ map fn xs
-
-
 formatVar : String -> String
-formatVar = ("'" ++) . lowercase
+formatVar = (strCons '\'') . lowercase
 
 -- TODO would be nice if type was `(e : Env n) -> Vect (fst (Vect.filter isLeft e)) String`, 
 -- since it then could be used by several backends. I'm having trouble getting it to typecheck.
@@ -71,14 +65,7 @@ makeDefs e (TName nam body) =
         do res <- makeDefs e body 
            put (nam :: st)
            pure $ res ++ "\ntype " ++ typeName ++ " = " ++ makeType e body ++ ";\n"
-
--- TODO exists after 1.3 in Control.Isomorphism.Vect            
-unindex : (Fin n -> a) -> Vect n a
-unindex {n=Z}   _ = []
-unindex {n=S k} f = f FZ :: unindex (f . FS)  
-
-freshEnv : (n: Nat) -> Env n
-freshEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
+  
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> String
