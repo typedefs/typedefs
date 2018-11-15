@@ -7,7 +7,7 @@ import TermCodec
 import Backend.Haskell
 import Backend.ReasonML
 
------- example: bits -
+-- Example: bits
 
 bit : TDef Z
 bit = TSum [T1, T1]
@@ -18,7 +18,7 @@ byte = pow 8 bit
 test : Type
 test = Ty [] bit
 
------ example: maybe -
+-- Example: maybe
 
 maybe : TDef 1
 maybe = TSum [T1, TVar 0]
@@ -29,7 +29,16 @@ nothing _ = Left ()
 just : (a : Type) -> a -> Ty [a] Main.maybe
 just a = Right
 
------- example: either -
+maybe2 : TDef 1
+maybe2 = TMu "Maybe" [("Nothing", T1), ("Just", TVar 1)]
+
+nothing2 : (a : Type) -> Ty [a] Main.maybe2
+nothing2 a = Inn (Left ())
+
+just2 : (a : Type) -> a -> Ty [a] Main.maybe2
+just2 a x = Inn (Right x)
+
+-- Example: either
 
 either : TDef 2
 either = TSum [TVar 0, TVar 1]
@@ -40,7 +49,16 @@ left a = Left a
 right : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either
 right b = Right b
 
------ example: list --
+either2 : TDef 2
+either2 = TMu "Either" [("Left", TVar 1), ("Right", TVar 2)]
+
+left2 : {a : Type} -> {b : Type} -> a -> Ty [a,b] Main.either2
+left2 x = Inn (Left x)
+
+right2 : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either2
+right2 x = Inn (Right x)
+
+-- Example: list
 
 ||| `TDef 1` means the `list` type we're defining contains 1 type variable
 list : TDef 1
@@ -67,26 +85,6 @@ nil x = Inn $ Left ()
 ||| @xs the tail of the list to construct
 cons : (a : Type) -> (x : a) -> (xs : Ty [a] Main.list) -> Ty [a] Main.list
 cons a x xs = Inn $ Right (x, xs)
-
--- Example: Maybe
-
-maybe2 : TDef 1
-maybe2 = TMu "Maybe" [("Nothing", T1), ("Just", TVar 1)]
-
-nothing2 : (a : Type) -> Ty [a] Main.maybe2
-nothing2 a = Inn (Left ())
-
-just2 : (a : Type) -> a -> Ty [a] Main.maybe2
-just2 a x = Inn (Right x)
-
-either2 : TDef 2
-either2 = TMu "Either" [("Left", TVar 1), ("Right", TVar 2)]
-
-left2 : {a : Type} -> {b : Type} -> a -> Ty [a,b] Main.either2
-left2 x = Inn (Left x)
-
-right2 : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either2
-right2 x = Inn (Right x)
 
 -- Example: List Nat
 
