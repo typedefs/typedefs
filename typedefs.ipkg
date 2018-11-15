@@ -6,9 +6,12 @@ modules = Types
         , TermCodec
         , Provider
         , Backend.Haskell
+        , Backend.ReasonML
+        , Backend.Utils
         
         , Test.Typedefs
         , Test.Haskell
+        , Test.ReasonML
         , Test.TermCodec
 
 tests = Test.Typedefs.testSuite
