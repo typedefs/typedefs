@@ -28,9 +28,8 @@ makeType {n} e (TSum xs)     = tsum xs
   tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
 makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
 makeType     e (TVar v)      = either formatVar lowercase $ Vect.index v e
-makeType     e (TMu nam _)   = let freeVars = getFreeVars e
-                                in if freeVars == "" then lowercase nam else lowercase nam ++ parens freeVars
-makeType     _ (TName nam _) = lowercase nam
+makeType     e (TMu name _)   = lowercase name ++ parens (getFreeVars e)
+makeType     _ (TName name _) = lowercase name
 
 makeDefs : Env n -> TDef n -> State (List Name) String
 makeDefs _ T0           = pure ""
@@ -38,32 +37,31 @@ makeDefs _ T1           = pure ""
 makeDefs e (TProd xs)   = map concat $ traverse (makeDefs e) xs
 makeDefs e (TSum xs)    = map concat $ traverse (makeDefs e) xs
 makeDefs _ (TVar v)     = pure ""
-makeDefs e (TMu nam cs) = 
+makeDefs e (TMu name cs) = 
   do st <- get 
-     if List.elem nam st then pure "" 
+     if List.elem name st then pure "" 
       else let
          freeVars = getFreeVars e
-         dataName = if freeVars == "" then nam else nam ++ parens freeVars
-         newEnv = Right (if freeVars == "" then dataName else dataName) :: e
+         dataName = name ++ parens freeVars
+         newEnv = Right dataName :: e
          args = withSep " | " (mkArg newEnv) cs
         in
        do res <- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
-          put (nam :: st)
+          put (name :: st)
           pure $ res ++ "\ntype " ++ lowercase dataName ++ " = " ++ args ++ ";\n"
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> String
   mkArg _ (cname, T1)       = cname
   mkArg e (cname, TProd xs) = uppercase cname ++ parens (withSep ", " (makeType e) xs)
   mkArg e (cname, ctype)    = uppercase cname ++ parens (makeType e ctype)
-makeDefs e (TName nam body) = 
+makeDefs e (TName name body) = 
   do st <- get 
-     if List.elem nam st then pure "" 
+     if List.elem name st then pure "" 
        else let 
-          freeVars = getFreeVars e
-          typeName = if freeVars == "" then lowercase nam else lowercase nam ++ parens freeVars
+          typeName = lowercase name ++ parens (getFreeVars e)
          in
         do res <- makeDefs e body 
-           put (nam :: st)
+           put (name :: st)
            pure $ res ++ "\ntype " ++ typeName ++ " = " ++ makeType e body ++ ";\n"
   
 
