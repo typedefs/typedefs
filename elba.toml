@@ -14,10 +14,16 @@ path = "src"
 mods = ["Types"
        ,"Parse"
        ,"Typedefs"
-       ,"TermCodec"
+       ,"TermParse"
+       ,"TermWrite"
        ,"Provider"
        ,"Backend.Haskell"
+       ,"Backend.ReasonML"
        ]
+
+[[targets.test]]
+path = "src/Test"
+main = "Typedefs.testSuite"
        
 opts = ["--total"]
 
