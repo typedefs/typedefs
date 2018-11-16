@@ -23,7 +23,7 @@ makeType {n} e (TSum xs)     = tsum xs
   tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
 makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
 makeType     e (TVar v)      = either formatVar lowercase $ Vect.index v e
-makeType     e (TMu name _)   = lowercase name ++ parens (withSep ", " id (getFreeVars e formatVar))
+makeType     e (TMu name _)   = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e))
 makeType     _ (TName name _) = lowercase name
 
 makeDefs : Env n -> TDef n -> State (List Name) String
@@ -36,7 +36,7 @@ makeDefs e (TMu name cs) =
   do st <- get 
      if List.elem name st then pure "" 
       else let 
-         dataName = name ++ (parens $ withSep ", " id (getFreeVars e formatVar))
+         dataName = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e))
          newEnv = Right dataName :: e
          args = withSep " | " (mkArg newEnv) cs
         in
@@ -52,7 +52,7 @@ makeDefs e (TName name body) =
   do st <- get 
      if List.elem name st then pure "" 
        else let 
-          typeName = lowercase name ++ (parens $ withSep ", " id (getFreeVars e formatVar))
+          typeName = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e))
          in
         do res <- makeDefs e body 
            put (name :: st)
