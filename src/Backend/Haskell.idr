@@ -13,11 +13,6 @@ import Typedefs
 guardPar : String -> String
 guardPar str = if any isSpace $ unpack str then parens str else str
 
--- TODO would be nice if type was `(e : Env n) -> Vect (fst (Vect.filter isLeft e)) String`, 
--- since it then could be used by several backends. I'm having trouble getting it to typecheck.
-getFreeVars : Env n -> String
-getFreeVars e = withSep " " (either id (const "")) $ snd $ Vect.filter isLeft e
-
 makeType : Env n -> TDef n -> String
 makeType     _ T0            = "Void"
 makeType     _ T1            = "()"
@@ -28,9 +23,8 @@ makeType {n} e (TSum xs)     = tsum xs
   tsum (x :: y :: z :: zs) = "Either " ++ guardPar (makeType e x) ++ " " ++ parens (tsum (y :: z :: zs))
 makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
 makeType     e (TVar v)      = either id id $ Vect.index v e
-makeType     e (TMu nam _)   = let freeVars = getFreeVars e
-                                in if freeVars == "" then nam else nam ++ " " ++ freeVars
-makeType     _ (TName nam _) = nam
+makeType     e (TMu name _)   = withSep " " id (uppercase name::getFreeVars e lowercase)
+makeType     _ (TName name _) = name
 
 makeDefs : Env n -> TDef n -> State (List Name) String
 makeDefs _ T0           = pure ""
@@ -38,32 +32,30 @@ makeDefs _ T1           = pure ""
 makeDefs e (TProd xs)   = map concat $ traverse (makeDefs e) xs
 makeDefs e (TSum xs)    = map concat $ traverse (makeDefs e) xs
 makeDefs _ (TVar v)     = pure ""
-makeDefs e (TMu nam cs) = 
+makeDefs e (TMu name cs) = 
   do st <- get 
-     if List.elem nam st then pure "" 
+     if List.elem name st then pure "" 
       else let
-         freeVars = getFreeVars e
-         dataName = if freeVars == "" then nam else nam ++ " " ++ freeVars
-         newEnv = Right (if freeVars == "" then dataName else parens dataName) :: e
+         dataName = withSep " " id (uppercase name::getFreeVars e lowercase)
+         newEnv = Right (guardPar dataName) :: e
          args = withSep " | " (mkArg newEnv) cs
         in
        do res <- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
-          put (nam :: st)
+          put (name :: st)
           pure $ res ++ "\ndata " ++ dataName ++ " = " ++ args ++ "\n"
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> String
   mkArg _ (cname, T1)       = cname
   mkArg e (cname, TProd xs) = cname ++ " " ++ withSep " " (makeType e) xs
   mkArg e (cname, ctype)    = cname ++ " " ++ makeType e ctype
-makeDefs e (TName nam body) = 
+makeDefs e (TName name body) = 
   do st <- get 
-     if List.elem nam st then pure "" 
+     if List.elem name st then pure "" 
        else let 
-          freeVars = getFreeVars e
-          typeName = if freeVars == "" then nam else nam ++ " " ++ freeVars
+          typeName = withSep " " id (uppercase name::getFreeVars e lowercase)
          in
         do res <- makeDefs e body 
-           put (nam :: st)
+           put (name :: st)
            pure $ res ++ "\ntype " ++ typeName ++ " = " ++ makeType e body ++ "\n"
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
