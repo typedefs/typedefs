@@ -3,7 +3,8 @@ package typedefs
 modules = Types
         , Parse
         , Typedefs
-        , TermCodec
+        , TermParse
+        , TermWrite
         , Provider
         , Backend.Haskell
         , Backend.ReasonML
@@ -12,7 +13,8 @@ modules = Types
         , Test.Typedefs
         , Test.Haskell
         , Test.ReasonML
-        , Test.TermCodec
+        , Test.TermParse
+        , Test.TermWrite
 
 tests = Test.Typedefs.testSuite
 
