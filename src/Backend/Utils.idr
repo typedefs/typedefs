@@ -21,4 +21,4 @@ withSep sep fn xs = concat $ intersperse sep $ map fn xs
 
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e) 
-  getFreeVars e | (p ** v) = map (either id (const "")) v
+  | (p ** v) = map (either id (const "")) v
