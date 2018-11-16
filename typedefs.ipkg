@@ -7,9 +7,12 @@ modules = Types
         , TermWrite
         , Provider
         , Backend.Haskell
+        , Backend.ReasonML
+        , Backend.Utils
         
         , Test.Typedefs
         , Test.Haskell
+        , Test.ReasonML
         , Test.TermParse
         , Test.TermWrite
 

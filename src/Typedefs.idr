@@ -123,12 +123,15 @@ compileClosed (TName n x)   = "TName " ++ n ++ ": nope"
 -------- printing -------
 
 parens : String -> String
+parens "" = ""
 parens s = "(" ++ s ++ ")"
 
 curly : String -> String
+curly "" = ""
 curly s = "{" ++ s ++ "}"
 
 square : String -> String
+square "" = ""
 square s = "[" ++ s ++ "]"
 
 mutual
