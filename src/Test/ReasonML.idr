@@ -32,7 +32,10 @@ listNat : TDef 0
 listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
 
 parametricSynonym : TDef 1
-parametricSynonym = TName "foo" maybe2
+parametricSynonym = TName "parSyn" maybe
+
+parametricSynonym2 : TDef 1
+parametricSynonym2 = TName "parSyn2" maybe2
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -69,4 +72,8 @@ testSuite = spec $ do
 
     it "parametricSynonym" $
       generate parametricSynonym
-        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype foo('x0) = maybe2('x0);\n" 
+        `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n\ntype parSyn('x0) = maybe('x0);\n" 
+
+    it "parametricSynonym2" $
+      generate parametricSynonym2
+        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype parSyn2('x0) = maybe2('x0);\n" 
