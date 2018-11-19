@@ -13,42 +13,39 @@ import Typedefs
 formatVar : String -> String
 formatVar = (strCons '\'') . lowercase
 
--- TODO would be nice if type was `(e : Env n) -> Vect (fst (Vect.filter isLeft e)) String`, 
--- since it then could be used by several backends. I'm having trouble getting it to typecheck.
-getFreeVars : Env n -> String
-getFreeVars e = withSep ", " (either formatVar (const "")) $ snd $ Vect.filter isLeft e
+nameWithParams : Name -> Env n -> String
+nameWithParams name e = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e))
 
 makeType : Env n -> TDef n -> String
-makeType     _ T0            = "void"
-makeType     _ T1            = "unit"
-makeType {n} e (TSum xs)     = tsum xs
+makeType     _ T0             = "void"
+makeType     _ T1             = "unit"
+makeType {n} e (TSum xs)      = tsum xs
   where
   tsum : Vect (2 + _) (TDef n) -> String
   tsum [x, y]              = "either" ++ (parens $ (makeType e x) ++ ", " ++ makeType e y)
   tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
-makeType     e (TProd xs)    = assert_total $ parens $ withSep ", " (makeType e) xs
-makeType     e (TVar v)      = either formatVar lowercase $ Vect.index v e
-makeType     e (TMu name _)   = lowercase name ++ parens (getFreeVars e)
-makeType     _ (TName name _) = lowercase name
+makeType     e (TProd xs)     = assert_total $ parens $ withSep ", " (makeType e) xs
+makeType     e (TVar v)       = either formatVar lowercase $ Vect.index v e
+makeType     e (TMu name _)   = nameWithParams name e
+makeType     e (TName name _) = nameWithParams name e
 
 makeDefs : Env n -> TDef n -> State (List Name) String
-makeDefs _ T0           = pure ""
-makeDefs _ T1           = pure ""
-makeDefs e (TProd xs)   = map concat $ traverse (makeDefs e) xs
-makeDefs e (TSum xs)    = map concat $ traverse (makeDefs e) xs
-makeDefs _ (TVar v)     = pure ""
+makeDefs _ T0            = pure ""
+makeDefs _ T1            = pure ""
+makeDefs e (TProd xs)    = map concat $ traverse (makeDefs e) xs
+makeDefs e (TSum xs)     = map concat $ traverse (makeDefs e) xs
+makeDefs _ (TVar v)      = pure ""
 makeDefs e (TMu name cs) = 
   do st <- get 
      if List.elem name st then pure "" 
-      else let
-         freeVars = getFreeVars e
-         dataName = name ++ parens freeVars
+      else let 
+         dataName = nameWithParams name e
          newEnv = Right dataName :: e
          args = withSep " | " (mkArg newEnv) cs
         in
        do res <- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
           put (name :: st)
-          pure $ res ++ "\ntype " ++ lowercase dataName ++ " = " ++ args ++ ";\n"
+          pure $ res ++ "\ntype " ++ dataName ++ " = " ++ args ++ ";\n"
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> String
   mkArg _ (cname, T1)       = cname
@@ -57,12 +54,10 @@ makeDefs e (TMu name cs) =
 makeDefs e (TName name body) = 
   do st <- get 
      if List.elem name st then pure "" 
-       else let 
-          typeName = lowercase name ++ parens (getFreeVars e)
-         in
+       else 
         do res <- makeDefs e body 
            put (name :: st)
-           pure $ res ++ "\ntype " ++ typeName ++ " = " ++ makeType e body ++ ";\n"
+           pure $ res ++ "\ntype " ++ nameWithParams name e ++ " = " ++ makeType e body ++ ";\n"
   
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
@@ -76,5 +71,3 @@ generate {n} td = evalState (makeDefs (freshEnv n) td) []
 -- type definitions to be included in all outputs
 helperTypes : String
 helperTypes = "type void;\n\ntype either('a,'b) = Left('a) | Right('b);\n"
-
-
