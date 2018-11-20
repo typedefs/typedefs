@@ -30,23 +30,23 @@ makeType     e (TVar v)       = text $ either id id $ Vect.index v e
 makeType     e (TMu name _)   = text $ nameWithParams name e
 makeType     e (TName name _) = text $ nameWithParams name e
 
-makeDefs : Env n -> TDef n -> State (List Name) Doc
-makeDefs _ T0            = pure empty
-makeDefs _ T1            = pure empty
-makeDefs e (TProd xs)    = map (vsep . toList) $ traverse (makeDefs e) xs
-makeDefs e (TSum xs)     = map (vsep . toList) $ traverse (makeDefs e) xs
-makeDefs _ (TVar v)      = pure empty
+makeDefs : Env n -> TDef n -> State (List Name) (List Doc)
+makeDefs _ T0            = pure []
+makeDefs _ T1            = pure []
+makeDefs e (TProd xs)    = map concat $ traverse (makeDefs e) (toList xs)
+makeDefs e (TSum xs)     = map concat $ traverse (makeDefs e) (toList xs)
+makeDefs _ (TVar v)      = pure []
 makeDefs e (TMu name cs) = 
-  do st <- get 
-     if List.elem name st then pure empty 
-      else let
-         dataName = nameWithParams name e
-         newEnv = Right (guardPar dataName) :: e
-         args = sep $ punctuate (text " |") $ toList $ map (mkArg newEnv) cs
-        in
-       do res <- map (vsep . toList) $ traverse (\(_, bdy) => makeDefs newEnv bdy) cs 
-          put (name :: st)
-          pure $ res |$| text "data" |++| text dataName |++| equals |++| indent 2 args
+   do st <- get 
+      if List.elem name st then pure [] 
+       else let
+          dataName = nameWithParams name e
+          newEnv = Right (guardPar dataName) :: e
+          args = sep $ punctuate (text " |") $ toList $ map (mkArg newEnv) cs
+         in
+        do res <- traverse {b=List Doc} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
+           put (name :: st)
+           pure $ (text "data" |++| text dataName |++| equals |++| args) :: concat res
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> Doc
   mkArg _ (cname, T1)       = text cname
@@ -54,11 +54,11 @@ makeDefs e (TMu name cs) =
   mkArg e (cname, ctype)    = text cname |++| makeType e ctype
 makeDefs e (TName name body) = 
   do st <- get 
-     if List.elem name st then pure empty
+     if List.elem name st then pure []
        else 
         do res <- makeDefs e body 
            put (name :: st)
-           pure $ res |$| text "type" |++| text (nameWithParams name e) |++| equals |++| makeType e body
+           pure $ (text "type" |++| text (nameWithParams name e) |++| equals |++| makeType e body) :: res
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
@@ -66,4 +66,4 @@ generateType {n} = makeType (freshEnv n)
 
 -- generate data definitions
 generate : TDef n -> String
-generate {n} td = toString 1 1 $ evalState (makeDefs (freshEnv n) td) []
+generate {n} td = toString 1 80 $ vsep $ reverse $ evalState (makeDefs (freshEnv n) td) []
