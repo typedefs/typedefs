@@ -11,6 +11,14 @@ import Typedefs
 %default partial
 %access public export
 
+data HaskellDef : Type where
+  Synonym : (name : Name) -> (vars : List Name) -> (body : Doc) -> HaskellDef
+  ADT     : (name : Name) -> (vars : List Name) -> List (Name, Doc) -> HaskellDef 
+
+docify : HaskellDef -> Doc
+docify (Synonym name vars body) = text "type" |++| text name |+| hsep (empty :: map text vars) |++| equals |++| body
+docify (ADT name vars body) = text "data" |++| text name |+| hsep (empty :: map text vars) |++| equals |++| ?halp
+
 guardPar : String -> String
 guardPar str = if any isSpace $ unpack str then parens str else str
 
