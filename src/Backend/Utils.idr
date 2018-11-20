@@ -1,6 +1,7 @@
 module Backend.Utils
 
 import Data.Vect
+import Text.PrettyPrint.WL
 
 %default total
 %access public export
@@ -22,3 +23,6 @@ withSep sep fn xs = concat $ intersperse sep $ map fn xs
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e) 
   | (p ** v) = map (either id (const "")) v
+
+vsep2 : List Doc -> Doc
+vsep2 = vsep  . punctuate line

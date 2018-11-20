@@ -5,8 +5,10 @@ import Data.Vect
 import Typedefs
 import Types
 import Backend.Haskell
+import Backend.Utils
 
 import Specdris.Spec
+import Text.PrettyPrint.WL
 
 %access public export
 
@@ -37,43 +39,73 @@ parametricSynonym = TName "ParSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "ParSyn2" maybe2
 
+print : Doc -> String
+print = toString 1 80
+
+shouldBe : Doc -> Doc -> SpecResult
+shouldBe actual expected = print actual `shouldBe` print expected
+
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "Haskell code generation tests:" $ do
 
     it "bit" $ 
-      generate bit 
-        `shouldBe` "\ntype Bit = Either () ()\n"
+      generate bit
+        `shouldBe` text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
 
     it "byte" $ 
       generate byte
-        `shouldBe` "\ntype Bit = Either () ()\n\ntype Byte = (Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit)\n"
+        `shouldBe` vsep2
+                    [ text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
+                    , text "type" |++| text "Byte" |++| equals |++| tupled (replicate 8 $ text "Bit")
+                    ]
         
     it "maybe" $ 
       generate maybe
-        `shouldBe` "\ntype Maybe x0 = Either () x0\n"
+        `shouldBe` text "type" |++| text "Maybe" |++| text "x0" |++| equals |++| text "Either" |++| parens empty |++| text "x0"
     
     it "list" $ 
       generate list
-        `shouldBe` "\ndata List x0 = Nil | Cons x0 (List x0)\n"
+        `shouldBe` text "data" |++| text "List" |++| text "x0" |++|
+                               equals |++| text "Nil"  |++|
+                               pipe   |++| text "Cons" |++| text "x0" |++| parens (text "List" |++| text "x0")
     
     it "maybe2" $ 
       generate maybe2
-        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n"
+        `shouldBe` text "data" |++| text "Maybe2" |++| text "x0" |++|
+                               equals |++| text "Nothing" |++|
+                               pipe   |++| text "Just"    |++| text "x0"
     
     it "nat" $ 
       generate nat
-        `shouldBe` "\ndata Nat = Z | S Nat\n"
+        `shouldBe` text "data" |++| text "Nat" |++|
+                               equals |++| text "Z" |++|
+                               pipe   |++| text "S" |++| text "Nat"
     
     it "listNat" $ 
       generate listNat
-        `shouldBe` "\ndata Nat = Z | S Nat\n\ndata ListNat = NilN | ConsN Nat ListNat\n"
+        `shouldBe` vsep2
+                    [ text "data" |++| text "Nat" |++|
+                                  equals |++| text "Z" |++|
+                                  pipe   |++| text "S" |++| text "Nat"
+                    , text "data" |++| text "ListNat" |++|
+                                  equals |++| text "NilN" |++|
+                                  pipe   |++| text "ConsN" |++| text "Nat" |++| text "ListNat"
+                    ]
 
     it "parametricSynonym" $
       generate parametricSynonym
-        `shouldBe` "\ntype Maybe x0 = Either () x0\n\ntype ParSyn x0 = Maybe x0\n"
+        `shouldBe` vsep2
+                    [ text "type" |++| text "Maybe" |++| text "x0" |++|
+                                  equals |++| text "Either" |++| parens empty |++| text "x0"
+                    , text "type" |++| text "ParSyn" |++| text "x0" |++| equals |++| text "Maybe" |++| text "x0"
+                    ]
 
     it "parametricSynonym2" $
       generate parametricSynonym2
-        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype ParSyn2 x0 = Maybe2 x0\n"
+        `shouldBe` vsep2
+                    [ text "data" |++| text "Maybe2" |++| text "x0" |++|
+                                  equals |++| text "Nothing" |++|
+                                  pipe   |++| text "Just" |++| text "x0"
+                    , text "type" |++| text "ParSyn2" |++| text "x0" |++| equals |++| text "Maybe2" |++| text "x0" ]

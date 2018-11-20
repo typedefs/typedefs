@@ -44,9 +44,9 @@ makeDefs e (TMu name cs) =
           newEnv = Right (guardPar dataName) :: e
           args = sep $ punctuate (text " |") $ toList $ map (mkArg newEnv) cs
          in
-        do res <- traverse {b=List Doc} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
+        do res <- map concat $ traverse {b=List Doc} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
            put (name :: st)
-           pure $ (text "data" |++| text dataName |++| equals |++| args) :: concat res
+           pure $ (text "data" |++| text dataName |++| equals |++| args) :: res
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> Doc
   mkArg _ (cname, T1)       = text cname
@@ -65,5 +65,5 @@ generateType : TDef n -> Doc
 generateType {n} = makeType (freshEnv n)
 
 -- generate data definitions
-generate : TDef n -> String
-generate {n} td = toString 1 80 $ vsep $ reverse $ evalState (makeDefs (freshEnv n) td) []
+generate : TDef n -> Doc
+generate {n} td = vsep2 $ reverse $ evalState (makeDefs (freshEnv n) td) []
