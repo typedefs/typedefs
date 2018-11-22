@@ -22,13 +22,11 @@ TODO
 data HaskellType : Type where
   T0 : HaskellType
   T1 : HaskellType
-  TSum : Vect (2 + k) HaskellType -> HaskellType
   TProd : Vect (2 + k) HaskellType -> HaskellType
   TVar : Name -> HaskellType
   TCons : Name -> List HaskellType -> HaskellType 
 
 isSimple : HaskellType -> Bool
-isSimple (TSum _)    = False
 isSimple (TCons _ ts) = isNil ts
 isSimple _           = True
 
@@ -39,26 +37,21 @@ data HaskellDef : Type where
 makeDoc : HaskellType -> Doc
 makeDoc T0 = text "Void"
 makeDoc T1 = text "()"
-makeDoc (TSum xs) = tsum xs
-  where
-  tsum : Vect (2 + _) HaskellType -> Doc
-  tsum [x, y]              = text "Either" |++| (if isSimple x then makeDoc x else parens (makeDoc x)) |++| (if isSimple y then makeDoc y else parens (makeDoc y))
-  tsum (x :: y :: z :: zs) = text "Either" |++| (if isSimple x then makeDoc x else parens (makeDoc x)) |++| parens (tsum (y :: z :: zs))
 makeDoc (TProd xs)      = tupled . toList $ map makeDoc xs
 makeDoc (TVar v)        = text v
 makeDoc (TCons name ts) = text name |+| hsep (empty::(map guardParen ts))
   where
   guardParen : HaskellType -> Doc
-  guardParen ht = if isSimple ht then makeDoc ht else text ">" |++| parens (makeDoc ht) |++| text "<" -- Can this ever be false?
+  guardParen ht = if isSimple ht then makeDoc ht else parens (makeDoc ht)
 
 docifyCase : (Name, HaskellType) -> Doc
-docifyCase (n, T1) = text n
-docifyCase (n, TProd ts) = text n |++| hsep (toList (map (\t => if isSimple t then makeDoc t else parens (makeDoc t)) ts))
-docifyCase (n, ht) = text n |++| makeDoc ht
+docifyCase (n, T1) = text (uppercase n)
+docifyCase (n, TProd ts) = text (uppercase n) |++| hsep (toList (map (\t => if isSimple t then makeDoc t else parens (makeDoc t)) ts))
+docifyCase (n, ht) = text (uppercase n) |++| makeDoc ht
 
 docify : HaskellDef -> Doc
-docify (Synonym name vars body) = text "type" |++| text name |+| hsep (empty :: toList (map text vars)) |++| equals |++| makeDoc body
-docify (ADT name vars cases) = text "data" |++| text name |+| hsep (empty :: toList (map text vars)) |++| equals |++| hsep (punctuate (text " |") (toList $ map docifyCase cases))
+docify (Synonym name vars body) = text "type" |++| text (uppercase name) |+| hsep (empty :: toList (map (text . lowercase) vars)) |++| equals |++| makeDoc body
+docify (ADT name vars cases) = text "data" |++| text (uppercase name) |+| hsep (empty :: toList (map (text . lowercase) vars)) |++| equals |++| hsep (punctuate (text " |") (toList $ map docifyCase cases))
 
 --guardPar : String -> String
 --guardPar str = if any isSpace $ unpack str then parens str else str
@@ -76,10 +69,14 @@ getFreeVars : (e : SynEnv n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e) 
   | (p ** v) = map (either id (const "")) v
 
+foldr1' : (a -> a -> a) -> Vect (S n) a -> a
+foldr1' f [x]      = x
+foldr1' f (x::y::xs)   = f x (foldr1' f (y::xs))
+
 makeSynType : SynEnv n -> TDef n -> HaskellType
 makeSynType     _ T0             = T0
 makeSynType     _ T1             = T1
-makeSynType {n} e (TSum xs)      = TSum $ map (makeSynType e) xs
+makeSynType     e (TSum xs)      = foldr1' (\t1,t2 => TCons "Either" [t1, t2]) (map (makeSynType e) xs) -- why does this require custom foldr1?
 makeSynType     e (TProd xs)     = TProd $ map (makeSynType e) xs
 makeSynType     e (TVar v)       = either TVar (uncurry TCons) $ Vect.index v e
 makeSynType     e (TMu name _)   = TCons name (toList $ map TVar $ getFreeVars e)

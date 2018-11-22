@@ -39,6 +39,9 @@ parametricSynonym = TName "ParSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "ParSyn2" maybe2
 
+oneoneoneone : TDef 4
+oneoneoneone = TName "oneoneoneone" $ TSum [TVar 0, TVar 1, TVar 2, TVar 3]
+
 print : Doc -> String
 print = toString 1 80
 
@@ -108,4 +111,12 @@ testSuite = spec $ do
                     [ text "data" |++| text "Maybe2" |++| text "x0" |++|
                                   equals |++| text "Nothing" |++|
                                   pipe   |++| text "Just" |++| text "x0"
-                    , text "type" |++| text "ParSyn2" |++| text "x0" |++| equals |++| text "Maybe2" |++| text "x0" ]
+                    , text "type" |++| text "ParSyn2" |++| text "x0" |++| equals |++| text "Maybe2" |++| text "x0"
+                    ]
+
+    it "oneoneoneone" $
+      generate oneoneoneone
+        `shouldBe` text "type" |++| text "Oneoneoneone" |++| text "x0 x1 x2 x3" |++|
+                                  equals |++| text "Either" |++| text "x0" |++|
+                                                parens (text "Either" |++| text "x1" |++|
+                                                  parens (text "Either" |++| text "x2" |++| text "x3"))
