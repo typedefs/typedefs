@@ -1,5 +1,6 @@
 module Backend.Haskell
 
+import Data.HVect
 import Data.Vect
 import Control.Monad.State
 import Text.PrettyPrint.WL
@@ -24,30 +25,33 @@ data HaskellType : Type where
   T1 : HaskellType
   TProd : Vect (2 + k) HaskellType -> HaskellType
   TVar : Name -> HaskellType
-  TCons : Name -> List HaskellType -> HaskellType 
+  TParam : Name -> HaskellType -> HaskellType 
 
 isSimple : HaskellType -> Bool
-isSimple (TCons _ ts) = isNil ts
-isSimple _           = True
+isSimple (TParam _ t) = case t of
+                          T1 => True
+                          _  => False
+isSimple _            = True
 
 data HaskellDef : Type where
   Synonym : (name : Name) -> (vars : Vect n Name) -> HaskellType -> HaskellDef
   ADT     : (name : Name) -> (vars : Vect n Name) -> Vect k (Name, HaskellType) -> HaskellDef
 
-makeDoc : HaskellType -> Doc
-makeDoc T0 = text "Void"
-makeDoc T1 = text "()"
-makeDoc (TProd xs)      = tupled . toList $ map makeDoc xs
-makeDoc (TVar v)        = text v
-makeDoc (TCons name ts) = text name |+| hsep (empty::(map guardParen ts))
-  where
-  guardParen : HaskellType -> Doc
-  guardParen ht = if isSimple ht then makeDoc ht else parens (makeDoc ht)
-
-docifyCase : (Name, HaskellType) -> Doc
-docifyCase (n, T1) = text (uppercase n)
-docifyCase (n, TProd ts) = text (uppercase n) |++| hsep (toList (map (\t => if isSimple t then makeDoc t else parens (makeDoc t)) ts))
-docifyCase (n, ht) = text (uppercase n) |++| makeDoc ht
+mutual
+  makeDoc : HaskellType -> Doc
+  makeDoc T0              = text "Void"
+  makeDoc T1              = text "()"
+  makeDoc (TProd xs)      = tupled . toList $ map makeDoc xs
+  makeDoc (TVar v)        = text (lowercase v)
+  makeDoc (TParam name t) = docifyCase (name,t) -- text (uppercase name) |+| hsep (toList (empty::map guardParen ts))
+    where
+    guardParen : HaskellType -> Doc
+    guardParen ht = if isSimple ht then makeDoc ht else parens (makeDoc ht)
+  
+  docifyCase : (Name, HaskellType) -> Doc
+  docifyCase (n, T1) = text (uppercase n)
+  docifyCase (n, TProd ts) = text (uppercase n) |++| hsep (toList (map (\t => if isSimple t then makeDoc t else parens (makeDoc t)) ts))
+  docifyCase (n, ht) = text (uppercase n) |++| makeDoc ht
 
 docify : HaskellDef -> Doc
 docify (Synonym name vars body) = text "type" |++| text (uppercase name) |+| hsep (empty :: toList (map (text . lowercase) vars)) |++| equals |++| makeDoc body
@@ -60,7 +64,7 @@ docify (ADT name vars cases) = text "data" |++| text (uppercase name) |+| hsep (
 --nameWithParams name e = withSep " " id (uppercase name::map lowercase (getFreeVars e))
 
 SynEnv : Nat -> Type
-SynEnv n = Vect n (Either Name (Name, List HaskellType))
+SynEnv n = Vect n (Either Name (Name, HaskellType))
 
 freshSynEnv : (n: Nat) -> SynEnv n
 freshSynEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
@@ -76,11 +80,11 @@ foldr1' f (x::y::xs)   = f x (foldr1' f (y::xs))
 makeSynType : SynEnv n -> TDef n -> HaskellType
 makeSynType     _ T0             = T0
 makeSynType     _ T1             = T1
-makeSynType     e (TSum xs)      = foldr1' (\t1,t2 => TCons "Either" [t1, t2]) (map (makeSynType e) xs) -- why does this require custom foldr1?
+makeSynType     e (TSum xs)      = foldr1' (\t1,t2 => TParam "Either" (TProd [t1, t2])) (map (makeSynType e) xs) -- why does this require custom foldr1?
 makeSynType     e (TProd xs)     = TProd $ map (makeSynType e) xs
-makeSynType     e (TVar v)       = either TVar (uncurry TCons) $ Vect.index v e
-makeSynType     e (TMu name _)   = TCons name (toList $ map TVar $ getFreeVars e)
-makeSynType     e (TName name _) = TCons name (toList $ map TVar $ getFreeVars e)
+makeSynType     e (TVar v)       = either TVar (uncurry TParam) $ Vect.index v e
+makeSynType     e (TMu name _)   = TParam name ?xs --(toList $ map TVar $ getFreeVars e)
+makeSynType     e (TName name _) = TParam name ?ys --(toList $ map TVar $ getFreeVars e)
 
 -- makeType : Env n -> TDef n -> Doc
 -- makeType     _ T0             = text "Void"
@@ -105,7 +109,7 @@ makeDefs e (TMu name cs) =
    do st <- get 
       if List.elem name st then pure [] 
        else let
-          newEnv = Right (name, map TVar $ toList $ getFreeVars e) :: e
+          newEnv = ?envv -- Right (name, map TVar $ toList $ getFreeVars e) :: e
           args = map (map (makeSynType newEnv)) cs
          in
         do res <- map concat $ traverse {b=List HaskellDef} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
