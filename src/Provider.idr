@@ -1,5 +1,7 @@
 module Provider
 
+import Data.SortedMap 
+
 import TParsec
 import TParsec.Running
 

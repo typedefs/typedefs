@@ -20,10 +20,9 @@ mods = ["Types"
        ,"Backend.Haskell"
        ,"Backend.ReasonML"
        ]
+idris_opts = ["-p","contrib"]
 
 [[targets.test]]
 path = "src/Test"
 main = "Typedefs.testSuite"
-       
-opts = ["-p contrib --total"]
-
+idris_opts = ["-p","contrib","--total"]

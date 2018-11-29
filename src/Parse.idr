@@ -49,63 +49,70 @@ MonadTrans (ResultT e) where
 MonadTrans (TParsecT e a) where
   lift = MkTPT . lift . lift
 
-andmf : Monad mn =>
+andbindm : Monad mn =>
+  All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p (a, b))
+andbindm p f = MkParser $ \mlen, ts => do ra <- runParser p mlen ts
+                                          b <- f (Value ra)
+                                          pure $ map (flip MkPair b) ra
+
+landbindm : Monad mn =>
+  All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p a)
+landbindm p f = map fst (andbindm p f)
+
+randbindm : Monad mn =>
   All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p b)
-andmf p qf = MkParser $ \mlen, ts => do ra <- runParser p mlen ts
-                                        b <- qf (Value ra)
-                                        pure $ map (\_ => b) ra
+randbindm p f = map snd (andbindm p f)
 
----  
+---
 
-PS : Type
-PS = SortedMap Name (DPair Nat TDef)
+PState : Type
+PState = SortedMap Name (DPair Nat TDef)
 
--- TODO reset to empty
-init : PS
-init = empty --fromList [("U", (0 ** T1))]
-
-MonadRun (StateT PS Identity) where
-  runMonad st = pure $ evalState st init
+MonadRun (StateT PState Identity) where
+  runMonad st = pure $ evalState st empty
 
 TPState : Type -> Type
-TPState = TParsecT () Void (State PS)
+TPState = TParsecT () Void (State PState)
 
 sizedtok' : Type -> Parameters TPState
-sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())  
+sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
 
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState (sizedtok' Char)
 
 tdef : All (Parser' (n ** TDef n))
-tdef = 
-   fix (Parser' (n ** TDef n)) $ \rec => 
+tdef =
+   fix (Parser' (n ** TDef n)) $ \rec =>
    withSpaces $
-   alts [ guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas 
+   alts [ guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas
         , cmap (Z ** T0) $ string "0"
         , cmap (Z ** T1) $ string "1"
         , nary rec '*' TProd
         , nary rec '+' TSum
         , map (\n => (S n ** TVar $ last {n})) $
             parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
-        , guardM (\(nam, nel) =>
-                  let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
-                        -- push names under sigma to fit in VMax
-                        map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
-                      (mx**vx) = toVMax vs
-                    in
-                  case mx of
-                    Z => Nothing
-                    S m => Just (m ** TMu nam $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
-                                                    (fromVMax vx))
-                 ) $
-          parens (rand (withSpaces (string "mu"))
-                       (and (withSpaces alphas)
-                            (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
-                                               rec)))
-        , andmf
+        , randbindm
+            (guardM {b=(String, (n ** TDef n))} 
+                    (\(nam, nel) =>
+                     let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
+                           -- push names under sigma to fit in VMax
+                           map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
+                         (mx**vx) = toVMax vs
+                       in
+                     case mx of
+                       Z => Nothing
+                       S m => Just (nam, (m ** TMu nam $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
+                                                             (fromVMax vx)))
+                    ) $
+             parens (rand (withSpaces (string "mu"))
+                          (and (withSpaces alphas)
+                               (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
+                                                  rec))))
+            (\(nam, mu) => (lift $ modify $ insert nam mu) *> pure mu)
+        , randbindm
             (parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec))))
-            (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td)) 
-      ]
+            (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
+        ]
  where
  nary : All (Box (Parser' (n ** TDef n))
          :-> Cst  Char
@@ -124,15 +131,14 @@ tdef =
                 (map {a=Parser' _} withSpaces rec)
                 (map {a=Parser' _} (nelist . withSpaces) rec)))
 
-tdefslet : All (Parser' (n ** TDef n))
-tdefslet = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec                
-        
+tdefRec : All (Parser' (n ** TDef n))
+tdefRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec
+
 parseTDef : String -> Maybe (n : Nat ** TDef n)
-parseTDef str = parseMaybe str tdef
-        
+parseTDef str = parseMaybe str tdefRec
+
 parseThenShowTDef : String -> String
 parseThenShowTDef str = show $ parseTDef str
 
 parseThenStrFun : String -> ((n ** TDef n) -> String) -> String
 parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str
-        
