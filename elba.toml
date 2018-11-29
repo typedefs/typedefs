@@ -25,5 +25,5 @@ mods = ["Types"
 path = "src/Test"
 main = "Typedefs.testSuite"
        
-opts = ["--total"]
+opts = ["-p contrib --total"]
 
