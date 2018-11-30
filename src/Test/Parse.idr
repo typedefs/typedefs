@@ -48,6 +48,10 @@ testSuite = spec $ do
 
     "(+ 1 1 0 (* 1 0))" `itShouldParseAs` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
 
+    "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
+      `itShouldParseAs`
+        "Just (0 ** listmnat = mu [nil: 1, cons: ((1 + nat = mu [Z: 1, S: {0}]) * {0})])"
+
   describe "Parser tests: ill-formed terms" $ do
 
     "(*)" `itShouldParseAs` "Nothing"
@@ -57,3 +61,5 @@ testSuite = spec $ do
     "(mu list (nil 1))" `itShouldParseAs` "Nothing"
 
     "(+ 1 * 1 0)" `itShouldParseAs` "Nothing"
+
+    "(mu nat (Z 1) (S (var 0))) (name mpat (+ 1 pat))" `itShouldParseAs` "Nothing"

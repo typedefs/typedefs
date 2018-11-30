@@ -92,7 +92,7 @@ tdef =
         , map (\n => (S n ** TVar $ last {n})) $
             parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
         , randbindm
-            (guardM {b=(String, (n ** TDef n))} 
+            (guardM {b=(String, (n ** TDef n))}
                     (\(nam, nel) =>
                      let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
                            -- push names under sigma to fit in VMax
