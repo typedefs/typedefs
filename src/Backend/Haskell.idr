@@ -120,6 +120,20 @@ makeDefs e (TName name body) =
            put (name :: st)
            pure $ Synonym name (getFreeVars e) (makeType e body) :: res
 
+interface Backend b where
+  Env : Nat -> Type
+  Definition : Type
+  freshEnv : (n : Nat) -> Env n 
+  generateDefs : Env n -> TDef n -> List Definition
+  generateCode : Definition -> Doc
+
+Backend HDef where
+  Env n = SynEnv n
+  Definition = HDef
+  freshEnv = freshSynEnv
+  generateDefs e td = reverse $ evalState (makeDefs e td) []
+  generateCode = renderDef
+
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
 generateType {n} = renderType . makeType (freshSynEnv n)
