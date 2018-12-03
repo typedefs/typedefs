@@ -41,6 +41,8 @@ mutual
   chooseParser (TProd (x::y::z::zs)) ts        ps        =
     parens $ rand (string "both") (and (withSpaces $ chooseParser x ts ps)
                                        (withSpaces $ assert_total $ chooseParser (TProd (y::z::zs)) ts ps))
+  chooseParser (TRec _ xs)           ts        ps        =
+    parens $ rand (string "rec") ?halp
   chooseParser (TVar FZ)             (_::_)    (p::_)    = p
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
