@@ -21,16 +21,16 @@ TODO
 
 
 data HaskellType : Type where
-  T0 : HaskellType
-  T1 : HaskellType
-  TProd : Vect (2 + k) HaskellType -> HaskellType
-  TVar : Name -> HaskellType
-  TParam : Name -> HaskellType -> HaskellType 
+  T0     :                                     HaskellType
+  T1     :                                     HaskellType
+  TProd  :         Vect (2 + k) HaskellType -> HaskellType
+  TVar   :         Name                     -> HaskellType
+  TParam : Name -> HaskellType              -> HaskellType
 
 isSimple : HaskellType -> Bool
 isSimple (TParam _ t) = case t of
                           T1 => True
-                          _  => False
+                          _   => False
 isSimple _            = True
 
 data HaskellDef : Type where
@@ -77,14 +77,20 @@ foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]      = x
 foldr1' f (x::y::xs)   = f x (foldr1' f (y::xs))
 
+makeParamType : Vect n Name -> HaskellType
+makeParamType []            = T1
+makeParamType [p]           = TVar p
+makeParamType ps@(p::q::qs) = TProd (map TVar ps)
+
 makeSynType : SynEnv n -> TDef n -> HaskellType
 makeSynType     _ T0             = T0
 makeSynType     _ T1             = T1
 makeSynType     e (TSum xs)      = foldr1' (\t1,t2 => TParam "Either" (TProd [t1, t2])) (map (makeSynType e) xs) -- why does this require custom foldr1?
 makeSynType     e (TProd xs)     = TProd $ map (makeSynType e) xs
 makeSynType     e (TVar v)       = either TVar (uncurry TParam) $ Vect.index v e
-makeSynType     e (TMu name _)   = TParam name ?xs --(toList $ map TVar $ getFreeVars e)
-makeSynType     e (TName name _) = TParam name ?ys --(toList $ map TVar $ getFreeVars e)
+makeSynType     e (TMu name _)   = TParam name (makeParamType $ getFreeVars e)
+makeSynType     e (TName name _) = TParam name (makeParamType $ getFreeVars e)
+
 
 -- makeType : Env n -> TDef n -> Doc
 -- makeType     _ T0             = text "Void"
@@ -109,7 +115,7 @@ makeDefs e (TMu name cs) =
    do st <- get 
       if List.elem name st then pure [] 
        else let
-          newEnv = ?envv -- Right (name, map TVar $ toList $ getFreeVars e) :: e
+          newEnv = Right (name, makeParamType $ getFreeVars e) :: e
           args = map (map (makeSynType newEnv)) cs
          in
         do res <- map concat $ traverse {b=List HaskellDef} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
