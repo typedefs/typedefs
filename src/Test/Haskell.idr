@@ -48,6 +48,9 @@ print = toString 1 80
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
 
+generate : TDef n -> Doc
+generate = generate {lang=Haskell}
+
 testSuite : IO ()
 testSuite = spec $ do
 

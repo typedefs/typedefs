@@ -17,7 +17,7 @@ TODO
  Remove TDef -> String funs
  Rename funs
  clean up totality assertions
- index HDef by var?
+ index Haskell by var?
 -}
 
 data HDecl : Type where
@@ -30,9 +30,9 @@ data HType : Type where
   HVar   :         Name               -> HType
   HParam : Name -> HType              -> HType
 
-data HDef : Type where
-  Synonym : (name : Name) -> (vars : Vect n Name) -> HType                -> HDef
-  ADT     : (name : Name) -> (vars : Vect n Name) -> Vect k (Name, HType) -> HDef
+data Haskell : Type where
+  Synonym : (name : Name) -> (vars : Vect n Name) -> HType                -> Haskell
+  ADT     : (name : Name) -> (vars : Vect n Name) -> Vect k (Name, HType) -> Haskell
 
 mutual
   -- Generate Haskell code for a Haskell type signature.
@@ -66,7 +66,7 @@ makeParamType [p]           = HVar p
 makeParamType ps@(p::q::qs) = HProd (map HVar ps)
 
 -- Generate Haskell code for a Haskell type definition.
-renderDef : HDef -> Doc
+renderDef : Haskell -> Doc
 renderDef (Synonym name vars body)  = text "type" |++| withArgs name (makeParamType vars)
                                       |++| equals |++| renderType body
 renderDef (ADT     name vars cases) = text "data" |++| withArgs name (makeParamType vars)
@@ -81,10 +81,10 @@ foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
 foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 
-hParam : Name -> Vect n Name -> HType
-hParam n [] = HParam n H1
-hParam n [p] = HParam n $ HVar p
-hParam n ps@(p::q::qs) = HParam n (HProd (map HVar ps))
+hParam : Decl -> HType
+hParam (MkDecl n []) = HParam n H1
+hParam (MkDecl n [p]) = HParam n $ HVar p
+hParam (MkDecl n ps@(p::q::qs)) = HParam n (HProd (map HVar ps))
 
 -- Generate a Haskell type signature from a TDef.
 makeType : Env n -> TDef n -> HType
@@ -92,12 +92,12 @@ makeType     _ T0             = H0
 makeType     _ T1             = H1
 makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" (HProd [t1, t2])) (map (assert_total $ makeType e) xs)
 makeType     e (TProd xs)     = HProd $ map (assert_total $ makeType e) xs
-makeType     e (TVar v)       = either HVar ?declToType $ Vect.index v e
+makeType     e (TVar v)       = either HVar hParam $ Vect.index v e
 makeType     e (TMu name _)   = HParam name (makeParamType $ getFreeVars e)
 makeType     e (TName name _) = HParam name (makeParamType $ getFreeVars e)
 
 -- Generate a list of Haskell type definitions from a TDef. 
-makeDefs : Env n -> TDef n -> State (List Name) (List HDef)
+makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []
 makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) (toList xs)
@@ -110,7 +110,7 @@ makeDefs e (TMu name cs) =
           newEnv = Right (MkDecl name $ getFreeVars e) :: e
           args = map (map (makeType newEnv)) cs
          in
-        do res <- map concat $ traverse {b=List HDef} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs) 
+        do res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs) 
            put (name :: st)
            pure $ ADT name (getFreeVars e) args :: res
 makeDefs e (TName name body) = 
@@ -121,7 +121,7 @@ makeDefs e (TName name body) =
            put (name :: st)
            pure $ Synonym name (getFreeVars e) (makeType e body) :: res
 
-Backend HDef where
+Backend Haskell where
   generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []
 --  generateDefs e td = reverse $ evalState (makeDefs e td) []
 --  generateCode = renderDef
@@ -131,5 +131,5 @@ generateType : TDef n -> Doc
 generateType {n} = renderType . makeType (freshEnv n)
 
 -- generate data definitions
---generate : TDef n -> Src HDef
+--generate : TDef n -> Src Haskell
 --generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []
