@@ -46,7 +46,7 @@ shouldBe : Doc -> String -> SpecResult
 shouldBe actual expected = print actual `shouldBe` expected
 
 generateRML : TDef n -> Doc
-generateRML {n} = generate {lang=ReasonML} {n=n}
+generateRML {n} = generate {lang=ReasonML} -- TODO why do we need to a new name for this?
 
 testSuite : IO ()
 testSuite = spec $ do

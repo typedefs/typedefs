@@ -8,7 +8,7 @@ import Backend.Utils
 import Types
 import Typedefs
 
-%default partial
+%default total
 %access public export
 
 data RMLType : Type where
@@ -32,24 +32,44 @@ typeName : Name -> List Name -> String
 typeName name [] = lowercase name
 typeName name ps = lowercase name ++ parens (concat $ intersperse ", " $ map formatVar ps) 
 
-renderDef : ReasonML -> Doc
-renderDef = ?renderDefImpl
+bajs : Name -> Vect n Name -> Doc
+bajs name params = text name |+| tupled (toList $ map text params)
 
 renderType : RMLType -> Doc
-renderType     RML0              = text "void"
-renderType     RML1              = text "unit"
-renderType     p@(RMLProd xs)    = tupled . toList $ map (assert_total renderType) (assert_smaller p xs)
-renderType     (RMLVar v)        = text (lowercase v)
-renderType     (RMLParam name params) = ?renderRMLParam
+renderType RML0              = text "void"
+renderType RML1              = text "unit"
+renderType (RMLProd xs)    = tupled . toList $ map (assert_total renderType) xs
+renderType (RMLVar v)        = text (lowercase v)
+renderType (RMLParam name params) = ?renderRMLParam
 
+-- Given a vector of parameter names, generate a single HType to be used as the parameter to HParam.
+makeParamType : Vect n Name -> RMLType
+makeParamType []            = RML1
+makeParamType [p]           = RMLVar p
+makeParamType ps@(p::q::qs) = RMLProd (map RMLVar ps)
+
+
+renderDef : ReasonML -> Doc
+renderDef (Synonym name vars body)  = text "type" |++| bajs name vars
+                                      |++| equals |++| renderType body
+renderDef (ADT     name vars cases) = text "type" |++| bajs name vars
+                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map ?lerl cases))
+
+-- Generate a Haskell type signature from a TDef.
 makeType : Env n -> TDef n -> RMLType
-makeType = ?makeTypeImpl
+makeType     _ T0             = RML0
+makeType     _ T1             = RML1
+makeType     e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" (RMLProd [t1, t2])) (map (assert_total $ makeType e) xs)
+makeType     e (TProd xs)     = RMLProd $ map (assert_total $ makeType e) xs
+makeType     e (TVar v)       = either RMLVar ?hParam $ Vect.index v e
+makeType     e (TMu name _)   = RMLParam name (makeParamType $ getFreeVars e)
+makeType     e (TName name _) = RMLParam name (makeParamType $ getFreeVars e)
 
 makeDefs : Env n -> TDef n -> State (List Name) (List ReasonML)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []
-makeDefs e (TProd xs)    = map concat $ traverse (makeDefs e) xs
-makeDefs e (TSum xs)     = map concat $ traverse (makeDefs e) xs
+makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
+makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) xs
 makeDefs _ (TVar v)      = pure []
 makeDefs e (TMu name cs) = 
   do st <- get 
@@ -57,21 +77,16 @@ makeDefs e (TMu name cs) =
       else let 
          decl = MkDecl name (getFreeVars e)
          newEnv = Right decl :: e
-         args = withSep " | " (mkArg newEnv) cs
+         cases = map (map (makeType newEnv)) cs
         in
-       do res <- ?helpppp -- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
+       do res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) cs 
           put (name :: st)
-          pure $ ADT name (getFreeVars e) ?argsAsVect :: res
-  where
-  mkArg : Env (S n) -> (Name, TDef (S n)) -> String
-  mkArg _ (cname, T1)       = cname
-  mkArg e (cname, TProd xs) = ?halp -- uppercase cname ++ parens (withSep ", " (makeType e) xs)
-  mkArg e (cname, ctype)    = ?me -- uppercase cname ++ parens (makeType e ctype)
+          pure $ ADT name (getFreeVars e) cases :: res
 makeDefs e (TName name body) = 
   do st <- get 
      if List.elem name st then pure []
        else 
-        do res <- makeDefs e body 
+        do res <- assert_total $ makeDefs e body 
            put (name :: st)
            pure $ Synonym name (getFreeVars e) (makeType e body) :: res
 
