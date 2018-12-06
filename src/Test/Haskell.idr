@@ -44,6 +44,9 @@ parametricSynonym = TName "ParSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "ParSyn2" maybe2
 
+unusedFreeVars : TDef 42
+unusedFreeVars = TName "Id" (TVar 0)
+
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry bit "Bool"
                                "either (\\ () -> True) (\\ () -> False)"
@@ -103,6 +106,10 @@ testSuite = spec $ do
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype ParSyn2 x0 = Maybe2 x0\n"
+
+    it "unusedFreeVars" $
+      generate unusedFreeVars
+        `shouldBe` "\ntype Id x0 = x0\n" -- not "\ntype Id x0 x1 ... x42 = x0\n"
 
   describe "Haskell specialised types tests:" $ do
 

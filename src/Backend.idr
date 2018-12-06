@@ -15,6 +15,18 @@ getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
+getUsedVars : TDef n -> List (Fin n)
+getUsedVars T0 = []
+getUsedVars T1 = []
+getUsedVars (TSum xs) = assert_total $ concatMap getUsedVars xs
+getUsedVars (TProd xs) = assert_total $ concatMap getUsedVars xs
+getUsedVars (TVar i) = [i]
+getUsedVars (TMu nam xs) = assert_total $ concatMap ((concatMap weedOutZero) . getUsedVars . snd) xs
+  where weedOutZero : Fin (S n) -> List (Fin n)
+        weedOutZero FZ = []
+        weedOutZero (FS i) = [i]
+getUsedVars (TName nam t) = getUsedVars t
+
 record Backend where
   constructor MkBackend
   ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)

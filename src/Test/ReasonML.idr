@@ -38,6 +38,9 @@ parametricSynonym = TName "parSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "parSyn2" maybe2
 
+unusedFreeVars : TDef 42
+unusedFreeVars = TName "Id" (TVar 0)
+
 generate : TDef n -> String
 generate {n} = generateDefs reasonMLBackend n
 
@@ -82,3 +85,8 @@ testSuite = spec $ do
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype parSyn2('x0) = maybe2('x0);\n" 
+
+    it "unusedFreeVars" $
+      generate unusedFreeVars
+        `shouldBe` "\ntype id('x0) = 'x0;\n"
+         -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
