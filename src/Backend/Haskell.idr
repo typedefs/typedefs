@@ -9,15 +9,19 @@ import Backend.Utils
 import Types
 import Typedefs
 
-%default partial
+%default total
 %access public export
 
 {-
 TODO
  Remove TDef -> String funs
  Rename funs
- Move and rename SynEnv
+ clean up totality assertions
+ index HDef by var?
 -}
+
+data HDecl : Type where
+  MkHDecl : Name -> Vect n Name -> HDecl
 
 data HType : Type where
   H0     :                               HType
@@ -35,13 +39,13 @@ mutual
   renderType : HType -> Doc
   renderType H0              = text "Void"
   renderType H1              = text "()"
-  renderType (HProd xs)      = tupled . toList $ map renderType xs
+  renderType p@(HProd xs)    = tupled . toList $ map (assert_total renderType) (assert_smaller p xs)
   renderType (HVar v)        = text (lowercase v)
-  renderType (HParam name t) = withArgs name t
+  renderType p@(HParam name t) = withArgs name (assert_smaller p t)
 
   -- Generate parenthesized type signature, if needed.
   guardParen : HType -> Doc
-  guardParen ht = if isSimple ht then renderType ht else parens (renderType ht)
+  guardParen ht = assert_total $ if isSimple ht then renderType ht else parens (renderType ht)
     where
     isSimple : HType -> Bool
     isSimple (HParam _ t) = case t of
@@ -52,8 +56,8 @@ mutual
   -- Generate a name followed by arguments. Is used both for constructors and for parametric types.
   withArgs : Name -> HType -> Doc
   withArgs n H1         = text (uppercase n)
-  withArgs n (HProd ts) = text (uppercase n) |++| hsep (toList (map guardParen ts))
-  withArgs n ht         = text (uppercase n) |++| renderType ht
+  withArgs n p@(HProd ts) = text (uppercase n) |++| hsep (toList (map (guardParen) (assert_smaller p ts)))
+  withArgs n ht         = text (uppercase n) |++| assert_total (renderType ht)
 
 -- Given a vector of parameter names, generate a single HType to be used as the parameter to HParam.
 makeParamType : Vect n Name -> HType
@@ -64,80 +68,68 @@ makeParamType ps@(p::q::qs) = HProd (map HVar ps)
 -- Generate Haskell code for a Haskell type definition.
 renderDef : HDef -> Doc
 renderDef (Synonym name vars body)  = text "type" |++| withArgs name (makeParamType vars)
-                                   |++| equals |++| renderType body
+                                      |++| equals |++| renderType body
 renderDef (ADT     name vars cases) = text "data" |++| withArgs name (makeParamType vars)
-                                   |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry withArgs) cases))
-
-SynEnv : Nat -> Type
-SynEnv n = Vect n (Either Name (Name, HType))
+                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry withArgs) cases))
 
 -- Creates an environment with n free variables.
-freshSynEnv : (n: Nat) -> SynEnv n
+freshSynEnv : (n: Nat) -> Env n
 freshSynEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
-
--- Extracts the free variables from the environment.
-getFreeVars : (e : SynEnv n) -> Vect (fst (Vect.filter Either.isLeft e)) String
-getFreeVars e with (filter isLeft e) 
-  | (p ** v) = map (either id (const "")) v
 
 -- Custom foldr1 because the standard one doesn't handle base case correctly.
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
 foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 
+hParam : Name -> Vect n Name -> HType
+hParam n [] = HParam n H1
+hParam n [p] = HParam n $ HVar p
+hParam n ps@(p::q::qs) = HParam n (HProd (map HVar ps))
+
 -- Generate a Haskell type signature from a TDef.
-makeType : SynEnv n -> TDef n -> HType
+makeType : Env n -> TDef n -> HType
 makeType     _ T0             = H0
 makeType     _ T1             = H1
-makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" (HProd [t1, t2])) (map (makeType e) xs)
-makeType     e (TProd xs)     = HProd $ map (makeType e) xs
-makeType     e (TVar v)       = either HVar (uncurry HParam) $ Vect.index v e
+makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" (HProd [t1, t2])) (map (assert_total $ makeType e) xs)
+makeType     e (TProd xs)     = HProd $ map (assert_total $ makeType e) xs
+makeType     e (TVar v)       = either HVar ?declToType $ Vect.index v e
 makeType     e (TMu name _)   = HParam name (makeParamType $ getFreeVars e)
 makeType     e (TName name _) = HParam name (makeParamType $ getFreeVars e)
 
 -- Generate a list of Haskell type definitions from a TDef. 
-makeDefs : SynEnv n -> TDef n -> State (List Name) (List HDef)
+makeDefs : Env n -> TDef n -> State (List Name) (List HDef)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []
-makeDefs e (TProd xs)    = map concat $ traverse (makeDefs e) (toList xs)
-makeDefs e (TSum xs)     = map concat $ traverse (makeDefs e) (toList xs)
+makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) (toList xs)
+makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) (toList xs)
 makeDefs _ (TVar v)      = pure []
 makeDefs e (TMu name cs) = 
    do st <- get 
       if List.elem name st then pure [] 
        else let
-          newEnv = Right (name, makeParamType $ getFreeVars e) :: e
+          newEnv = Right (MkDecl name $ getFreeVars e) :: e
           args = map (map (makeType newEnv)) cs
          in
-        do res <- map concat $ traverse {b=List HDef} (\(_, bdy) => makeDefs newEnv bdy) (toList cs) 
+        do res <- map concat $ traverse {b=List HDef} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs) 
            put (name :: st)
            pure $ ADT name (getFreeVars e) args :: res
 makeDefs e (TName name body) = 
   do st <- get 
      if List.elem name st then pure []
        else 
-        do res <- makeDefs e body 
+        do res <- assert_total $ makeDefs e body 
            put (name :: st)
            pure $ Synonym name (getFreeVars e) (makeType e body) :: res
 
-interface Backend b where
-  Env : Nat -> Type
-  Definition : Type
-  freshEnv : (n : Nat) -> Env n 
-  generateDefs : Env n -> TDef n -> List Definition
-  generateCode : Definition -> Doc
-
 Backend HDef where
-  Env n = SynEnv n
-  Definition = HDef
-  freshEnv = freshSynEnv
-  generateDefs e td = reverse $ evalState (makeDefs e td) []
-  generateCode = renderDef
+  generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []
+--  generateDefs e td = reverse $ evalState (makeDefs e td) []
+--  generateCode = renderDef
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshSynEnv n)
+generateType {n} = renderType . makeType (freshEnv n)
 
 -- generate data definitions
-generate : TDef n -> Doc
-generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshSynEnv n) td) []
+--generate : TDef n -> Src HDef
+--generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []

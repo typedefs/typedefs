@@ -2,6 +2,7 @@ module Backend.ReasonML
 
 import Data.Vect
 import Control.Monad.State
+import Text.PrettyPrint.WL
 
 import Backend.Utils
 import Types
@@ -10,11 +11,26 @@ import Typedefs
 %default partial
 %access public export
 
+data RMLType : Type where
+  H0 : RMLType
+  H1 : RMLType
+  HProd : Vect (2 + k) RMLType -> RMLType
+  HVar : Name -> RMLType
+  HParam : Name -> RMLType -> RMLType
+
+data RMLDef : Type where
+  Synonym : Name -> Vect n Name -> RMLType -> RMLDef
+  ADT     : Name -> Vect n Name -> Vect k (Name, RMLType) -> RMLDef
+
 formatVar : String -> String
 formatVar = (strCons '\'') . lowercase
 
 nameWithParams : Name -> Env n -> String
-nameWithParams name e = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e))
+nameWithParams name e = lowercase name ++ (withSep ", " formatVar (getFreeVars e))
+
+typeName : Name -> List Name -> String
+typeName name [] = lowercase name
+typeName name ps = lowercase name ++ parens (concat $ intersperse ", " $ map formatVar ps) 
 
 makeType : Env n -> TDef n -> String
 makeType     _ T0             = "void"
@@ -25,7 +41,7 @@ makeType {n} e (TSum xs)      = tsum xs
   tsum [x, y]              = "either" ++ (parens $ (makeType e x) ++ ", " ++ makeType e y)
   tsum (x :: y :: z :: zs) = "either" ++ (parens $ (makeType e x) ++ ", " ++ tsum (y :: z :: zs))
 makeType     e (TProd xs)     = assert_total $ parens $ withSep ", " (makeType e) xs
-makeType     e (TVar v)       = either formatVar lowercase $ Vect.index v e
+makeType     e (TVar v)       = either formatVar (?declToStr) $ Vect.index v e
 makeType     e (TMu name _)   = nameWithParams name e
 makeType     e (TName name _) = nameWithParams name e
 
@@ -39,13 +55,13 @@ makeDefs e (TMu name cs) =
   do st <- get 
      if List.elem name st then pure "" 
       else let 
-         dataName = nameWithParams name e
-         newEnv = Right dataName :: e
+         decl = MkDecl name (getFreeVars e)
+         newEnv = Right decl :: e
          args = withSep " | " (mkArg newEnv) cs
         in
        do res <- map concat $ traverse {b=String} (\(_, bdy) => makeDefs newEnv bdy) cs 
           put (name :: st)
-          pure $ res ++ "\ntype " ++ dataName ++ " = " ++ args ++ ";\n"
+          pure $ res ++ "\ntype " ++ ?declToStr ++ " = " ++ args ++ ";\n"
   where
   mkArg : Env (S n) -> (Name, TDef (S n)) -> String
   mkArg _ (cname, T1)       = cname
@@ -66,7 +82,7 @@ generateType {n} = makeType (freshEnv n)
 
 -- generate data definitions
 generate : TDef n -> String
-generate {n} td = evalState (makeDefs (freshEnv n) td) []      
+generate {n} td = evalState (makeDefs (freshEnv n) td) []
 
 -- type definitions to be included in all outputs
 helperTypes : String
