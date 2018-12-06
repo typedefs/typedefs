@@ -4,6 +4,7 @@ import Data.Vect
 
 import Typedefs
 import Types
+import Backend
 import Backend.ReasonML
 
 import Specdris.Spec
@@ -36,6 +37,10 @@ parametricSynonym = TName "parSyn" maybe
 
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "parSyn2" maybe2
+
+generate : TDef n -> String
+generate {n} = generateDefs reasonMLBackend n
+
 
 testSuite : IO ()
 testSuite = spec $ do

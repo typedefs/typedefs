@@ -4,6 +4,8 @@ import Data.Vect
 import Control.Monad.State
 
 import Backend.Utils
+import Backend
+
 import Types
 import Typedefs
 
@@ -59,10 +61,11 @@ makeDefs e (TName name body) =
            put (name :: st)
            pure $ res ++ "\ntype " ++ nameWithParams name e ++ " = " ++ makeType e body ++ "\n"
 
--- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> String
-generateType {n} = makeType (freshEnv n)
+freshEnv : (n: Nat) -> Env n
+freshEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
 
--- generate data definitions
-generate : TDef n -> String
-generate {n} td = evalState (makeDefs (freshEnv n) td) []
+haskellBackend : Backend
+haskellBackend =
+ MkBackend (\ n => makeType)
+           (\ n, e, td => evalState (makeDefs e td) [])
+           freshEnv

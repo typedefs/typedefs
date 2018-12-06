@@ -3,6 +3,7 @@ module Backend.ReasonML
 import Data.Vect
 import Control.Monad.State
 
+import Backend
 import Backend.Utils
 import Types
 import Typedefs
@@ -58,16 +59,16 @@ makeDefs e (TName name body) =
         do res <- makeDefs e body 
            put (name :: st)
            pure $ res ++ "\ntype " ++ nameWithParams name e ++ " = " ++ makeType e body ++ ";\n"
-  
-
--- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> String
-generateType {n} = makeType (freshEnv n)
-
--- generate data definitions
-generate : TDef n -> String
-generate {n} td = evalState (makeDefs (freshEnv n) td) []      
 
 -- type definitions to be included in all outputs
 helperTypes : String
 helperTypes = "type void;\n\ntype either('a,'b) = Left('a) | Right('b);\n"
+
+freshEnv : (n: Nat) -> Env n
+freshEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
+
+reasonMLBackend : Backend
+reasonMLBackend =
+ MkBackend (\ n => makeType)
+           (\ n, e, td => evalState (makeDefs e td) [])
+           freshEnv

@@ -4,6 +4,7 @@ import Data.Vect
 
 import Typedefs
 import Types
+import Backend
 import Backend.Haskell
 
 import Specdris.Spec
