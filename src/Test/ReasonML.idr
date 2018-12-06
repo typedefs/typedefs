@@ -5,8 +5,10 @@ import Data.Vect
 import Typedefs
 import Types
 import Backend.ReasonML
+import Backend.Utils
 
 import Specdris.Spec
+import Text.PrettyPrint.WL
 
 %access public export
 
@@ -37,43 +39,52 @@ parametricSynonym = TName "parSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "parSyn2" maybe2
 
+print : Doc -> String
+print = toString 1 80
+
+shouldBe : Doc -> String -> SpecResult
+shouldBe actual expected = print actual `shouldBe` expected
+
+generateRML : TDef n -> Doc
+generateRML {n} = generate {lang=ReasonML} {n=n}
+
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "ReasonML code generation tests:" $ do
 
     it "bit" $ 
-      generate bit 
+      generateRML bit 
         `shouldBe` "\ntype bit = either(unit, unit);\n"
 
     it "byte" $ 
-      generate byte
+      generateRML byte
         `shouldBe` "\ntype bit = either(unit, unit);\n\ntype byte = (bit, bit, bit, bit, bit, bit, bit, bit);\n"
         
     it "maybe" $ 
-      generate maybe
+      generateRML maybe
         `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n"
 
     it "list" $ 
-      generate list
+      generateRML list
         `shouldBe` "\ntype list('x0) = Nil | Cons('x0, list('x0));\n"
     
     it "maybe2" $ 
-      generate maybe2
+      generateRML maybe2
         `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n"
     
     it "nat" $ 
-      generate nat
+      generateRML nat
         `shouldBe` "\ntype nat = Z | S(nat);\n"
     
     it "listNat" $ 
-      generate listNat
+      generateRML listNat
         `shouldBe` "\ntype nat = Z | S(nat);\n\ntype listNat = NilN | ConsN(nat, listNat);\n"
 
     it "parametricSynonym" $
-      generate parametricSynonym
+      generateRML parametricSynonym
         `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n\ntype parSyn('x0) = maybe('x0);\n" 
 
     it "parametricSynonym2" $
-      generate parametricSynonym2
+      generateRML parametricSynonym2
         `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype parSyn2('x0) = maybe2('x0);\n" 
