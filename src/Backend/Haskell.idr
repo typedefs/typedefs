@@ -17,11 +17,8 @@ TODO
  Remove TDef -> String funs
  Rename funs
  clean up totality assertions
- index Haskell by var?
+ index Haskell type by vars?
 -}
-
-data HDecl : Type where
-  MkHDecl : Name -> Vect n Name -> HDecl
 
 data HType : Type where
   H0     :                               HType
@@ -72,15 +69,12 @@ renderDef (Synonym name vars body)  = text "type" |++| withArgs name (makeParamT
 renderDef (ADT     name vars cases) = text "data" |++| withArgs name (makeParamType vars)
                                       |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry withArgs) cases))
 
--- Creates an environment with n free variables.
-freshSynEnv : (n: Nat) -> Env n
-freshSynEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
-
 -- Custom foldr1 because the standard one doesn't handle base case correctly.
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
 foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 
+-- TODO this and everything related should be made much cleaner in
 hParam : Decl -> HType
 hParam (MkDecl n []) = HParam n H1
 hParam (MkDecl n [p]) = HParam n $ HVar p
@@ -122,9 +116,9 @@ makeDefs e (TName name body) =
            pure $ Synonym name (getFreeVars e) (makeType e body) :: res
 
 Backend Haskell where
-  generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []
---  generateDefs e td = reverse $ evalState (makeDefs e td) []
---  generateCode = renderDef
+  --generate {n} td = vsep2 . map renderDef . reverse $ evalState (makeDefs (freshEnv n) td) []
+  generateDefs e td = reverse $ evalState (makeDefs e td) []
+  generateCode = renderDef
 
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc

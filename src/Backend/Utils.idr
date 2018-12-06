@@ -39,14 +39,10 @@ vsep2 = vsep  . punctuate line
 freshEnv : (n : Nat) -> Env n
 freshEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
 
-Src : Type -> Type
-Src lang = Doc
-
 interface Backend lang where
---  generateDefs : Env decl n -> TDef n -> List def
---  generateCode : def -> Src def
-  generate : TDef n -> Src lang
+  generateDefs : Env n -> TDef n -> List lang
+  generateCode : lang -> Doc
 
-
---generate : Backend b d => {n: Nat} -> TDef n -> Src b
---generate {n} td = vsep2 . map generateCode . generateDefs (freshEnv n) $ td
+-- Needs to be called with {lang}
+generate : Backend lang => {n: Nat} -> TDef n -> Doc
+generate {lang} {n} td = vsep2 . map (generateCode) . generateDefs {lang=lang} (freshEnv n) $ td
