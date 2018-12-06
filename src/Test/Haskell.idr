@@ -32,11 +32,36 @@ nat = TMu "Nat" [("Z", T1), ("S", TVar 0)]
 listNat : TDef 0 
 listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
 
+listByte : TDef 0
+listByte = TMu "ListByte" [("NilC", T1), ("ConsC", TProd [weakenTDef byte 1 LTEZero, TVar 0])]
+
+charlistNatalphaTriples : TDef 1
+charlistNatalphaTriples = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weakenTDef listNat 1 LTEZero, TVar 0])
+
 parametricSynonym : TDef 1
 parametricSynonym = TName "ParSyn" maybe
 
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "ParSyn2" maybe2
+
+boolForBit : SpecialiseEntry
+boolForBit = MkSpecialiseEntry bit "Bool"
+                               "either (\\ () -> True) (\\ () -> False)"
+                               "\\ x -> if x then Left () else Right ()"
+
+charForByte : SpecialiseEntry
+charForByte = MkSpecialiseEntry byte "Char" "undefined" "undefined"
+
+intForNat : SpecialiseEntry
+intForNat = MkSpecialiseEntry nat "Int"
+                              "id"
+                              "\\ x -> if x >= 0 then x else error \"negative number\""
+
+generate : TDef n -> String
+generate {n} = generateDefs haskellBackend n
+
+generateSpecialised : Vect (S m) SpecialiseEntry -> TDef n -> String
+generateSpecialised se td = generateDefsSpecialised haskellBackend se _ td
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -78,3 +103,22 @@ testSuite = spec $ do
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype ParSyn2 x0 = Maybe2 x0\n"
+
+  describe "Haskell specialised types tests:" $ do
+
+    it "bit" $
+      generateSpecialised [boolForBit] byte
+        `shouldBe` "\ntype Byte = (Bool, Bool, Bool, Bool, Bool, Bool, Bool, Bool)\n"
+
+    it "byte" $
+      generateSpecialised [charForByte, boolForBit] listByte
+        `shouldBe` "\ndata ListByte = NilC | ConsC Char ListByte\n"
+
+    it "byteWrongOrder" $
+      generateSpecialised [boolForBit, charForByte] listByte
+        `shouldBe` "\ntype Byte = (Bool, Bool, Bool, Bool, Bool, Bool, Bool, Bool)\n\ndata ListByte = NilC | ConsC Byte ListByte\n"
+
+    it "listnatTriple" $
+      generateSpecialised [charForByte, boolForBit, intForNat] charlistNatalphaTriples
+        `shouldBe` "\ndata ListNat = NilN | ConsN Int ListNat\n\ntype Triple x0 = (Char, ListNat, x0)\n"
+

@@ -156,3 +156,20 @@ mutual
 
 Show (TDef n) where
   show = showTDef
+
+-- Equality -----
+
+vectEq : Eq a => Vect n a -> Vect m a -> Bool
+vectEq [] [] = True
+vectEq (x::xs) (y::ys) = x == y && vectEq xs ys
+vectEq _ _ = False
+
+implementation Eq (TDef n) where
+  T0 == T0 = True
+  T1 == T1 = True
+  (TSum xs) == (TSum xs') = assert_total $ vectEq xs xs'
+  (TProd xs) == (TProd xs') = assert_total $ vectEq xs xs'
+  (TVar i) == (TVar i') = i == i'
+  (TMu nam xs) == (TMu nam' xs') = nam == nam' && (assert_total $ vectEq xs xs')
+  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+  _ == _ = False
