@@ -18,6 +18,12 @@ TODO
  Rename funs
  clean up totality assertions
  index Haskell type by vars?
+ use Decl in Haskell/RML
+ consistent naming (vars/params, constructors/cases, ...) 
+ consistent application of toList (after/before map)
+ take care of upper/lowercase when prettyprinting
+ use Either Type ConstructorList instead of ADT/Syn?
+ use Vect n RMLType instead of RMLType in RMLParam
 -}
 
 data HType : Type where
@@ -25,20 +31,23 @@ data HType : Type where
   H1     :                               HType
   HProd  :         Vect (2 + k) HType -> HType
   HVar   :         Name               -> HType
-  HParam : Name -> HType              -> HType
+  HParam : Name -> Vect k HType       -> HType
 
 data Haskell : Type where
   Synonym : (name : Name) -> (vars : Vect n Name) -> HType                -> Haskell
   ADT     : (name : Name) -> (vars : Vect n Name) -> Vect k (Name, HType) -> Haskell
+
+renderDecl : Name -> Vect n Name -> Doc
+renderDecl name params = text (uppercase name) |+| hsep (toList $ empty :: map text params)
 
 mutual
   -- Generate Haskell code for a Haskell type signature.
   renderType : HType -> Doc
   renderType H0              = text "Void"
   renderType H1              = text "()"
-  renderType p@(HProd xs)    = tupled . toList $ map (assert_total renderType) (assert_smaller p xs)
+  renderType p@(HProd xs)    = tupled . toList $ map (assert_total renderType) xs
   renderType (HVar v)        = text (lowercase v)
-  renderType p@(HParam name t) = withArgs name (assert_smaller p t)
+  renderType (HParam name params) = withArgs name params
 
   -- Generate parenthesized type signature, if needed.
   guardParen : HType -> Doc
@@ -46,49 +55,40 @@ mutual
     where
     isSimple : HType -> Bool
     isSimple (HParam _ t) = case t of
-                              H1 => True
+                              [] => True
                               _  => False
     isSimple _            = True
   
+  -- TODO rewrite doc for this?; where is it actually used?
   -- Generate a name followed by arguments. Is used both for constructors and for parametric types.
-  withArgs : Name -> HType -> Doc
-  withArgs n H1         = text (uppercase n)
-  withArgs n p@(HProd ts) = text (uppercase n) |++| hsep (toList (map (guardParen) (assert_smaller p ts)))
-  withArgs n ht         = text (uppercase n) |++| assert_total (renderType ht)
+  withArgs : Name -> Vect n HType -> Doc
+  withArgs name params = text (uppercase name) |+| hsep (toList $ empty :: map guardParen params)
 
--- Given a vector of parameter names, generate a single HType to be used as the parameter to HParam.
-makeParamType : Vect n Name -> HType
-makeParamType []            = H1
-makeParamType [p]           = HVar p
-makeParamType ps@(p::q::qs) = HProd (map HVar ps)
+renderConstructor : Name -> HType -> Doc
+renderConstructor name H1         = withArgs name []
+renderConstructor name (HProd ts) = withArgs name ts
+renderConstructor name params     = withArgs name [params]
 
 -- Generate Haskell code for a Haskell type definition.
 renderDef : Haskell -> Doc
-renderDef (Synonym name vars body)  = text "type" |++| withArgs name (makeParamType vars)
+renderDef (Synonym name vars body)  = text "type" |++| renderDecl name vars
                                       |++| equals |++| renderType body
-renderDef (ADT     name vars cases) = text "data" |++| withArgs name (makeParamType vars)
-                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry withArgs) cases))
+renderDef (ADT     name vars cases) = text "data" |++| renderDecl name vars
+                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry renderConstructor) cases))
 
--- Custom foldr1 because the standard one doesn't handle base case correctly.
-foldr1' : (a -> a -> a) -> Vect (S n) a -> a
-foldr1' f [x]        = x
-foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
-
--- TODO this and everything related should be made much cleaner in
+-- TODO this and everything related should be made much cleaner
 hParam : Decl -> HType
-hParam (MkDecl n []) = HParam n H1
-hParam (MkDecl n [p]) = HParam n $ HVar p
-hParam (MkDecl n ps@(p::q::qs)) = HParam n (HProd (map HVar ps))
+hParam (MkDecl n ps) = HParam n (map HVar ps)
 
 -- Generate a Haskell type signature from a TDef.
 makeType : Env n -> TDef n -> HType
 makeType     _ T0             = H0
 makeType     _ T1             = H1
-makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" (HProd [t1, t2])) (map (assert_total $ makeType e) xs)
+makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType     e (TProd xs)     = HProd $ map (assert_total $ makeType e) xs
 makeType     e (TVar v)       = either HVar hParam $ Vect.index v e
-makeType     e (TMu name _)   = HParam name (makeParamType $ getFreeVars e)
-makeType     e (TName name _) = HParam name (makeParamType $ getFreeVars e)
+makeType     e (TMu name _)   = HParam name (map HVar $ getFreeVars e)
+makeType     e (TName name _) = HParam name (map HVar $ getFreeVars e)
 
 -- Generate a list of Haskell type definitions from a TDef. 
 makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)

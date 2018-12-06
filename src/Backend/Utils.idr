@@ -16,6 +16,12 @@ unindex : (Fin n -> a) -> Vect n a
 unindex {n=Z}   _ = []
 unindex {n=S k} f = f FZ :: unindex (f . FS)
 
+-- Custom foldr1 because the standard one doesn't handle base case correctly.
+foldr1' : (a -> a -> a) -> Vect (S n) a -> a
+foldr1' f [x]        = x
+foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
+
+
 --freshEnv : (n: Nat) -> Env n
 --freshEnv n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
 
