@@ -131,14 +131,24 @@ tdef =
                 (map {a=Parser' _} withSpaces rec)
                 (map {a=Parser' _} (nelist . withSpaces) rec)))
 
+||| Parse a sequence of TDefs and return the last one that parsed, accumulating
+||| and substituting named entries in the process
 tdefRec : All (Parser' (n ** TDef n))
 tdefRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec
+
+||| Parse a sequence of TDefs and return a non-empty list of all results,
+||| accumulating and substituting named entries in the process
+tdefNEL : All (Parser' (NEList (n ** TDef n)))
+tdefNEL = nelist tdef
 
 parseTDef : String -> Maybe (n : Nat ** TDef n)
 parseTDef str = parseMaybe str tdefRec
 
+parseTDefs : String -> Maybe (NEList (n : Nat ** TDef n))
+parseTDefs str = parseMaybe str tdefNEL
+
 parseThenShowTDef : String -> String
-parseThenShowTDef str = show $ parseTDef str
+parseThenShowTDef = show . parseTDef
 
 parseThenStrFun : String -> ((n ** TDef n) -> String) -> String
 parseThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str

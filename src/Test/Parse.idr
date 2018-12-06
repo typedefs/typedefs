@@ -32,11 +32,11 @@ testSuite = spec $ do
 
     "(name maybe (+ 1 (var 0)))" `itShouldParseAs` "Just (1 ** maybe [(1 + {0})])"
 
-    "(mu list (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** list = mu [cons: ({1} * {0})])"
+    "(mu list (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** (list := mu [cons: ({1} * {0})]))"
 
-    "(mu list (nil 1) (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
+    "(mu list (nil 1) (cons (* (var 1) (var 0))))" `itShouldParseAs` "Just (1 ** (list := mu [nil: 1, cons: ({1} * {0})]))"
 
-    "(mu list (nil 1) (cons (* (var 1) (var 0)) ))" `itShouldParseAs` "Just (1 ** list = mu [nil: 1, cons: ({1} * {0})])"
+    "(mu list (nil 1) (cons (* (var 1) (var 0)) ))" `itShouldParseAs` "Just (1 ** (list := mu [nil: 1, cons: ({1} * {0})]))"
 
     "(* 1 1)" `itShouldParseAs` "Just (0 ** (1 * 1))"
 
@@ -50,7 +50,7 @@ testSuite = spec $ do
 
     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
       `itShouldParseAs`
-        "Just (0 ** listmnat = mu [nil: 1, cons: ((1 + nat = mu [Z: 1, S: {0}]) * {0})])"
+        "Just (0 ** (listmnat := mu [nil: 1, cons: ((1 + (nat := mu [Z: 1, S: {0}])) * {0})]))"
 
   describe "Parser tests: ill-formed terms" $ do
 
