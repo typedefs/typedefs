@@ -39,52 +39,104 @@ parametricSynonym = TName "parSyn" maybe
 parametricSynonym2 : TDef 1
 parametricSynonym2 = TName "parSyn2" maybe2
 
+x0 : Doc
+x0 = text "'x0"
+
+x1 : Doc
+x1 = text "'x1"
+
+eitherDoc : Doc
+eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
+            |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
+
 print : Doc -> String
 print = toString 1 80
 
-shouldBe : Doc -> String -> SpecResult
-shouldBe actual expected = print actual `shouldBe` expected
+shouldBe : Doc -> Doc -> SpecResult
+shouldBe actual expected = print actual `shouldBe` print expected
 
-generateRML : TDef n -> Doc
-generateRML {n} = generate {lang=ReasonML} -- TODO why do we need to a new name for this?
+generate : TDef n -> Doc
+generate {n} = generate {lang=ReasonML}
 
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "ReasonML code generation tests:" $ do
+    let bitDoc = vsep2
+                  [ eitherDoc
+                  , text "type" |++| text "bit"
+                    |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
+                  ]
 
     it "bit" $ 
-      generateRML bit 
-        `shouldBe` "\ntype bit = either(unit, unit);\n"
+      generate bit `shouldBe` bitDoc
 
     it "byte" $ 
-      generateRML byte
-        `shouldBe` "\ntype bit = either(unit, unit);\n\ntype byte = (bit, bit, bit, bit, bit, bit, bit, bit);\n"
-        
+      generate byte
+        `shouldBe` vsep2
+                    [ bitDoc
+                    , text "type" |++| text "byte"
+                      |++| equals |++| tupled (replicate 8 (text "bit"))
+                      |+| semi
+                    ]
+    
+    let maybeDoc = vsep2
+                     [ eitherDoc
+                     , text "type" |++| text "maybe" |+| parens x0
+                       |++| equals |++| text "either" |+| tupled [text "unit", x0]
+                       |+| semi
+                     ]
+
     it "maybe" $ 
-      generateRML maybe
-        `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n"
+      generate maybe `shouldBe` maybeDoc
 
     it "list" $ 
-      generateRML list
-        `shouldBe` "\ntype list('x0) = Nil | Cons('x0, list('x0));\n"
-    
+      generate list
+        `shouldBe` text "type" |++| text "list" |+| parens x0
+                   |++| equals |++| text "Nil"
+                   |++| pipe   |++| text "Cons" |+| tupled [x0, text "list" |+| parens x0]
+                   |+| semi
+
+    let maybe2Doc = text "type" |++| text "maybe2" |+| parens x0
+                    |++| equals |++| text "Nothing"
+                    |++| pipe   |++| text "Just" |+| parens x0
+                    |+| semi
+
     it "maybe2" $ 
-      generateRML maybe2
-        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n"
-    
+      generate maybe2 `shouldBe` maybe2Doc
+
+    let natDoc = text "type" |++| text "nat"
+                 |++| equals |++| text "Z"
+                 |++| pipe   |++| text "S" |+| parens (text "nat")
+                 |+| semi
+
     it "nat" $ 
-      generateRML nat
-        `shouldBe` "\ntype nat = Z | S(nat);\n"
-    
+      generate nat `shouldBe` natDoc
+
     it "listNat" $ 
-      generateRML listNat
-        `shouldBe` "\ntype nat = Z | S(nat);\n\ntype listNat = NilN | ConsN(nat, listNat);\n"
+      generate listNat
+        `shouldBe` vsep2
+                    [ natDoc
+                    , text "type" |++| text "listNat"
+                      |++| equals |++| text "NilN"
+                      |++| pipe   |++| text "ConsN" |+| tupled [ text "nat", text "listNat" ]
+                      |+| semi
+                    ]
 
     it "parametricSynonym" $
-      generateRML parametricSynonym
-        `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n\ntype parSyn('x0) = maybe('x0);\n" 
+      generate parametricSynonym
+        `shouldBe` vsep2
+                    [ maybeDoc
+                    , text "type" |++| text "parSyn" |+| parens x0
+                      |++| equals |++| text "maybe" |+| parens x0
+                      |+| semi
+                    ]
 
     it "parametricSynonym2" $
-      generateRML parametricSynonym2
-        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype parSyn2('x0) = maybe2('x0);\n" 
+      generate parametricSynonym2
+        `shouldBe` vsep2
+                    [ maybe2Doc
+                    , text "type" |++| text "parSyn2" |+| parens x0
+                      |++| equals |++| text "maybe2" |+| parens x0
+                      |+| semi
+                    ]

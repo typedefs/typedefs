@@ -23,7 +23,7 @@ data ReasonML : Type where
   ADT     : Name -> Vect n Name -> Vect k (Name, RMLType) -> ReasonML
 
 renderVar : String -> Doc
-renderVar = text . (strCons '\'') . lowercase
+renderVar v = squote |+| text (lowercase v)
 
 withArgs : Name -> Vect n Doc -> Doc
 withArgs name params = text (lowercase name) |+| case params of
