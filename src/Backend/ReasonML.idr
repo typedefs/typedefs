@@ -19,18 +19,18 @@ data RMLType : Type where
   RMLParam : Name -> Vect k RMLType       -> RMLType
 
 data ReasonML : Type where
-  Synonym : Name -> Vect n Name -> RMLType                -> ReasonML
-  ADT     : Name -> Vect n Name -> Vect k (Name, RMLType) -> ReasonML
+  Synonym : Decl -> RMLType                -> ReasonML
+  ADT     : Decl -> Vect k (Name, RMLType) -> ReasonML
 
 -- Render a name as a variable.
 renderVar : Name -> Doc
 renderVar v = squote |+| text (lowercase v)
 
--- Given a name and a vector of arguments, render an application of the name to the argument vector.
-withArgs : Name -> Vect n Doc -> Doc
-withArgs name params = text (lowercase name) |+| case params of
-                                                  [] => empty
-                                                  _  => tupled (toList params)
+-- Given a name and a vector of arguments, render an application of the name to the arguments.
+renderApp : Name -> Vect n Doc -> Doc
+renderApp name params = text name |+| case params of
+                                        [] => empty
+                                        _  => tupled (toList params)
 
 -- Render source code for a ReasonML type signature.
 renderType : RMLType -> Doc
@@ -38,21 +38,20 @@ renderType RML0                   = text "void"
 renderType RML1                   = text "unit"
 renderType (RMLProd xs)           = tupled . toList $ map (assert_total renderType) xs
 renderType (RMLVar v)             = renderVar v
-renderType (RMLParam name params) = withArgs name (assert_total $ map renderType params)
+renderType (RMLParam name params) = renderApp (lowercase name) (assert_total $ map renderType params)
 
 -- TODO move into where-clause in 'renderDef' - why not possible?
 renderConstructor : (Name, RMLType) -> Doc
-renderConstructor (name, t) = text (uppercase name) |+| case t of 
-                                RML1      => empty
-                                RMLProd _ => renderType t
-                                _         => parens (renderType t)
+renderConstructor (name, RML1)       = renderApp (uppercase name) []
+renderConstructor (name, RMLProd ts) = renderApp (uppercase name) (map renderType ts)
+renderConstructor (name, t)          = renderApp (uppercase name) [renderType t]
 
 -- Generate source code for a ReasonML type definition.
 renderDef : ReasonML -> Doc
-renderDef (Synonym name vars body)  = text "type" |++| withArgs name (map renderVar vars)
+renderDef (Synonym decl body)  = text "type" |++| renderApp (lowercase $ name decl) (map renderVar $ params decl)
                                       |++| equals |++| renderType body
                                       |+| semi
-renderDef (ADT     name vars cases) = text "type" |++| withArgs name (map renderVar vars)
+renderDef (ADT     decl cases) = text "type" |++| renderApp (lowercase $ name decl) (map renderVar $ params decl)
                                       |++| equals |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
                                       |+| semi
 
@@ -94,14 +93,14 @@ makeDefs e (TMu name cs) =
         in
        do res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) cs 
           put (name :: st)
-          pure $ ADT name (getFreeVars e) cases :: res
+          pure $ ADT decl cases :: res
 makeDefs e (TName name body) = 
   do st <- get 
      if List.elem name st then pure []
        else 
         do res <- assert_total $ makeDefs e body 
            put (name :: st)
-           pure $ Synonym name (getFreeVars e) (makeType e body) :: res
+           pure $ Synonym (MkDecl name (getFreeVars e)) (makeType e body) :: res
 
 Backend ReasonML where
   generateDefs e td = reverse $ evalState (makeDefs e td) []

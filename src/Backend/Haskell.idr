@@ -12,18 +12,6 @@ import Typedefs
 %default total
 %access public export
 
-{-
-TODO
- Rename funs
- clean up totality assertions
- index Haskell type by vars?
- use Decl in Haskell/RML
- consistent naming (vars/params, constructors/cases, ...) 
- consistent application of toList (after/before map)
- take care of upper/lowercase when prettyprinting
- use Either Type ConstructorList instead of ADT/Syn?
--}
-
 data HType : Type where
   H0     :                               HType
   H1     :                               HType
@@ -35,27 +23,28 @@ data Haskell : Type where
   Synonym : Decl -> HType                -> Haskell
   ADT     : Decl -> Vect k (Name, HType) -> Haskell
 
-renderDecl : Decl -> Doc
-renderDecl decl = text (uppercase $ name decl) |+| hsep (toList $ empty :: map text (params decl))
+-- Render a name applied to a list of arguments exactly as written (arguments need to be previously parenthesized, if applicable).
+renderApp : Name -> Vect n Doc -> Doc
+renderApp name params = text (uppercase name) |+| hsep (empty :: toList params)
 
 mutual
-  -- Generate a type signature as Haskell source code. 
+  -- Render a type signature as Haskell source code. 
   renderType : HType -> Doc
-  renderType H0              = text "Void"
-  renderType H1              = text "()"
-  renderType p@(HProd xs)    = tupled . toList $ map (assert_total renderType) xs
-  renderType (HVar v)        = text (lowercase v)
-  renderType (HParam name params) = withArgs name params
+  renderType H0                   = text "Void"
+  renderType H1                   = text "()"
+  renderType p@(HProd xs)         = tupled . toList $ map (assert_total renderType) xs
+  renderType (HVar v)             = text (lowercase v)
+  renderType (HParam name params) = renderApp name (map guardParen params)
   
-  -- TODO rewrite doc for this?; where is it actually used?
-  -- Generate a name followed by arguments. Is used both for constructors and for parametric types.
-  withArgs : Name -> Vect n HType -> Doc
-  withArgs name params = text (uppercase name) |+| hsep (toList $ empty :: map guardParen params)
-    where
-    guardParen : HType -> Doc
-    guardParen t@(HParam _ []) = assert_total $ renderType t
-    guardParen t@(HParam _ _ ) = parens (assert_total $ renderType t)
-    guardParen t               = assert_total $ renderType t
+  -- As 'renderType', but with enclosing parentheses if it can possibly make a semantic difference.
+  guardParen : HType -> Doc
+  guardParen t@(HParam _ []) = assert_total $ renderType t
+  guardParen t@(HParam _ _ ) = parens (assert_total $ renderType t)
+  guardParen t               = assert_total $ renderType t
+
+-- Helper function to render a top-level declaration as source code.
+renderDecl : Decl -> Doc
+renderDecl decl = renderApp (name decl) (map (text . lowercase) (params decl))
 
 -- Render a type definition as Haskell source code.
 renderDef : Haskell -> Doc
@@ -66,9 +55,9 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
                                                        (toList $ map (uncurry renderConstructor) cases))
   where
   renderConstructor : Name -> HType -> Doc
-  renderConstructor name H1         = withArgs name []
-  renderConstructor name (HProd ts) = withArgs name ts
-  renderConstructor name params     = withArgs name [params]
+  renderConstructor name H1         = renderApp name []
+  renderConstructor name (HProd ts) = renderApp name (map guardParen ts)
+  renderConstructor name params     = renderApp name [guardParen params]
 
 -- Generate a Haskell type from a TDef.
 makeType : Env n -> TDef n -> HType
