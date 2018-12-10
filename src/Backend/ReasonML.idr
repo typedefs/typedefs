@@ -12,64 +12,64 @@ import Typedefs
 %access public export
 
 data RMLType : Type where
-  RML0 : RMLType
-  RML1 : RMLType
-  RMLProd : Vect (2 + k) RMLType -> RMLType
-  RMLVar : Name -> RMLType
-  RMLParam : Name -> Vect k RMLType -> RMLType
+  RML0     :                                 RMLType
+  RML1     :                                 RMLType
+  RMLProd  :         Vect (2 + k) RMLType -> RMLType
+  RMLVar   :         Name                 -> RMLType
+  RMLParam : Name -> Vect k RMLType       -> RMLType
 
 data ReasonML : Type where
-  Synonym : Name -> Vect n Name -> RMLType -> ReasonML
+  Synonym : Name -> Vect n Name -> RMLType                -> ReasonML
   ADT     : Name -> Vect n Name -> Vect k (Name, RMLType) -> ReasonML
 
-renderVar : String -> Doc
+-- Render a name as a variable.
+renderVar : Name -> Doc
 renderVar v = squote |+| text (lowercase v)
 
+-- Given a name and a vector of arguments, render an application of the name to the argument vector.
 withArgs : Name -> Vect n Doc -> Doc
 withArgs name params = text (lowercase name) |+| case params of
                                                   [] => empty
                                                   _  => tupled (toList params)
 
+-- Render source code for a ReasonML type signature.
 renderType : RMLType -> Doc
-renderType RML0              = text "void"
-renderType RML1              = text "unit"
-renderType (RMLProd xs)    = tupled . toList $ map (assert_total renderType) xs
-renderType (RMLVar v)        = renderVar v
+renderType RML0                   = text "void"
+renderType RML1                   = text "unit"
+renderType (RMLProd xs)           = tupled . toList $ map (assert_total renderType) xs
+renderType (RMLVar v)             = renderVar v
 renderType (RMLParam name params) = withArgs name (assert_total $ map renderType params)
-  -- text (uppercase name) |+| tupled (toList $ assert_total $ map renderType params)
 
--- Given a vector of parameter names, generate a single HType to be used as the parameter to HParam.
-makeParamType : Vect n Name -> RMLType
-makeParamType []            = RML1
-makeParamType [p]           = RMLVar p
-makeParamType ps@(p::q::qs) = RMLProd (map RMLVar ps)
+-- TODO move into where-clause in 'renderDef' - why not possible?
+renderConstructor : (Name, RMLType) -> Doc
+renderConstructor (name, t) = text (uppercase name) |+| case t of 
+                                RML1      => empty
+                                RMLProd _ => renderType t
+                                _         => parens (renderType t)
 
-renderConstructor : Name -> RMLType -> Doc
-renderConstructor name RML1         = text name
-renderConstructor name p@(RMLProd _) = (text $ uppercase name) |+| (renderType p)
-renderConstructor name param     = text (uppercase name) |+| parens (renderType param)
-
+-- Generate source code for a ReasonML type definition.
 renderDef : ReasonML -> Doc
 renderDef (Synonym name vars body)  = text "type" |++| withArgs name (map renderVar vars)
-                                      |++| equals |++| renderType body |+| semi
+                                      |++| equals |++| renderType body
+                                      |+| semi
 renderDef (ADT     name vars cases) = text "type" |++| withArgs name (map renderVar vars)
-                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map (uncurry renderConstructor) cases)) |+| semi
+                                      |++| equals |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
+                                      |+| semi
 
--- TODO this and everything related should be made much cleaner
-rmlParam : Decl -> RMLType
-rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
-
--- Generate a Haskell type signature from a TDef.
+-- Generate a ReasonML type from a TDef.
 makeType : Env n -> TDef n -> RMLType
 makeType     _ T0             = RML0
 makeType     _ T1             = RML1
-makeType     e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" ({- RMLProd -}[t1, t2])) (map (assert_total $ makeType e) xs)
+makeType     e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType     e (TProd xs)     = RMLProd $ map (assert_total $ makeType e) xs
-makeType     e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
-makeType     e (TMu name _)   = RMLParam name ({-makeParamType-} map RMLVar $ getFreeVars e)
-makeType     e (TName name _) = RMLParam name ({-makeParamType-} map RMLVar $ getFreeVars e)
+makeType     e (TVar v)       = either RMLVar mkParam $ Vect.index v e
+  where
+  mkParam : Decl -> RMLType
+  mkParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
+makeType     e (TMu name _)   = RMLParam name (map RMLVar $ getFreeVars e)
+makeType     e (TName name _) = RMLParam name (map RMLVar $ getFreeVars e)
 
-
+-- Generate ReasonML type definitions from a TDef, includig all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List ReasonML)
 makeDefs _ T0            = assert_total $ makeDefs (freshEnv _) voidDef
   where
@@ -110,11 +110,3 @@ Backend ReasonML where
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
 generateType {n} = renderType . makeType (freshEnv n)
-
--- generate data definitions
---generate : TDef n -> String
---generate {n} td = evalState (makeDefs (freshEnv n) td) []
-
--- type definitions to be included in all outputs
-helperTypes : String
-helperTypes = "type void;\n\ntype either('a,'b) = Left('a) | Right('b);\n"
