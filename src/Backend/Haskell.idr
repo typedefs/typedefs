@@ -1,6 +1,5 @@
 module Backend.Haskell
 
-import Data.HVect
 import Data.Vect
 import Control.Monad.State
 import Text.PrettyPrint.WL
