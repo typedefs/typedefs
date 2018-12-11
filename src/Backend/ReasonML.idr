@@ -1,12 +1,13 @@
 module Backend.ReasonML
 
-import Data.Vect
 import Control.Monad.State
 import Text.PrettyPrint.WL
 
 import Backend.Utils
 import Types
 import Typedefs
+
+import Data.Vect
 
 %default total
 %access public export
