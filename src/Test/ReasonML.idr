@@ -2,6 +2,7 @@ module Test.ReasonML
 
 import Data.Vect 
 
+import Test
 import Typedefs
 import Types
 import Backend.ReasonML
@@ -12,48 +13,21 @@ import Text.PrettyPrint.WL
 
 %access public export
 
-bit : TDef 0
-bit = TName "Bit" $ TSum [T1, T1]
-
-byte : TDef 0
-byte = TName "Byte" $ pow 8 bit
-
-maybe : TDef 1
-maybe = TName "Maybe" $  TSum [T1, TVar 0]
-
-list : TDef 1
-list = TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
-
-maybe2 : TDef 1
-maybe2 = TMu "Maybe2" [("Nothing", T1), ("Just", TVar 1)]
-
-nat : TDef 0
-nat = TMu "Nat" [("Z", T1), ("S", TVar 0)]
-
-listNat : TDef 0 
-listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
-
-parametricSynonym : TDef 1
-parametricSynonym = TName "parSyn" maybe
-
-parametricSynonym2 : TDef 1
-parametricSynonym2 = TName "parSyn2" maybe2
-
 x0 : Doc
 x0 = text "'x0"
 
 x1 : Doc
 x1 = text "'x1"
 
+x2 : Doc
+x2 = text "'x2"
+
+x3 : Doc
+x3 = text "'x3"
+
 eitherDoc : Doc
 eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
             |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
-
-print : Doc -> String
-print = toString 1 80
-
-shouldBe : Doc -> Doc -> SpecResult
-shouldBe actual expected = print actual `shouldBe` print expected
 
 generate : TDef n -> Doc
 generate {n} = generate {lang=ReasonML}
@@ -138,5 +112,27 @@ testSuite = spec $ do
                     [ maybe2Doc
                     , text "type" |++| text "parSyn2" |+| parens x0
                       |++| equals |++| text "maybe2" |+| parens x0
+                      |+| semi
+                    ]
+
+    it "aplusbpluscplusd" $
+      generate aplusbpluscplusd
+        `shouldBe` vsep2
+                    [ eitherDoc
+                    , text "type" |++| text "aplusbpluscplusd" |+| tupled [x0,x1,x2,x3]
+                      |++| equals |++| text "either" |+| tupled [x0,
+                                          text "either" |+| tupled [x1,
+                                            text "either" |+| tupled [x2, x3]]]
+                      |+| semi
+                    ]
+
+    it "oneoneoneone" $
+      generate oneoneoneone
+        `shouldBe` vsep2
+                    [ eitherDoc
+                    , text "type" |++| text "oneoneoneone"
+                      |++| equals |++| text "either" |+| tupled [text "unit",
+                                          text "either" |+| tupled [text "unit",
+                                            text "either" |+| tupled [text "unit", text "unit"]]]
                       |+| semi
                     ]
