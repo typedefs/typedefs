@@ -45,6 +45,9 @@ getFreeVars e with (filter isLeft e)
 vsep2 : List Doc -> Doc
 vsep2 = vsep  . punctuate line
 
+print : Doc -> String
+print = toString 1 80
+
 -- Interface for codegens. lang is a type representing (the syntactic structure of)
 -- a type declaration in the target language.
 interface Backend lang where

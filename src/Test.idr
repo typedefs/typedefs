@@ -44,8 +44,5 @@ aplusbpluscplusd = TName "aplusbpluscplusd" $ TSum [TVar 0, TVar 1, TVar 2, TVar
 oneoneoneone : TDef 0
 oneoneoneone = TName "oneoneoneone" $ TSum [T1, T1, T1, T1]
 
-print : Doc -> String
-print = toString 1 80
-
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
