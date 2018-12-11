@@ -105,3 +105,6 @@ Backend Haskell where
 -- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
 generateType {n} = renderType . makeType (freshEnv n)
+
+generate : TDef n -> Doc
+generate = generate {lang=Haskell}
