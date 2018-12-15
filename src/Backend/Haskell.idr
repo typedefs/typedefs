@@ -12,41 +12,58 @@ import Data.Vect
 %default total
 %access public export
 
-data HType : Type where
-  H0     :                               HType
-  H1     :                               HType
-  HProd  :         Vect (2 + k) HType -> HType
-  HVar   :         Name               -> HType
-  HParam : Name -> Vect k HType       -> HType
+||| The syntactic structure of Haskell types.
+data HsType : Type where -- TODO could be interesting to index this by e.g. used variable names?
+  ||| The `Void` (i.e. empty) type.
+  HsVoid  :                                HsType
 
+  ||| The `()` (i.e. unit/singleton) type.
+  HsUnit  :                                HsType
+
+  ||| The tuple type, containing two or more further types.
+  HsTuple :         Vect (2 + k) HsType -> HsType
+
+  ||| A type variable.
+  HsVar   :         Name                -> HsType
+
+  ||| A named type with zero or more other types as parameters.
+  HsParam : Name -> Vect k HsType       -> HsType
+
+||| The syntactic structure of Haskell type declarations.
 data Haskell : Type where
-  Synonym : Decl -> HType                -> Haskell
-  ADT     : Decl -> Vect k (Name, HType) -> Haskell
+  ||| A type synonym is a declared name (possibly with parameters) and a type.
+  Synonym : Decl -> HsType                -> Haskell
 
--- Render a name applied to a list of arguments exactly as written (arguments need to be previously parenthesized, if applicable).
+  ||| An algebraic data type is a declared name (possibly with parameters)
+  ||| and a number of constructors, each wrapping a Haskell type.
+  ADT     : Decl -> Vect k (Name, HsType) -> Haskell
+
+||| Render a name applied to a list of arguments exactly as written.
+||| Arguments need to be previously parenthesized, if applicable.
 renderApp : Name -> Vect n Doc -> Doc
 renderApp name params = text (uppercase name) |+| hsep (empty :: toList params)
 
 mutual
-  -- Render a type signature as Haskell source code. 
-  renderType : HType -> Doc
-  renderType H0                   = text "Void"
-  renderType H1                   = text "()"
-  renderType p@(HProd xs)         = tupled . toList $ map (assert_total renderType) xs
-  renderType (HVar v)             = text (lowercase v)
-  renderType (HParam name params) = renderApp name (map guardParen params)
+  ||| Render a type signature as Haskell source code. 
+  renderType : HsType -> Doc
+  renderType HsVoid                = text "Void"
+  renderType HsUnit                = text "()"
+  renderType (HsTuple xs)          = tupled . toList $ map (assert_total renderType) xs
+  renderType (HsVar v)             = text (lowercase v)
+  renderType (HsParam name params) = renderApp name (map guardParen params)
   
-  -- As 'renderType', but with enclosing parentheses if it can possibly make a semantic difference.
-  guardParen : HType -> Doc
-  guardParen t@(HParam _ []) = assert_total $ renderType t
-  guardParen t@(HParam _ _ ) = parens (assert_total $ renderType t)
-  guardParen t               = assert_total $ renderType t
+  ||| As `renderType`, but with enclosing top-level parentheses
+  ||| if it can possibly make a semantic difference.
+  guardParen : HsType -> Doc
+  guardParen t@(HsParam _ []) = assert_total $ renderType t
+  guardParen t@(HsParam _ _ ) = parens (assert_total $ renderType t)
+  guardParen t                = assert_total $ renderType t
 
--- Helper function to render a top-level declaration as source code.
+||| Helper function to render a top-level declaration as source code.
 renderDecl : Decl -> Doc
 renderDecl decl = renderApp (name decl) (map (text . lowercase) (params decl))
 
--- Render a type definition as Haskell source code.
+||| Render a type definition as Haskell source code.
 renderDef : Haskell -> Doc
 renderDef (Synonym decl body)  = text "type" |++| renderDecl decl
                                  |++| equals |++| renderType body
@@ -54,25 +71,25 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
                                  |++| equals |++| hsep (punctuate (text " |")
                                                        (toList $ map (uncurry renderConstructor) cases))
   where
-  renderConstructor : Name -> HType -> Doc
-  renderConstructor name H1         = renderApp name []
-  renderConstructor name (HProd ts) = renderApp name (map guardParen ts)
-  renderConstructor name params     = renderApp name [guardParen params]
+  renderConstructor : Name -> HsType -> Doc
+  renderConstructor name HsUnit       = renderApp name []
+  renderConstructor name (HsTuple ts) = renderApp name (map guardParen ts)
+  renderConstructor name params       = renderApp name [guardParen params]
 
--- Generate a Haskell type from a TDef.
-makeType : Env n -> TDef n -> HType
-makeType     _ T0             = H0
-makeType     _ T1             = H1
-makeType     e (TSum xs)      = foldr1' (\t1,t2 => HParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType     e (TProd xs)     = HProd $ map (assert_total $ makeType e) xs
-makeType     e (TVar v)       = either HVar hParam $ Vect.index v e
+||| Generate a Haskell type from a TDef.
+makeType : Env n -> TDef n -> HsType
+makeType _ T0             = HsVoid
+makeType _ T1             = HsUnit
+makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
+makeType e (TVar v)       = either HsVar hParam $ Vect.index v e
   where
-  hParam : Decl -> HType
-  hParam (MkDecl n ps) = HParam n (map HVar ps)
-makeType     e (TMu name _)   = HParam name (map HVar $ getFreeVars e)
-makeType     e (TName name _) = HParam name (map HVar $ getFreeVars e)
+  hParam : Decl -> HsType
+  hParam (MkDecl n ps) = HsParam n (map HsVar ps)
+makeType e (TMu name _)   = HsParam name (map HsVar $ getFreeVars e)
+makeType e (TName name _) = HsParam name (map HsVar $ getFreeVars e)
 
--- Generate Haskell type definitions from a TDef, including all of its dependencies.
+||| Generate Haskell type definitions from a TDef, including all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []
@@ -99,9 +116,10 @@ makeDefs e (TName name body) =
            pure $ Synonym (MkDecl name (getFreeVars e)) (makeType e body) :: res
 
 Backend Haskell where
-  generateDefs e td = reverse $ evalState (makeDefs e td) []
-  generateCode      = renderDef
+  generateTyDefs e td = reverse $ evalState (makeDefs e td) []
+  generateCode        = renderDef
+  freshEnv            = freshEnvLC
 
--- generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
+||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshEnv n)
+generateType {n} = renderType . makeType (freshEnv {lang=Haskell} n)
