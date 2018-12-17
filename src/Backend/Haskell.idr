@@ -40,24 +40,6 @@ data Haskell : Type where
   ||| and a number of constructors, each wrapping a Haskell type.
   ADT     : Decl -> Vect k (Name, HsType) -> Haskell
 
---nameWithParams : Env n -> List (Fin n) -> Env (Prelude.Pairs.DPair.fst e')
---nameWithParams {n = n} e usedVars = map snd $ snd e'
---  where
---    e' : (p : Nat ** Vect p (Fin n, Either String Decl))
---    e' = filter (\ (i, v) => i `List.elem` usedVars) (zip range e)
-
-
-{-
-
-nameWithParams : Env n -> List (Fin n) -> Vect _ Name
-nameWithParams {n = n} e usedVars = getFreeVars e''
-  where
-    e' : (p : Nat ** Vect p (Fin n, Either String Decl))
-    e' = filter (\ (i, v) => i `List.elem` usedVars) (zip range e)
-    e'' : Env (fst e')
-    e'' = map snd $ snd e'
--}
-
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
 renderApp : Name -> Vect n Doc -> Doc

@@ -41,14 +41,6 @@ data ReasonML : Type where
   ||| and a number of constructors, each wrapping a ReasonML type.
   Variant : Decl -> Vect k (Name, RMLType) -> ReasonML
 
---nameWithParams : Name -> Env n -> List (Fin n) -> String
---nameWithParams {n = n} name e usedVars = lowercase name ++ parens (withSep ", " formatVar (getFreeVars e''))
---  where
---    e' : (p : Nat ** Vect p (Fin n, Either String String))
---    e' = filter (\ (i, v) => i `List.elem` usedVars) (zip range e)
---    e'' : Env (fst e')
---    e'' = map snd $ snd e'
-
 ||| Render a name as a type variable.
 renderVar : Name -> Doc
 renderVar v = squote |+| text (lowercase v)

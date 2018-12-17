@@ -50,7 +50,6 @@ getUsedIndices (TName nam t) = getUsedIndices t
 getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
 getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
-
 ||| Interface for codegens. lang is a type representing (the syntactic structure of)
 ||| a type declaration in the target language.
 interface Backend lang where
@@ -69,33 +68,19 @@ interface Backend lang where
 generate : Backend lang => {n: Nat} -> TDef n -> Doc
 generate {lang} {n} td = vsep2 . map (generateCode) . generateTyDefs {lang=lang} (freshEnv {lang=lang} n) $ td
 
---record Backend where
---  constructor MkBackend
---  ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
---  generateTypeEnv : (n : Nat) -> Env n -> TDef n -> String
---  ||| Generate data definitions
---  generateDefsEnv : (n : Nat) -> Env n -> TDef n -> String
---  freshEnv : (n : Nat) -> Env n
-
---generateType : Backend -> (n : Nat) -> TDef n -> String
---generateType be n td = generateTypeEnv be n (freshEnv be n) td
---
---generateDefs : Backend -> (n : Nat) -> TDef n -> String
---generateDefs be n td = generateDefsEnv be n (freshEnv be n) td
-
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
   ||| name of type used for specialisation
-  targetType : Decl -- TODO this seems unsatisfactory. Decl should at least be renamed.
+  targetType : Decl
   ||| name of function of target type generateType tdef -> targetType
   encodeFun : String
   ||| name of function of target type targetType -> generateType tdef
   decodeFun : String
 
+||| Generate type definitions according to an *ordered* set of specialisation entries.
 generateDefsSpecialised : Backend lang => Vect (S m') SpecialiseEntry -> (n : Nat) -> TDef n -> List lang
 generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
-  --generateDefsEnv be (n + m) e td'
    where m : Nat
          m = S m'
          e : Env (n + m)
