@@ -2,69 +2,36 @@ module Test.Haskell
 
 import Data.Vect 
 
+import Test
 import Typedefs
 import Types
 import Backend
 import Backend.Haskell
+import Backend.Utils
 
 import Specdris.Spec
+import Text.PrettyPrint.WL
 
 %access public export
 
-bit : TDef 0
-bit = TName "Bit" $ TSum [T1, T1]
-
-byte : TDef 0
-byte = TName "Byte" $ pow 8 bit
-
-maybe : TDef 1
-maybe = TName "Maybe" $  TSum [T1, TVar 0]
-
-list : TDef 1
-list = TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
-
-maybe2 : TDef 1
-maybe2 = TMu "Maybe2" [("Nothing", T1), ("Just", TVar 1)]
-
-nat : TDef 0
-nat = TMu "Nat" [("Z", T1), ("S", TVar 0)]
-
-listNat : TDef 0 
-listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
-
-listByte : TDef 0
-listByte = TMu "ListByte" [("NilC", T1), ("ConsC", TProd [weakenTDef byte 1 LTEZero, TVar 0])]
-
-charlistNatalphaTriples : TDef 1
-charlistNatalphaTriples = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weakenTDef listNat 1 LTEZero, TVar 0])
-
-parametricSynonym : TDef 1
-parametricSynonym = TName "ParSyn" maybe
-
-parametricSynonym2 : TDef 1
-parametricSynonym2 = TName "ParSyn2" maybe2
-
-unusedFreeVars : TDef 42
-unusedFreeVars = TName "Id" (TVar 0)
+generate : TDef n -> Doc
+generate = generate {lang=Haskell}
 
 boolForBit : SpecialiseEntry
-boolForBit = MkSpecialiseEntry bit "Bool"
+boolForBit = MkSpecialiseEntry bit (MkDecl "Bool" []) 
                                "either (\\ () -> True) (\\ () -> False)"
                                "\\ x -> if x then Left () else Right ()"
 
 charForByte : SpecialiseEntry
-charForByte = MkSpecialiseEntry byte "Char" "undefined" "undefined"
+charForByte = MkSpecialiseEntry byte (MkDecl "Char" []) "undefined" "undefined"
 
 intForNat : SpecialiseEntry
-intForNat = MkSpecialiseEntry nat "Int"
+intForNat = MkSpecialiseEntry nat (MkDecl "Int" [])
                               "id"
                               "\\ x -> if x >= 0 then x else error \"negative number\""
 
-generate : TDef n -> String
-generate {n} = generateDefs haskellBackend n
-
-generateSpecialised : Vect (S m) SpecialiseEntry -> TDef n -> String
-generateSpecialised se td = generateDefsSpecialised haskellBackend se _ td
+generateSpecialised : Vect (S m) SpecialiseEntry -> TDef n -> Doc
+generateSpecialised se td = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -72,60 +39,115 @@ testSuite = spec $ do
   describe "Haskell code generation tests:" $ do
 
     it "bit" $ 
-      generate bit 
-        `shouldBe` "\ntype Bit = Either () ()\n"
+      generate bit
+        `shouldBe` text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
 
     it "byte" $ 
       generate byte
-        `shouldBe` "\ntype Bit = Either () ()\n\ntype Byte = (Bit, Bit, Bit, Bit, Bit, Bit, Bit, Bit)\n"
+        `shouldBe` vsep2
+                    [ text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
+                    , text "type" |++| text "Byte" |++| equals |++| tupled (replicate 8 $ text "Bit")
+                    ]
         
     it "maybe" $ 
       generate maybe
-        `shouldBe` "\ntype Maybe x0 = Either () x0\n"
+        `shouldBe` text "type" |++| text "Maybe" |++| text "x0" |++| equals |++| text "Either" |++| parens empty |++| text "x0"
     
     it "list" $ 
       generate list
-        `shouldBe` "\ndata List x0 = Nil | Cons x0 (List x0)\n"
+        `shouldBe` text "data" |++| text "List" |++| text "x0" |++|
+                               equals |++| text "Nil"  |++|
+                               pipe   |++| text "Cons" |++| text "x0" |++| parens (text "List" |++| text "x0")
     
     it "maybe2" $ 
       generate maybe2
-        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n"
+        `shouldBe` text "data" |++| text "Maybe2" |++| text "x0" |++|
+                               equals |++| text "Nothing" |++|
+                               pipe   |++| text "Just"    |++| text "x0"
     
     it "nat" $ 
       generate nat
-        `shouldBe` "\ndata Nat = Z | S Nat\n"
+        `shouldBe` text "data" |++| text "Nat" |++|
+                               equals |++| text "Z" |++|
+                               pipe   |++| text "S" |++| text "Nat"
     
     it "listNat" $ 
       generate listNat
-        `shouldBe` "\ndata Nat = Z | S Nat\n\ndata ListNat = NilN | ConsN Nat ListNat\n"
+        `shouldBe` vsep2
+                    [ text "data" |++| text "Nat" |++|
+                                  equals |++| text "Z" |++|
+                                  pipe   |++| text "S" |++| text "Nat"
+                    , text "data" |++| text "ListNat" |++|
+                                  equals |++| text "NilN" |++|
+                                  pipe   |++| text "ConsN" |++| text "Nat" |++| text "ListNat"
+                    ]
 
     it "parametricSynonym" $
       generate parametricSynonym
-        `shouldBe` "\ntype Maybe x0 = Either () x0\n\ntype ParSyn x0 = Maybe x0\n"
+        `shouldBe` vsep2
+                    [ text "type" |++| text "Maybe" |++| text "x0" |++|
+                                  equals |++| text "Either" |++| parens empty |++| text "x0"
+                    , text "type" |++| text "ParSyn" |++| text "x0" |++| equals |++| text "Maybe" |++| text "x0"
+                    ]
 
     it "parametricSynonym2" $
       generate parametricSynonym2
-        `shouldBe` "\ndata Maybe2 x0 = Nothing | Just x0\n\ntype ParSyn2 x0 = Maybe2 x0\n"
+        `shouldBe` vsep2
+                    [ text "data" |++| text "Maybe2" |++| text "x0" |++|
+                                  equals |++| text "Nothing" |++|
+                                  pipe   |++| text "Just" |++| text "x0"
+                    , text "type" |++| text "ParSyn2" |++| text "x0" |++| equals |++| text "Maybe2" |++| text "x0"
+                    ]
+
+    it "aplusbpluscplusd" $
+      generate aplusbpluscplusd
+        `shouldBe` text "type" |++| text "Aplusbpluscplusd" |++| text "x0 x1 x2 x3" |++|
+                                  equals |++| text "Either" |++| text "x0" |++|
+                                                parens (text "Either" |++| text "x1" |++|
+                                                  parens (text "Either" |++| text "x2" |++| text "x3"))
+
+    it "oneoneoneone" $
+      generate oneoneoneone
+        `shouldBe` text "type" |++| text "Oneoneoneone" |++|
+                                  equals |++| text "Either" |++| text "()" |++|
+                                                parens (text "Either" |++| text "()" |++|
+                                                  parens (text "Either" |++| text "()" |++| text "()"))
 
     it "unusedFreeVars" $
       generate unusedFreeVars
-        `shouldBe` "\ntype Id x0 = x0\n" -- not "\ntype Id x0 x1 ... x42 = x0\n"
+        `shouldBe` text "type" |++| text "Id" |++| text "x0"
+                      |++| equals |++| text "x0" -- not "\ntype Id x0 x1 ... x42 = x0\n"
 
   describe "Haskell specialised types tests:" $ do
 
+    let boolForBitDoc = text "type" |++| text "Byte"
+                        |++| equals |++| tupled (replicate 8 $ text "Bool")
+
     it "bit" $
       generateSpecialised [boolForBit] byte
-        `shouldBe` "\ntype Byte = (Bool, Bool, Bool, Bool, Bool, Bool, Bool, Bool)\n"
+        `shouldBe` boolForBitDoc
 
     it "byte" $
       generateSpecialised [charForByte, boolForBit] listByte
-        `shouldBe` "\ndata ListByte = NilC | ConsC Char ListByte\n"
+        `shouldBe` text "data" |++| text "ListByte"
+                      |++| equals |++| text "NilC"
+                      |++| pipe   |++| text "ConsC" |++| text "Char" |++| text "ListByte"
 
     it "byteWrongOrder" $
       generateSpecialised [boolForBit, charForByte] listByte
-        `shouldBe` "\ntype Byte = (Bool, Bool, Bool, Bool, Bool, Bool, Bool, Bool)\n\ndata ListByte = NilC | ConsC Byte ListByte\n"
+        `shouldBe` vsep2
+                        [ boolForBitDoc
+                        , text "data" |++| text "ListByte"
+                          |++| equals |++| text "NilC"
+                          |++| pipe   |++| text "ConsC" |++| text "Byte" |++| text "ListByte"
+                        ]
 
     it "listnatTriple" $
       generateSpecialised [charForByte, boolForBit, intForNat] charlistNatalphaTriples
-        `shouldBe` "\ndata ListNat = NilN | ConsN Int ListNat\n\ntype Triple x0 = (Char, ListNat, x0)\n"
-
+        `shouldBe` vsep2
+                        [ text "data" |++| text "ListNat"
+                          |++| equals |++| text "NilN"
+                          |++| pipe   |++| text "ConsN" |++| text "Int" |++| text "ListNat"
+                        , text "type" |++| text "Triple" |++| text "x0"
+                          |++| equals |++| tupled [text "Char", text "ListNat", text "x0"]
+                        ]

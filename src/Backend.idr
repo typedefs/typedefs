@@ -5,58 +5,101 @@ import Data.Vect
 import Types
 import Typedefs
 
+import Data.Vect
+import Text.PrettyPrint.WL
+
 %default total
 %access public export
 
-Env : Nat -> Type
-Env k = Vect k (Either String String) -- left=free / right=bound
+||| A parametric type declaration (no definition, only name and parameters).
+record Decl where
+  constructor MkDecl
 
+  ||| The name of the type.
+  name   : Name
+
+  ||| The names of the type's parameters.
+  params : Vect n Name -- TODO is number of parameters enough?
+
+||| A variable environment. Left=free, Right=bound.
+Env : Nat -> Type
+Env k = Vect k (Either String Decl)
+
+
+||| Vertically concatenate a list of documents with two newlines (i.e. one empty line) as separator.
+vsep2 : List Doc -> Doc
+vsep2 = vsep . punctuate line
+
+||| Get the free names from the environment.
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
-getUsedVars : TDef n -> List (Fin n)
-getUsedVars T0 = []
-getUsedVars T1 = []
-getUsedVars (TSum xs) = assert_total $ concatMap getUsedVars xs
-getUsedVars (TProd xs) = assert_total $ concatMap getUsedVars xs
-getUsedVars (TVar i) = [i]
-getUsedVars (TMu nam xs) = assert_total $ concatMap ((concatMap weedOutZero) . getUsedVars . snd) xs
+getUsedIndices : TDef n -> List (Fin n)
+getUsedIndices T0 = []
+getUsedIndices T1 = []
+getUsedIndices (TSum xs) = assert_total $ concatMap getUsedIndices xs
+getUsedIndices (TProd xs) = assert_total $ concatMap getUsedIndices xs
+getUsedIndices (TVar i) = [i]
+getUsedIndices (TMu nam xs) = assert_total $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
   where weedOutZero : Fin (S n) -> List (Fin n)
         weedOutZero FZ = []
         weedOutZero (FS i) = [i]
-getUsedVars (TName nam t) = getUsedVars t
+getUsedIndices (TName nam t) = getUsedIndices t
 
-record Backend where
-  constructor MkBackend
-  ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-  generateTypeEnv : (n : Nat) -> Env n -> TDef n -> String
-  ||| Generate data definitions
-  generateDefsEnv : (n : Nat) -> Env n -> TDef n -> String
-  freshEnv : (n : Nat) -> Env n
+getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
+getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
-generateType : Backend -> (n : Nat) -> TDef n -> String
-generateType be n td = generateTypeEnv be n (freshEnv be n) td
 
-generateDefs : Backend -> (n : Nat) -> TDef n -> String
-generateDefs be n td = generateDefsEnv be n (freshEnv be n) td
+||| Interface for codegens. lang is a type representing (the syntactic structure of)
+||| a type declaration in the target language.
+interface Backend lang where
+  ||| Given a TDef and a matching environment, generate a list of type definitions
+  ||| in the target language.
+  generateTyDefs : Env n -> TDef n -> List lang
+
+  ||| Given a type definition in the target language, generate its code.
+  generateCode : lang -> Doc
+
+  ||| Generate a new environment with n free names.
+  freshEnv : (n: Nat) -> Env n
+
+||| Generate code in a specific language for a type definition and all its dependencies.
+||| Needs to be called with the implicit parameter `lang`, as such: `generate {lang=Haskell} td`.
+generate : Backend lang => {n: Nat} -> TDef n -> Doc
+generate {lang} {n} td = vsep2 . map (generateCode) . generateTyDefs {lang=lang} (freshEnv {lang=lang} n) $ td
+
+--record Backend where
+--  constructor MkBackend
+--  ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
+--  generateTypeEnv : (n : Nat) -> Env n -> TDef n -> String
+--  ||| Generate data definitions
+--  generateDefsEnv : (n : Nat) -> Env n -> TDef n -> String
+--  freshEnv : (n : Nat) -> Env n
+
+--generateType : Backend -> (n : Nat) -> TDef n -> String
+--generateType be n td = generateTypeEnv be n (freshEnv be n) td
+--
+--generateDefs : Backend -> (n : Nat) -> TDef n -> String
+--generateDefs be n td = generateDefsEnv be n (freshEnv be n) td
 
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
   ||| name of type used for specialisation
-  targetType : String
+  targetType : Decl -- TODO this seems unsatisfactory. Decl should at least be renamed.
   ||| name of function of target type generateType tdef -> targetType
   encodeFun : String
   ||| name of function of target type targetType -> generateType tdef
   decodeFun : String
 
-generateDefsSpecialised : Backend -> Vect (S m') SpecialiseEntry -> (n : Nat) -> TDef n -> String
-generateDefsSpecialised {m' = m'} be table n td = generateDefsEnv be (n + m) e td'
+generateDefsSpecialised : Backend lang => Vect (S m') SpecialiseEntry -> (n : Nat) -> TDef n -> List lang
+generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
+  --generateDefsEnv be (n + m) e td'
    where m : Nat
          m = S m'
          e : Env (n + m)
-         e = freshEnv be n ++ map (\ s => Right $ targetType s) table
+         e = freshEnv {lang} n ++ map (\ s => Right $ targetType s) table
          traverseTD : (n : Nat) -> (Fin m, SpecialiseEntry) -> TDef (n + m) -> TDef (n + m)
          traverseTD n (i, se) td = if td == weakenTDef (tdef se) _ (lteAddRight 0) then replace prf (TVar (fromNat (n + toNat i))) else go td
              where prf : m + n = n + m

@@ -1,6 +1,7 @@
 import Typedefs
 import Parse
 import Backend
+import Backend.Utils
 import Backend.Haskell
 
 main : IO ()
@@ -10,4 +11,4 @@ main = do
   putStrLn $ "parsed typedef: "
   putStrLn $ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => show $ DPair.snd tp) tpm
   putStrLn $ ""
-  putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => generateDefs haskellBackend _ $ DPair.snd tp) tpm
+  putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => print . generate {lang=Haskell} $ DPair.snd tp) tpm
