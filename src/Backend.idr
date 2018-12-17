@@ -35,6 +35,7 @@ getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
+||| Get a list of the de Brujin indices that are actually used in a TDef.
 getUsedIndices : TDef n -> List (Fin n)
 getUsedIndices T0 = []
 getUsedIndices T1 = []
@@ -47,6 +48,7 @@ getUsedIndices (TMu nam xs) = assert_total $ concatMap ((concatMap weedOutZero) 
         weedOutZero (FS i) = [i]
 getUsedIndices (TName nam t) = getUsedIndices t
 
+||| Filter out the entries in an Env that is referred to by a TDef.
 getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
 getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
@@ -72,7 +74,7 @@ record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
   ||| name of type used for specialisation
-  targetType : Decl
+  targetType : String
   ||| name of function of target type generateType tdef -> targetType
   encodeFun : String
   ||| name of function of target type targetType -> generateType tdef
@@ -84,7 +86,7 @@ generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
    where m : Nat
          m = S m'
          e : Env (n + m)
-         e = freshEnv {lang} n ++ map (\ s => Right $ targetType s) table
+         e = freshEnv {lang} n ++ map (\ s => Right $ MkDecl (targetType s) []) table
          traverseTD : (n : Nat) -> (Fin m, SpecialiseEntry) -> TDef (n + m) -> TDef (n + m)
          traverseTD n (i, se) td = if td == weakenTDef (tdef se) _ (lteAddRight 0) then replace prf (TVar (fromNat (n + toNat i))) else go td
              where prf : m + n = n + m

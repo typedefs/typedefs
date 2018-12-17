@@ -18,15 +18,15 @@ generate : TDef n -> Doc
 generate = generate {lang=Haskell}
 
 boolForBit : SpecialiseEntry
-boolForBit = MkSpecialiseEntry bit (MkDecl "Bool" []) 
+boolForBit = MkSpecialiseEntry bit "Bool"
                                "either (\\ () -> True) (\\ () -> False)"
                                "\\ x -> if x then Left () else Right ()"
 
 charForByte : SpecialiseEntry
-charForByte = MkSpecialiseEntry byte (MkDecl "Char" []) "undefined" "undefined"
+charForByte = MkSpecialiseEntry byte "Char" "undefined" "undefined"
 
 intForNat : SpecialiseEntry
-intForNat = MkSpecialiseEntry nat (MkDecl "Int" [])
+intForNat = MkSpecialiseEntry nat "Int"
                               "id"
                               "\\ x -> if x >= 0 then x else error \"negative number\""
 
