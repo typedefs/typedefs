@@ -1,7 +1,5 @@
 module Backend.Haskell
 
-import Prelude.Nat
-
 import Control.Monad.State
 import Text.PrettyPrint.WL
 
@@ -11,6 +9,7 @@ import Backend
 import Types
 import Typedefs
 
+import Prelude.Nat
 import Data.Vect
 
 %default total
