@@ -24,13 +24,13 @@ data HsType : Type where -- TODO could be interesting to index this by e.g. used
   HsUnit  :                                HsType
 
   ||| The tuple type, containing two or more further types.
-  HsTuple :         Vect (2 + k) HsType -> HsType
+  HsTuple :         Vect (2 + n) HsType -> HsType
 
   ||| A type variable.
   HsVar   :         Name                -> HsType
 
   ||| A named type with zero or more other types as parameters.
-  HsParam : Name -> Vect k HsType       -> HsType
+  HsParam : Name -> Vect n HsType       -> HsType
 
 ||| The syntactic structure of Haskell type declarations.
 data Haskell : Type where
@@ -39,7 +39,7 @@ data Haskell : Type where
 
   ||| An algebraic data type is a declared name (possibly with parameters)
   ||| and a number of constructors, each wrapping a Haskell type.
-  ADT     : Decl -> Vect k (Name, HsType) -> Haskell
+  ADT     : Decl -> Vect n (Name, HsType) -> Haskell
 
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
