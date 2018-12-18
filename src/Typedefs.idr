@@ -102,28 +102,6 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
-------- compile to Idris ? -----
-
-defType : String -> String -> String
-defType name def = name ++ " : Type\n" ++ name ++ " = " ++ def
-
-compileClosed : TDef n -> String
-compileClosed T0         = "Void"
-compileClosed T1         = "Unit"
-compileClosed (TSum xs)  = tsum xs
-  where
-  tsum : Vect (2 + _) (TDef n) -> String
-  tsum [x, y]              = "Either (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
-  tsum (x :: y :: z :: zs) = "Either (" ++ compileClosed x ++ ") (" ++ tsum (y :: z :: zs) ++ ")"
-compileClosed (TProd xs) = tprod xs
-  where
-  tprod : Vect (2 + _) (TDef n) -> String
-  tprod [x, y]              = "Pair (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
-  tprod (x :: y :: z :: zs) = "Pair (" ++ compileClosed x ++ ") (" ++ tprod (y :: z :: zs) ++ ")"
-compileClosed (TMu _ x)  = "TMu: nope"
-compileClosed (TVar x)   = "TVar: nope"
-compileClosed (TName n x)   = "TName " ++ n ++ ": nope"
-
 -------- printing -------
 
 parens : String -> String
