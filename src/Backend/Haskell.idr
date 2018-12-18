@@ -51,7 +51,7 @@ mutual
   renderType : HsType -> Doc
   renderType HsVoid                = text "Void"
   renderType HsUnit                = text "()"
-  renderType (HsTuple xs)          = tupled . toList $ map (assert_total renderType) xs
+  renderType (HsTuple xs)          = tupled . toList . map (assert_total renderType) $ xs
   renderType (HsVar v)             = text (lowercase v)
   renderType (HsParam name params) = renderApp name (map guardParen params)
   
@@ -89,15 +89,15 @@ makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
   where
   hsParam : Decl -> HsType
   hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
-makeType e td@(TMu name _)   = HsParam name $ map HsVar (getFreeVars (getUsedVars e td))
-makeType e td@(TName name _) = HsParam name $ map HsVar (getFreeVars (getUsedVars e td))
+makeType e td@(TMu name _)   = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
+makeType e td@(TName name _) = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
 
 ||| Generate Haskell type definitions from a TDef, including all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []
-makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) (toList xs)
-makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) (toList xs)
+makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
+makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) xs
 makeDefs _ (TVar v)      = pure []
 makeDefs e td@(TMu name cs) = 
    do st <- get 

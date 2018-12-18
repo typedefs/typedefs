@@ -24,7 +24,7 @@ data RMLType : Type where
   RMLUnit  :                                 RMLType
 
   ||| The tuple type, containing two or more further types.
-  RMLProd  :         Vect (2 + k) RMLType -> RMLType
+  RMLTuple  :         Vect (2 + k) RMLType -> RMLType
 
   ||| A type variable.
   RMLVar   :         Name                 -> RMLType
@@ -55,37 +55,41 @@ renderApp name params = text name |+| case params of
 renderType : RMLType -> Doc
 renderType RMLVoid                = text "void"
 renderType RMLUnit                = text "unit"
-renderType (RMLProd xs)           = tupled . toList $ map (assert_total renderType) xs
+renderType (RMLTuple xs)          = tupled . toList $ map (assert_total renderType) xs
 renderType (RMLVar v)             = renderVar v
-renderType (RMLParam name params) = renderApp (lowercase name) (assert_total $ map renderType params)
+renderType (RMLParam name params) = renderApp (lowercase name) . map (assert_total renderType) $ params
 
--- TODO move into where-clause in 'renderDef' - why not possible?
-renderConstructor : (Name, RMLType) -> Doc
-renderConstructor (name, RMLUnit)       = renderApp (uppercase name) []
-renderConstructor (name, RMLProd ts) = renderApp (uppercase name) (map renderType ts)
-renderConstructor (name, t)          = renderApp (uppercase name) [renderType t]
+||| Helper function to render a top-level declaration as source code.
+renderDecl : Decl -> Doc
+renderDecl decl = renderApp (lowercase $ name decl) (map renderVar $ params decl)
 
 ||| Generate source code for a ReasonML type definition.
 renderDef : ReasonML -> Doc
-renderDef (Alias   decl body)  = text "type" |++| renderApp (lowercase $ name decl) (map renderVar $ params decl)
+renderDef (Alias   decl body)  = text "type" |++| renderDecl decl
                                  |++| equals |++| renderType body
                                  |+| semi
-renderDef (Variant decl cases) = text "type" |++| renderApp (lowercase $ name decl) (map renderVar $ params decl)
+renderDef (Variant decl cases) = text "type" |++| renderDecl decl
                                  |++| equals |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
                                  |+| semi
+  where
+  renderConstructor : (Name, RMLType) -> Doc
+  renderConstructor (name, RMLUnit)     = renderApp (uppercase name) []
+  renderConstructor (name, RMLTuple ts) = renderApp (uppercase name) (map renderType ts)
+  renderConstructor (name, t)           = renderApp (uppercase name) [renderType t]
+
 
 ||| Generate a ReasonML type from a TDef.
 makeType : Env n -> TDef n -> RMLType
 makeType     _ T0             = RMLVoid
 makeType     _ T1             = RMLUnit
 makeType     e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType     e (TProd xs)     = RMLProd $ map (assert_total $ makeType e) xs
-makeType     e (TVar v)       = either RMLVar mkParam $ Vect.index v e
+makeType     e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
+makeType     e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
   where
-  mkParam : Decl -> RMLType
-  mkParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
-makeType     e td@(TMu name ts)  = RMLParam name $ map RMLVar $ getFreeVars (getUsedVars e td)
-makeType     e td@(TName name t) = RMLParam name $ map RMLVar $ getFreeVars (getUsedVars e td)
+  rmlParam : Decl -> RMLType
+  rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
+makeType     e td@(TMu   name _) = RMLParam name . map RMLVar $ getFreeVars (getUsedVars e td)
+makeType     e td@(TName name _) = RMLParam name . map RMLVar $ getFreeVars (getUsedVars e td)
 
 ||| Generate ReasonML type definitions from a TDef, includig all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List ReasonML)
