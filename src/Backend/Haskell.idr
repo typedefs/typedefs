@@ -9,8 +9,8 @@ import Backend
 import Types
 import Typedefs
 
-import Prelude.Nat
 import Data.Vect
+import Prelude.Nat
 
 %default total
 %access public export
