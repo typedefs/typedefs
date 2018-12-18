@@ -78,7 +78,7 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
   renderConstructor (name, HsTuple ts) = renderApp name (map guardParen ts)
   renderConstructor (name, params)     = renderApp name [guardParen params]
 
-||| Generate a Haskell type from a TDef.
+||| Generate a Haskell type from a `TDef`.
 makeType : Env n -> TDef n -> HsType
 makeType _ T0             = HsVoid
 makeType _ T1             = HsUnit
@@ -91,7 +91,7 @@ makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
 makeType e td@(TMu name _)   = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
 makeType e td@(TName name _) = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
 
-||| Generate Haskell type definitions from a TDef, including all of its dependencies.
+||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
 makeDefs _ T0            = pure []
 makeDefs _ T1            = pure []

@@ -34,7 +34,7 @@ getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
-||| Get a list of the de Brujin indices that are actually used in a TDef.
+||| Get a list of the de Brujin indices that are actually used in a `TDef`.
 getUsedIndices : TDef n -> List (Fin n)
 getUsedIndices T0         = []
 getUsedIndices T1         = []
@@ -47,11 +47,11 @@ getUsedIndices (TMu _ xs) = assert_total $ concatMap ((concatMap weedOutZero) . 
         weedOutZero (FS i) = [i]
 getUsedIndices (TName _ t) = getUsedIndices t
 
-||| Filter out the entries in an Env that is referred to by a TDef.
+||| Filter out the entries in an `Env` that is referred to by a `TDef`.
 getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
 getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
-||| Interface for codegens. lang is a type representing (the syntactic structure of)
+||| Interface for codegens. `lang` is a type representing (the syntactic structure of)
 ||| a type declaration in the target language.
 interface Backend lang where
   ||| Given a TDef and a matching environment, generate a list of type definitions

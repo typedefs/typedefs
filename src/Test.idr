@@ -47,8 +47,8 @@ oneoneoneone = TName "oneoneoneone" $ TSum [T1, T1, T1, T1]
 listByte : TDef 0
 listByte = TMu "ListByte" [("NilC", T1), ("ConsC", TProd [weakenTDef byte 1 LTEZero, TVar 0])]
 
-charlistNatalphaTriples : TDef 1
-charlistNatalphaTriples = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weakenTDef listNat 1 LTEZero, TVar 0])
+tripleByteListnatAlpha : TDef 1
+tripleByteListnatAlpha = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weakenTDef listNat 1 LTEZero, TVar 0])
 
 unusedFreeVars : TDef 42
 unusedFreeVars = TName "Id" (TVar 0)

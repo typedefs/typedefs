@@ -18,19 +18,19 @@ data RMLType : Type where
   ||| The `void` (i.e. empty) type. This is not a standard type
   ||| in ReasonML, but is useful for completeness and can be
   ||| trivially generated as needed.
-  RMLVoid  :                                 RMLType
+  RMLVoid  :                                  RMLType
 
   ||| The `unit` (i.e. singleton) type.
-  RMLUnit  :                                 RMLType
+  RMLUnit  :                                  RMLType
 
   ||| The tuple type, containing two or more further types.
   RMLTuple  :         Vect (2 + k) RMLType -> RMLType
 
   ||| A type variable.
-  RMLVar   :         Name                 -> RMLType
+  RMLVar   :         Name                  -> RMLType
 
   ||| A named type with zero or more other types as parameters.
-  RMLParam : Name -> Vect k RMLType       -> RMLType
+  RMLParam : Name -> Vect k RMLType        -> RMLType
 
 ||| The syntactic structure of ReasonML type declarations.
 data ReasonML : Type where
@@ -78,7 +78,7 @@ renderDef (Variant decl cases) = text "type" |++| renderDecl decl
   renderConstructor (name, t)           = renderApp (uppercase name) [renderType t]
 
 
-||| Generate a ReasonML type from a TDef.
+||| Generate a ReasonML type from a `TDef`.
 makeType : Env n -> TDef n -> RMLType
 makeType     _ T0             = RMLVoid
 makeType     _ T1             = RMLUnit
@@ -91,7 +91,7 @@ makeType     e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
 makeType     e td@(TMu   name _) = RMLParam name . map RMLVar $ getFreeVars (getUsedVars e td)
 makeType     e td@(TName name _) = RMLParam name . map RMLVar $ getFreeVars (getUsedVars e td)
 
-||| Generate ReasonML type definitions from a TDef, includig all of its dependencies.
+||| Generate ReasonML type definitions from a `TDef`, includig all of its dependencies.
 makeDefs : Env n -> TDef n -> State (List Name) (List ReasonML)
 makeDefs _ T0            = assert_total $ makeDefs (freshEnvLC _) voidDef
   where

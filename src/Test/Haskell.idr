@@ -142,8 +142,8 @@ testSuite = spec $ do
                           |++| pipe   |++| text "ConsC" |++| text "Byte" |++| text "ListByte"
                         ]
 
-    it "listnatTriple" $
-      generateSpecialised [charForByte, boolForBit, intForNat] charlistNatalphaTriples
+    it "triple with Byte |-> Char, Listnat, Alpha" $
+      generateSpecialised [charForByte, boolForBit, intForNat] tripleByteListnatAlpha
         `shouldBe` vsep2
                         [ text "data" |++| text "ListNat"
                           |++| equals |++| text "NilN"
