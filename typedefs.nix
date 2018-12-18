@@ -14,6 +14,7 @@ build-idris-package {
   doCheck = true;
 
   idrisDeps = with idrisPackages; [
+    base
     contrib
     tparsec
     specdris

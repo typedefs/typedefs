@@ -21,4 +21,4 @@ tests = Test.Typedefs.testSuite
 
 sourcedir = src
 
-pkgs = tparsec, specdris, contrib
+pkgs = tparsec, specdris, contrib, base
