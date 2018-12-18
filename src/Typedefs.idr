@@ -74,6 +74,10 @@ minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
 mutual
+  ||| Increase the type index representing the number of variables accessible
+  ||| to a `TDef`, without actually changing the variables that are used by it.
+  |||
+  ||| @m The new amount of variables.
   weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
   weakenTDef T0             _    _   = T0
   weakenTDef T1             _    _   = T1
