@@ -15,11 +15,6 @@ import Data.Vect
 
 ||| The syntactic structure of ReasonML types.
 data RMLType : Type where
-  ||| The `void` (i.e. empty) type. This is not a standard type
-  ||| in ReasonML, but is useful for completeness and can be
-  ||| trivially generated as needed.
-  RMLVoid  :                                  RMLType
-
   ||| The `unit` (i.e. singleton) type.
   RMLUnit  :                                  RMLType
 
@@ -53,7 +48,6 @@ renderApp name params = text name |+| case params of
 
 ||| Render source code for a ReasonML type signature.
 renderType : RMLType -> Doc
-renderType RMLVoid                = text "void"
 renderType RMLUnit                = text "unit"
 renderType (RMLTuple xs)          = tupled . toList $ map (assert_total renderType) xs
 renderType (RMLVar v)             = renderVar v
@@ -80,7 +74,7 @@ renderDef (Variant decl cases) = text "type" |++| renderDecl decl
 
 ||| Generate a ReasonML type from a `TDef`.
 makeType : Env n -> TDef n -> RMLType
-makeType     _ T0             = RMLVoid
+makeType     _ T0             = RMLParam "void" []
 makeType     _ T1             = RMLUnit
 makeType     e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType     e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
