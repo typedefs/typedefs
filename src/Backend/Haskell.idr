@@ -1,6 +1,5 @@
 module Backend.Haskell
 
-import Data.Vect
 import Prelude.Nat
 
 import Control.Monad.State
@@ -11,6 +10,8 @@ import Backend
 
 import Types
 import Typedefs
+
+import Data.Vect
 
 %default total
 %access public export
