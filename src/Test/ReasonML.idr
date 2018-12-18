@@ -151,4 +151,5 @@ testSuite = spec $ do
                     , eitherDoc
                     , text "type" |++| text "voidOrUnit" 
                       |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
+                      |+| semi
                     ]

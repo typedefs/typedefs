@@ -63,7 +63,9 @@ renderDef (Alias   decl body)  = text "type" |++| renderDecl decl
                                  |++| equals |++| renderType body
                                  |+| semi
 renderDef (Variant decl cases) = text "type" |++| renderDecl decl
-                                 |++| equals |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
+                                 |+| case cases of
+                                       [] => empty
+                                       _  => space |+| equals |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
                                  |+| semi
   where
   renderConstructor : (Name, RMLType) -> Doc
