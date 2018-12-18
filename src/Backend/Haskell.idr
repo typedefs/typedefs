@@ -10,7 +10,6 @@ import Types
 import Typedefs
 
 import Data.Vect
-import Prelude.Nat
 
 %default total
 %access public export
