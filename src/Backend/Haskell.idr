@@ -71,12 +71,12 @@ renderDef (Synonym decl body)  = text "type" |++| renderDecl decl
                                  |++| equals |++| renderType body
 renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
                                  |++| equals |++| hsep (punctuate (text " |")
-                                                       (toList $ map (uncurry renderConstructor) cases))
+                                                       (toList $ map renderConstructor cases))
   where
-  renderConstructor : Name -> HsType -> Doc
-  renderConstructor name HsUnit       = renderApp name []
-  renderConstructor name (HsTuple ts) = renderApp name (map guardParen ts)
-  renderConstructor name params       = renderApp name [guardParen params]
+  renderConstructor : (Name, HsType) -> Doc
+  renderConstructor (name, HsUnit)     = renderApp name []
+  renderConstructor (name, HsTuple ts) = renderApp name (map guardParen ts)
+  renderConstructor (name, params)     = renderApp name [guardParen params]
 
 ||| Generate a Haskell type from a TDef.
 makeType : Env n -> TDef n -> HsType
@@ -84,10 +84,10 @@ makeType _ T0             = HsVoid
 makeType _ T1             = HsUnit
 makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
-makeType e (TVar v)       = either HsVar hParam $ Vect.index v e
+makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
   where
-  hParam : Decl -> HsType
-  hParam (MkDecl n ps) = HsParam n (map HsVar ps)
+  hsParam : Decl -> HsType
+  hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 makeType e td@(TMu name _)   = HsParam name $ map HsVar (getFreeVars (getUsedVars e td))
 makeType e td@(TName name _) = HsParam name $ map HsVar (getFreeVars (getUsedVars e td))
 

@@ -25,7 +25,6 @@ record Decl where
 Env : Nat -> Type
 Env k = Vect k (Either String Decl)
 
-
 ||| Vertically concatenate a list of documents with two newlines (i.e. one empty line) as separator.
 vsep2 : List Doc -> Doc
 vsep2 = vsep . punctuate line
@@ -37,16 +36,16 @@ getFreeVars e with (filter isLeft e)
 
 ||| Get a list of the de Brujin indices that are actually used in a TDef.
 getUsedIndices : TDef n -> List (Fin n)
-getUsedIndices T0 = []
-getUsedIndices T1 = []
-getUsedIndices (TSum xs) = assert_total $ concatMap getUsedIndices xs
+getUsedIndices T0         = []
+getUsedIndices T1         = []
+getUsedIndices (TSum xs)  = assert_total $ concatMap getUsedIndices xs
 getUsedIndices (TProd xs) = assert_total $ concatMap getUsedIndices xs
-getUsedIndices (TVar i) = [i]
-getUsedIndices (TMu nam xs) = assert_total $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
+getUsedIndices (TVar i)   = [i]
+getUsedIndices (TMu _ xs) = assert_total $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
   where weedOutZero : Fin (S n) -> List (Fin n)
-        weedOutZero FZ = []
+        weedOutZero FZ     = []
         weedOutZero (FS i) = [i]
-getUsedIndices (TName nam t) = getUsedIndices t
+getUsedIndices (TName _ t) = getUsedIndices t
 
 ||| Filter out the entries in an Env that is referred to by a TDef.
 getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
@@ -96,8 +95,8 @@ generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
                    go T1 = T1
                    go (TSum xs) = TSum (assert_total $ map (traverseTD n (i, se)) xs)
                    go (TProd xs) = TProd (assert_total $ map (traverseTD n (i, se)) xs)
-                   go (TMu nam xs) = TMu nam (assert_total $ map (\(c, t) => (c,traverseTD (S n) (i, se) t)) xs)
-                   go (TName nam t) = TName nam (traverseTD n (i, se) t)
+                   go (TMu name xs) = TMu name (assert_total $ map (\(c, t) => (c,traverseTD (S n) (i, se) t)) xs)
+                   go (TName name t) = TName name (traverseTD n (i, se) t)
                    go x = x -- only TVar i case left
          td' : TDef (n + m)
          td' = foldl (flip (traverseTD n)) (weakenTDef td (n + m) (lteAddRight n)) (zip range table)
