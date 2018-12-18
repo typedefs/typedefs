@@ -118,6 +118,11 @@ testSuite = spec $ do
         `shouldBe` text "type" |++| text "Id" |++| text "x0"
                       |++| equals |++| text "x0" -- not "\ntype Id x0 x1 ... x42 = x0\n"
 
+    it "void or unit" $
+      generate voidOrUnit
+        `shouldBe` text "type" |++| text "VoidOrUnit" 
+                   |++| equals |++| text "Either" |++| text "Void" |++| text "()"
+
   describe "Haskell specialised types tests:" $ do
 
     let boolForBitDoc = text "type" |++| text "Byte"

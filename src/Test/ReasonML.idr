@@ -143,3 +143,12 @@ testSuite = spec $ do
         `shouldBe` text "type" |++| text "id" |+| parens x0
                       |++| equals |++| x0 
                       |+| semi -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
+
+    it "void or unit" $
+      generate voidOrUnit
+        `shouldBe` vsep2
+                    [ text "type" |++| text "void" |+| semi
+                    , eitherDoc
+                    , text "type" |++| text "voidOrUnit" 
+                      |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
+                    ]

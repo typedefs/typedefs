@@ -53,5 +53,8 @@ tripleByteListnatAlpha = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weake
 unusedFreeVars : TDef 42
 unusedFreeVars = TName "Id" (TVar 0)
 
+voidOrUnit : TDef 0
+voidOrUnit = TName "VoidOrUnit" $ TSum [T0, T1]
+
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
