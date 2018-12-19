@@ -1,16 +1,17 @@
 module Test.ReasonML
 
-import Data.Vect 
-
-import Test
-import Typedefs
 import Types
-import Backend
-import Backend.ReasonML
-import Backend.Utils
+import Typedefs
 
-import Specdris.Spec
+import Backend
+import Backend.Utils
+import Backend.ReasonML
+
 import Text.PrettyPrint.WL
+import Specdris.Spec
+
+import Data.Vect
+import Test
 
 %access public export
 
@@ -43,10 +44,10 @@ testSuite = spec $ do
                     |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
                   ]
 
-    it "bit" $ 
+    it "bit" $
       generate bit `shouldBe` bitDoc
 
-    it "byte" $ 
+    it "byte" $
       generate byte
         `shouldBe` vsep2
                     [ bitDoc
@@ -54,7 +55,7 @@ testSuite = spec $ do
                       |++| equals |++| tupled (replicate 8 (text "bit"))
                       |+| semi
                     ]
-    
+
     let maybeDoc = vsep2
                      [ eitherDoc
                      , text "type" |++| text "maybe" |+| parens x0
@@ -62,10 +63,10 @@ testSuite = spec $ do
                        |+| semi
                      ]
 
-    it "maybe" $ 
+    it "maybe" $
       generate maybe `shouldBe` maybeDoc
 
-    it "list" $ 
+    it "list" $
       generate list
         `shouldBe` text "type" |++| text "list" |+| parens x0
                    |++| equals |++| text "Nil"
@@ -77,7 +78,7 @@ testSuite = spec $ do
                     |++| pipe   |++| text "Just" |+| parens x0
                     |+| semi
 
-    it "maybe2" $ 
+    it "maybe2" $
       generate maybe2 `shouldBe` maybe2Doc
 
     let natDoc = text "type" |++| text "nat"
@@ -85,10 +86,10 @@ testSuite = spec $ do
                  |++| pipe   |++| text "S" |+| parens (text "nat")
                  |+| semi
 
-    it "nat" $ 
+    it "nat" $
       generate nat `shouldBe` natDoc
 
-    it "listNat" $ 
+    it "listNat" $
       generate listNat
         `shouldBe` vsep2
                     [ natDoc
@@ -141,7 +142,7 @@ testSuite = spec $ do
     it "unusedFreeVars" $
       generate unusedFreeVars
         `shouldBe` text "type" |++| text "id" |+| parens x0
-                      |++| equals |++| x0 
+                      |++| equals |++| x0
                       |+| semi -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
 
     it "void or unit" $
@@ -149,7 +150,7 @@ testSuite = spec $ do
         `shouldBe` vsep2
                     [ text "type" |++| text "void" |+| semi
                     , eitherDoc
-                    , text "type" |++| text "voidOrUnit" 
+                    , text "type" |++| text "voidOrUnit"
                       |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
                       |+| semi
                     ]

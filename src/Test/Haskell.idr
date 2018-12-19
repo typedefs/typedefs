@@ -1,16 +1,17 @@
 module Test.Haskell
 
-import Data.Vect 
-
-import Test
-import Typedefs
 import Types
-import Backend
-import Backend.Haskell
-import Backend.Utils
+import Typedefs
 
-import Specdris.Spec
+import Backend
+import Backend.Utils
+import Backend.Haskell
+
 import Text.PrettyPrint.WL
+import Specdris.Spec
+
+import Data.Vect
+import Test
 
 %access public export
 
@@ -38,40 +39,40 @@ testSuite = spec $ do
 
   describe "Haskell code generation tests:" $ do
 
-    it "bit" $ 
+    it "bit" $
       generate bit
         `shouldBe` text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
 
-    it "byte" $ 
+    it "byte" $
       generate byte
         `shouldBe` vsep2
                     [ text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
                     , text "type" |++| text "Byte" |++| equals |++| tupled (replicate 8 $ text "Bit")
                     ]
-        
-    it "maybe" $ 
+
+    it "maybe" $
       generate maybe
         `shouldBe` text "type" |++| text "Maybe" |++| text "x0" |++| equals |++| text "Either" |++| parens empty |++| text "x0"
-    
-    it "list" $ 
+
+    it "list" $
       generate list
         `shouldBe` text "data" |++| text "List" |++| text "x0" |++|
                                equals |++| text "Nil"  |++|
                                pipe   |++| text "Cons" |++| text "x0" |++| parens (text "List" |++| text "x0")
-    
-    it "maybe2" $ 
+
+    it "maybe2" $
       generate maybe2
         `shouldBe` text "data" |++| text "Maybe2" |++| text "x0" |++|
                                equals |++| text "Nothing" |++|
                                pipe   |++| text "Just"    |++| text "x0"
-    
-    it "nat" $ 
+
+    it "nat" $
       generate nat
         `shouldBe` text "data" |++| text "Nat" |++|
                                equals |++| text "Z" |++|
                                pipe   |++| text "S" |++| text "Nat"
-    
-    it "listNat" $ 
+
+    it "listNat" $
       generate listNat
         `shouldBe` vsep2
                     [ text "data" |++| text "Nat" |++|
@@ -120,7 +121,7 @@ testSuite = spec $ do
 
     it "void or unit" $
       generate voidOrUnit
-        `shouldBe` text "type" |++| text "VoidOrUnit" 
+        `shouldBe` text "type" |++| text "VoidOrUnit"
                    |++| equals |++| text "Either" |++| text "Void" |++| text "()"
 
   describe "Haskell specialised types tests:" $ do

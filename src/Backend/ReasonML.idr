@@ -1,12 +1,13 @@
 module Backend.ReasonML
 
-import Control.Monad.State
-import Text.PrettyPrint.WL
+import Types
+import Typedefs
 
 import Backend
 import Backend.Utils
-import Types
-import Typedefs
+
+import Text.PrettyPrint.WL
+import Control.Monad.State
 
 import Data.Vect
 
@@ -95,29 +96,29 @@ makeDefs _ T0            = assert_total $ makeDefs (freshEnvLC _) voidDef
   voidDef = TMu "void" []
 makeDefs _ T1            = pure []
 makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
-makeDefs e (TSum xs)     = 
+makeDefs e (TSum xs)     =
   do res <- map concat $ traverse (assert_total $ makeDefs e) xs
      map (++ res) (assert_total $ makeDefs (freshEnvLC _) eitherDef)
   where
   eitherDef : TDef 2
   eitherDef = TMu "either" [("Left", TVar 1), ("Right", TVar 2)]
 makeDefs _ (TVar v)      = pure []
-makeDefs e td@(TMu name cs) = 
-  do st <- get 
-     if List.elem name st then pure [] 
-      else let 
+makeDefs e td@(TMu name cs) =
+  do st <- get
+     if List.elem name st then pure []
+      else let
          decl = MkDecl name (getFreeVars (getUsedVars e td))
          newEnv = Right decl :: e
          cases = map (map (makeType newEnv)) cs
         in
-       do res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) cs 
+       do res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) cs
           put (name :: st)
           pure $ Variant decl cases :: res
-makeDefs e td@(TName name body) = 
-  do st <- get 
+makeDefs e td@(TName name body) =
+  do st <- get
      if List.elem name st then pure []
-       else 
-        do res <- assert_total $ makeDefs e body 
+       else
+        do res <- assert_total $ makeDefs e body
            put (name :: st)
            pure $ Alias (MkDecl name (getFreeVars $ getUsedVars e td)) (makeType e body) :: res
 

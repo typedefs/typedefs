@@ -1,13 +1,13 @@
 module Backend.Haskell
 
-import Control.Monad.State
-import Text.PrettyPrint.WL
-
-import Backend.Utils
-import Backend
-
 import Types
 import Typedefs
+
+import Backend
+import Backend.Utils
+
+import Text.PrettyPrint.WL
+import Control.Monad.State
 
 import Data.Vect
 
@@ -46,14 +46,14 @@ renderApp : Name -> Vect n Doc -> Doc
 renderApp name params = text (uppercase name) |+| hsep (empty :: toList params)
 
 mutual
-  ||| Render a type signature as Haskell source code. 
+  ||| Render a type signature as Haskell source code.
   renderType : HsType -> Doc
   renderType HsVoid                = text "Void"
   renderType HsUnit                = text "()"
   renderType (HsTuple xs)          = tupled . toList . map (assert_total renderType) $ xs
   renderType (HsVar v)             = text (lowercase v)
   renderType (HsParam name params) = renderApp name (map guardParen params)
-  
+
   ||| As `renderType`, but with enclosing top-level parentheses
   ||| if it can possibly make a semantic difference.
   guardParen : HsType -> Doc
@@ -98,22 +98,22 @@ makeDefs _ T1            = pure []
 makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
 makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) xs
 makeDefs _ (TVar v)      = pure []
-makeDefs e td@(TMu name cs) = 
-   do st <- get 
-      if List.elem name st then pure [] 
+makeDefs e td@(TMu name cs) =
+   do st <- get
+      if List.elem name st then pure []
        else let
           decl = MkDecl name (getFreeVars (getUsedVars e td))
           newEnv = Right decl :: e
           args = map (map (makeType newEnv)) cs
          in
-        do res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs) 
+        do res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs)
            put (name :: st)
            pure $ ADT decl args :: res
-makeDefs e td@(TName name body) = 
-  do st <- get 
+makeDefs e td@(TName name body) =
+  do st <- get
      if List.elem name st then pure []
-       else 
-        do res <- assert_total $ makeDefs e body 
+       else
+        do res <- assert_total $ makeDefs e body
            put (name :: st)
            pure $ Synonym (MkDecl name $ getFreeVars (getUsedVars e td)) (makeType e body) :: res
 
