@@ -1,70 +1,78 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Bit",
-  "properties": {
-        "sum": {
-            "oneOf": [
-                {
-                	"type": "object",
-                  	"properties": {
-                    	"tag": {"enum": ["left"]},
-                      	"value": {
-                      		"$ref": "#/definitions/unit"
-                        }
-                    },
-                  	"required": ["tag", "value"],
-                  	"additionalProperties": false
-                },
-              	{
-                	"type": "object",
-                  	"properties": {
-                    	"tag": {"enum": ["right"]},
-                      	"value": {
-                      		"$ref": "#/definitions/unit"
-                        }
-                    },
-                  	"required": ["tag", "value"],
-                  	"additionalProperties": false
-                }
-            ]
-        }
-  },
-  "definitions": {
-  	"unit": {"enum": [null]},
+  "type": "object",
 
-    "void": {
-    	"type": "array",
-        "items": {
-        	"$ref": "#/definitions/unit"
-        },
-        "minItems": 2,
-        "uniqueItems": true
-    },
-      
-    "up": {
-      	"type": "object",
-        "properties": {
-    		"$ref": "#/definitions/unit"
-        }
-    },
-    
-    "down": {
-      	"type": "object",
-        "properties": {
-    		"$ref": "#/definitions/unit"
-        }
-    },
-    
-    "sum": {
-      	"type": "array",
-    	"items": {
-        	"$reff": "#/definitions/up",
-            "$reff": "#/definitions/down"
-        },
-      	"minItems": 1,
-        "maxItems": 1,
-        "required": [ "#/definitions/up" ]
-    }
+  //example of a product//
+  "properties": {
+    "fst": { "$ref": "#/definitions/bit" },
+    "snd": { "$ref": "#/definitions/bit" }
   },
-  "additionalProperties": false
+  "required": ["fst", "snd"],
+  "additionalProperties": false,
+  ////////////////////////
+
+  "definitions": {
+    //unit//
+    "unit": {
+      "enum": [
+        "unit"
+      ]
+    },
+    ////////
+
+    //void//
+    "void": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/unit"
+      },
+      "minItems": 2,
+      "uniqueItems": true
+    },
+    ////////
+
+    //example of a sum//
+    "bit": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "enum": [
+                "left"
+              ]
+            },
+            "value": {
+              "$ref": "#/definitions/unit"
+            }
+          },
+          "required": [
+            "tag",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "enum": [
+                "right"
+              ]
+            },
+            "value": {
+              "$ref": "#/definitions/unit"
+            }
+          },
+          "required": [
+            "tag",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+    ////////////////////
+  }
 }
