@@ -1,14 +1,10 @@
 { stdenv, pkgs, idrisPackages }:
 
 let
-  build-idris-package = pkgs.callPackage ./.build-idris-package.nix {};
-  tparsec = pkgs.callPackage ./.tparsec.nix {
-    inherit build-idris-package;
-  };
   typedefs = pkgs.callPackage ./typedefs.nix { };
 in
 
-build-idris-package {
+idrisPackages.build-idris-package {
   name = "typedefs-parser";
   version = "dev";
   src = ./.;

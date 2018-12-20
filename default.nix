@@ -48,8 +48,8 @@ let
     repo = "nixpkgs";
 
     # binary cache exists for revisions listed in https://nixos.org/channels/
-    rev = "61c3169a0e17d789c566d5b241bfe309ce4a6275"; # https://nixos.org/channels/nixpkgs-unstable/git-revision
-    sha256 = "0qbycg7wkb71v20rchlkafrjfpbk2fnlvvbh3ai9pyfisci5wxvq";
+    rev = "eaeb20dd09f1311dc6a55c2e47777d89ac93e8a9"; # https://nixos.org/channels/nixpkgs-unstable/git-revision
+    sha256 = "1f1zwgsf5x5k1achi0nwymmwfx96lhjjc6hs1j6ibh8182imvvfv";
   };
   usepkgs = if null == pkgs then
              import pinpkgs {}
