@@ -4,6 +4,7 @@ import Data.Vect
 
 import Types
 import Typedefs
+import Backend.Utils
 
 import Data.Vect
 import Text.PrettyPrint.WL
@@ -25,9 +26,15 @@ record Decl where
 Env : Nat -> Type
 Env k = Vect k (Either String Decl)
 
-||| Vertically concatenate a list of documents with two newlines (i.e. one empty line) as separator.
-vsep2 : List Doc -> Doc
-vsep2 = vsep . punctuate line
+||| Standard implmementation of `freshEnv` for languages that require type parameters to
+||| start with lower case letters (and allow numbers in names).
+freshEnvLC : (n : Nat) -> Env n
+freshEnvLC n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
+
+||| Standard implmementation of `freshEnv` for languages that require type parameters to
+||| start with upper case letters (and allow numbers in names).
+freshEnvUC : (n : Nat) -> Env n
+freshEnvUC n = unindex {n} (\f => Left ("X" ++ show (finToInteger f)))
 
 ||| Get the free names from the environment.
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
