@@ -3,25 +3,34 @@
   "title": "Bit",
   "type": "object",
 
-  //example of a product//
+  "required": [
+    "value",
+    "vars"
+  ],
   "properties": {
-    "fst": { "$ref": "#/definitions/bit" },
-    "snd": { "$ref": "#/definitions/bit" }
+    "value": {
+      "$ref": "#/definitions/twobits" //schema for the top level type
+    },
+    "vars": {
+      "type": "array",
+      "items": {
+        "type": "boolean"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    }
   },
-  "required": ["fst", "snd"],
-  "additionalProperties": false,
-  ////////////////////////
+
 
   "definitions": {
-    //unit//
+    //unit type
     "unit": {
       "enum": [
         "unit"
       ]
     },
-    ////////
 
-    //void//
+    //void type
     "void": {
       "type": "array",
       "items": {
@@ -30,9 +39,8 @@
       "minItems": 2,
       "uniqueItems": true
     },
-    ////////
 
-    //example of a sum//
+    //example of sum type
     "bit": {
       "oneOf": [
         {
@@ -72,7 +80,37 @@
           "additionalProperties": false
         }
       ]
+    },
+
+    //example of product type
+    "twobits": {
+      "type": "object",
+        "required": ["product"],
+        "additionalProperties": false,
+        "properties": {
+          "product": {
+              "$ref": "#/definitions/innerprod"
+            }
+        }
+    },
+    "innerprod": {
+      "type": "object",
+      "properties": {
+        "factors": {
+           "type": "integer",
+           "minimum": 2
+        },
+        "fst": {
+          "$ref": "#/definitions/bit"
+        },
+        "snd": {
+          "$ref": "#/definitions/bit"
+        }
+      },
+      "required": [
+        "fst",
+        "snd","factors"
+      ]
     }
-    ////////////////////
   }
 }
