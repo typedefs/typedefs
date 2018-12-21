@@ -26,18 +26,29 @@ mutual
   makeSubSchema : TDef n -> JSON
   makeSubSchema T0             = defRef "emptyType"
   makeSubSchema T1             = defRef "singletonType"
-  makeSubSchema (TSum ts)      = JObject [("oneOf", JArray . toList $ zipWith tagSchema (nary "case") ts)]
-  makeSubSchema (TProd ts)     = JObject [("allOf", JArray . toList $ zipWith tagSchema (nary "proj") ts)]
+  makeSubSchema (TSum ts)      = disjointSubSchema $ zip (nary "case") ts
+  makeSubSchema (TProd ts)     = productSubSchema (nary "proj") ts
   makeSubSchema (TVar v)       = ?tvarschema
   makeSubSchema (TName name _) = defRef name
   makeSubSchema (TMu name _)   = defRef name
   
-  tagSchema : Name -> TDef n -> JSON
-  tagSchema name t = JObject
-                      [ ("type", JString "object")
-                      , ("required", JArray [JString name])
-                      , ("properties", JObject [(name, assert_total $ makeSubSchema t)])
-                      ]
+  disjointSubSchema : Vect k (Name, TDef n) -> JSON
+  disjointSubSchema cases = JObject [("oneOf", JArray . toList $ map makeCase cases)]
+    where makeCase : (Name, TDef n) -> JSON
+          makeCase (name, td) = JObject
+                                  [ ("type", JString "object")
+                                  , ("required", JArray [JString name])
+                                  , ("additionalProperties", JBoolean False)
+                                  , ("properties", JObject [(name, assert_total $ makeSubSchema td)])
+                                  ]
+
+  productSubSchema : Vect k Name -> Vect k (TDef n) -> JSON
+  productSubSchema names tds = JObject
+                                 [ ("type", JString "object")
+                                 , ("required", JArray . toList $ map JString names)
+                                 , ("additionalProperties", JBoolean False)
+                                 , ("properties", JObject . toList $ zip names (map (assert_total makeSubSchema) tds))
+                                 ]
 
 ifNotPresent : Name -> State (List Name) (List (String, JSON)) -> State (List Name) (List (String, JSON))
 ifNotPresent name gen = do
@@ -70,10 +81,7 @@ makeDefs s@(TName name t) = ifNotPresent name $ do
 makeDefs t@(TMu name cases) = ifNotPresent name $ do
     res <- map concat $ traverse (assert_total makeDefs . snd) cases
     addName name
-    pure $ (name, makeConstructorSchemas cases) :: res
-  where
-  makeConstructorSchemas : Vect k (Name, TDef n) -> JSON
-  makeConstructorSchemas cons = JObject [ ("oneOf", JArray . toList $ map (uncurry tagSchema) cons) ]
+    pure $ (name, disjointSubSchema cases) :: res
 
 makeSchema : TDef n -> JSON
 makeSchema td = let defs = JObject $ evalState (makeDefs td) [] in
