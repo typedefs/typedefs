@@ -6,6 +6,7 @@ modules = Types
         , TermParse
         , TermWrite
         , Provider
+        , Backend
         , Backend.Haskell
         , Backend.ReasonML
         , Backend.Utils

@@ -74,6 +74,10 @@ minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
 mutual
+  ||| Increase the type index representing the number of variables accessible
+  ||| to a `TDef`, without actually changing the variables that are used by it.
+  |||
+  ||| @m The new amount of variables.
   weakenTDef : TDef n -> (m : Nat) -> LTE n m -> TDef m
   weakenTDef T0             _    _   = T0
   weakenTDef T1             _    _   = T1
@@ -97,28 +101,6 @@ mutual
   weakenNTDefs : Vect k (Name, TDef n) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef m)
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
-
-------- compile to Idris ? -----
-
-defType : String -> String -> String
-defType name def = name ++ " : Type\n" ++ name ++ " = " ++ def
-
-compileClosed : TDef n -> String
-compileClosed T0         = "Void"
-compileClosed T1         = "Unit"
-compileClosed (TSum xs)  = tsum xs
-  where
-  tsum : Vect (2 + _) (TDef n) -> String
-  tsum [x, y]              = "Either (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
-  tsum (x :: y :: z :: zs) = "Either (" ++ compileClosed x ++ ") (" ++ tsum (y :: z :: zs) ++ ")"
-compileClosed (TProd xs) = tprod xs
-  where
-  tprod : Vect (2 + _) (TDef n) -> String
-  tprod [x, y]              = "Pair (" ++ compileClosed x ++ ") (" ++ compileClosed y ++ ")"
-  tprod (x :: y :: z :: zs) = "Pair (" ++ compileClosed x ++ ") (" ++ tprod (y :: z :: zs) ++ ")"
-compileClosed (TMu _ x)  = "TMu: nope"
-compileClosed (TVar x)   = "TVar: nope"
-compileClosed (TName n x)   = "TName " ++ n ++ ": nope"
 
 -------- printing -------
 
@@ -156,3 +138,20 @@ mutual
 
 Show (TDef n) where
   show = showTDef
+
+-- Equality -----
+
+vectEq : Eq a => Vect n a -> Vect m a -> Bool
+vectEq []      []      = True
+vectEq (x::xs) (y::ys) = x == y && vectEq xs ys
+vectEq _       _       = False
+
+implementation Eq (TDef n) where
+  T0            == T0              = True
+  T1            == T1              = True
+  (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
+  (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
+  (TVar i)      == (TVar i')       = i == i'
+  (TMu nam xs)  == (TMu nam' xs')  = nam == nam' && (assert_total $ vectEq xs xs')
+  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+  _             == _               = False

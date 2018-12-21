@@ -1,79 +1,156 @@
 module Test.ReasonML
 
-import Data.Vect 
-
-import Typedefs
 import Types
+import Typedefs
+
+import Backend
+import Backend.Utils
 import Backend.ReasonML
 
+import Text.PrettyPrint.WL
 import Specdris.Spec
+
+import Data.Vect
+import Test
 
 %access public export
 
-bit : TDef 0
-bit = TName "Bit" $ TSum [T1, T1]
+x0 : Doc
+x0 = text "'x0"
 
-byte : TDef 0
-byte = TName "Byte" $ pow 8 bit
+x1 : Doc
+x1 = text "'x1"
 
-maybe : TDef 1
-maybe = TName "Maybe" $  TSum [T1, TVar 0]
+x2 : Doc
+x2 = text "'x2"
 
-list : TDef 1
-list = TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
+x3 : Doc
+x3 = text "'x3"
 
-maybe2 : TDef 1
-maybe2 = TMu "Maybe2" [("Nothing", T1), ("Just", TVar 1)]
+eitherDoc : Doc
+eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
+            |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
 
-nat : TDef 0
-nat = TMu "Nat" [("Z", T1), ("S", TVar 0)]
-
-listNat : TDef 0 
-listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
-
-parametricSynonym : TDef 1
-parametricSynonym = TName "parSyn" maybe
-
-parametricSynonym2 : TDef 1
-parametricSynonym2 = TName "parSyn2" maybe2
+generate : TDef n -> Doc
+generate = generate ReasonML
 
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "ReasonML code generation tests:" $ do
+    let bitDoc = vsep2
+                  [ eitherDoc
+                  , text "type" |++| text "bit"
+                    |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
+                  ]
 
-    it "bit" $ 
-      generate bit 
-        `shouldBe` "\ntype bit = either(unit, unit);\n"
+    it "bit" $
+      generate bit `shouldBe` bitDoc
 
-    it "byte" $ 
+    it "byte" $
       generate byte
-        `shouldBe` "\ntype bit = either(unit, unit);\n\ntype byte = (bit, bit, bit, bit, bit, bit, bit, bit);\n"
-        
-    it "maybe" $ 
-      generate maybe
-        `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n"
+        `shouldBe` vsep2
+                    [ bitDoc
+                    , text "type" |++| text "byte"
+                      |++| equals |++| tupled (replicate 8 (text "bit"))
+                      |+| semi
+                    ]
 
-    it "list" $ 
+    let maybeDoc = vsep2
+                     [ eitherDoc
+                     , text "type" |++| text "maybe" |+| parens x0
+                       |++| equals |++| text "either" |+| tupled [text "unit", x0]
+                       |+| semi
+                     ]
+
+    it "maybe" $
+      generate maybe `shouldBe` maybeDoc
+
+    it "list" $
       generate list
-        `shouldBe` "\ntype list('x0) = Nil | Cons('x0, list('x0));\n"
-    
-    it "maybe2" $ 
-      generate maybe2
-        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n"
-    
-    it "nat" $ 
-      generate nat
-        `shouldBe` "\ntype nat = Z | S(nat);\n"
-    
-    it "listNat" $ 
+        `shouldBe` text "type" |++| text "list" |+| parens x0
+                   |++| equals |++| text "Nil"
+                   |++| pipe   |++| text "Cons" |+| tupled [x0, text "list" |+| parens x0]
+                   |+| semi
+
+    let maybe2Doc = text "type" |++| text "maybe2" |+| parens x0
+                    |++| equals |++| text "Nothing"
+                    |++| pipe   |++| text "Just" |+| parens x0
+                    |+| semi
+
+    it "maybe2" $
+      generate maybe2 `shouldBe` maybe2Doc
+
+    let natDoc = text "type" |++| text "nat"
+                 |++| equals |++| text "Z"
+                 |++| pipe   |++| text "S" |+| parens (text "nat")
+                 |+| semi
+
+    it "nat" $
+      generate nat `shouldBe` natDoc
+
+    it "listNat" $
       generate listNat
-        `shouldBe` "\ntype nat = Z | S(nat);\n\ntype listNat = NilN | ConsN(nat, listNat);\n"
+        `shouldBe` vsep2
+                    [ natDoc
+                    , text "type" |++| text "listNat"
+                      |++| equals |++| text "NilN"
+                      |++| pipe   |++| text "ConsN" |+| tupled [ text "nat", text "listNat" ]
+                      |+| semi
+                    ]
 
     it "parametricSynonym" $
       generate parametricSynonym
-        `shouldBe` "\ntype maybe('x0) = either(unit, 'x0);\n\ntype parSyn('x0) = maybe('x0);\n" 
+        `shouldBe` vsep2
+                    [ maybeDoc
+                    , text "type" |++| text "parSyn" |+| parens x0
+                      |++| equals |++| text "maybe" |+| parens x0
+                      |+| semi
+                    ]
 
     it "parametricSynonym2" $
       generate parametricSynonym2
-        `shouldBe` "\ntype maybe2('x0) = Nothing | Just('x0);\n\ntype parSyn2('x0) = maybe2('x0);\n" 
+        `shouldBe` vsep2
+                    [ maybe2Doc
+                    , text "type" |++| text "parSyn2" |+| parens x0
+                      |++| equals |++| text "maybe2" |+| parens x0
+                      |+| semi
+                    ]
+
+    it "aplusbpluscplusd" $
+      generate aplusbpluscplusd
+        `shouldBe` vsep2
+                    [ eitherDoc
+                    , text "type" |++| text "aplusbpluscplusd" |+| tupled [x0,x1,x2,x3]
+                      |++| equals |++| text "either" |+| tupled [x0,
+                                          text "either" |+| tupled [x1,
+                                            text "either" |+| tupled [x2, x3]]]
+                      |+| semi
+                    ]
+
+    it "oneoneoneone" $
+      generate oneoneoneone
+        `shouldBe` vsep2
+                    [ eitherDoc
+                    , text "type" |++| text "oneoneoneone"
+                      |++| equals |++| text "either" |+| tupled [text "unit",
+                                          text "either" |+| tupled [text "unit",
+                                            text "either" |+| tupled [text "unit", text "unit"]]]
+                      |+| semi
+                    ]
+
+    it "unusedFreeVars" $
+      generate unusedFreeVars
+        `shouldBe` text "type" |++| text "id" |+| parens x0
+                      |++| equals |++| x0
+                      |+| semi -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
+
+    it "void or unit" $
+      generate voidOrUnit
+        `shouldBe` vsep2
+                    [ text "type" |++| text "void" |+| semi
+                    , eitherDoc
+                    , text "type" |++| text "voidOrUnit"
+                      |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
+                      |+| semi
+                    ]
