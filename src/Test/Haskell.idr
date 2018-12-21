@@ -16,7 +16,7 @@ import Test
 %access public export
 
 generate : TDef n -> Doc
-generate = generate {lang=Haskell}
+generate = generate Haskell
 
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry bit "Bool"

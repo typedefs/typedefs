@@ -73,8 +73,8 @@ interface Backend lang where
 
 ||| Generate code in a specific language for a type definition and all its dependencies.
 ||| Needs to be called with the implicit parameter `lang`, as such: `generate {lang=Haskell} td`.
-generate : Backend lang => {n: Nat} -> TDef n -> Doc
-generate {lang} {n} td = vsep2 . map (generateCode) . generateTyDefs {lang=lang} (freshEnv {lang=lang} n) $ td
+generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
+generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
 
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
@@ -94,7 +94,9 @@ generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
          e : Env (n + m)
          e = freshEnv {lang} n ++ map (\ s => Right $ MkDecl (targetType s) []) table
          traverseTD : (n : Nat) -> (Fin m, SpecialiseEntry) -> TDef (n + m) -> TDef (n + m)
-         traverseTD n (i, se) td = if td == weakenTDef (tdef se) _ (lteAddRight 0) then replace prf (TVar (fromNat (n + toNat i))) else go td
+         traverseTD n (i, se) td = if td == weakenTDef (tdef se) _ (lteAddRight 0)
+                                    then replace prf (TVar (fromNat (n + toNat i)))
+                                    else go td
              where prf : m + n = n + m
                    prf = plusCommutative m n
                    go : TDef (n + m) -> TDef (n + m)
