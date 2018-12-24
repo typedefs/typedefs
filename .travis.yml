@@ -2,3 +2,14 @@ language: nix
 os:
   - linux
   - osx
+deploy:
+  provider: pages
+  skip-cleanup: true
+  keep-history: true
+  target-branch: master
+  repo: typedefs/typedefs-docs
+  fqdn: docs.typedefs.com
+  github-token: $GITHUB_TOKEN
+  local-dir: result/share/doc/typedefs
+  on:
+    branch: pubish-docs
