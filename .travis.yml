@@ -6,7 +6,7 @@ deploy:
   provider: pages
   skip-cleanup: true
   verbose: true
-#  keep-history: true
+  keep-history: true
 #  target-branch: master
 #  repo: typedefs/typedefs-docs
 #  fqdn: docs.typedefs.com
