@@ -11,6 +11,6 @@ deploy:
   repo: typedefs/typedefs-docs
 #  fqdn: docs.typedefs.com
   github-token: $GITHUB_TOKEN
-#  local-dir: $TRAVIS_BUILD_DIR/result/share/doc/typedefs/
+  local-dir: $TRAVIS_BUILD_DIR/result/share/doc/typedefs/
   on:
     branch: publish-docs
