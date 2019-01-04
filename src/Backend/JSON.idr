@@ -28,7 +28,6 @@ mutual
   makeSubSchema T1             = defRef "singletonType"
   makeSubSchema (TSum ts)      = disjointSubSchema $ zip (nary "case") ts
   makeSubSchema (TProd ts)     = productSubSchema (nary "proj") ts
---  makeSubSchema (TVar v)       = ?tvarschema
   makeSubSchema (TName name _) = defRef name
   makeSubSchema (TMu name _)   = defRef name
   
@@ -82,7 +81,6 @@ makeDefs T1 = ifNotPresent "singletonType" $ pure [("singletonType", singletonTy
   singletonType = JObject [("enum", JArray [JString "singleton"])]
 makeDefs (TSum ts)        = map concat $ traverse (assert_total makeDefs) ts
 makeDefs (TProd ts)       = map concat $ traverse (assert_total makeDefs) ts
---makeDefs (TVar v)         = ?tvardef
 makeDefs s@(TName name t) = ifNotPresent name $ do
     res <- makeDefs (assert_smaller s t)
     pure $ (name, makeSubSchema t) :: res
@@ -92,15 +90,11 @@ makeDefs t@(TMu name cases) = ifNotPresent name $ do
     pure $ (name, disjointSubSchema cases') :: res
 
 makeSchema : TDef 0 -> JSON
-makeSchema td = let defs = JObject $ evalState (makeDefs td) [] in
-                let props = JObject [ ("value", makeSubSchema td)
-                                    , ("vars", JObject [])
-                                    ]
-                 in JObject
-                      [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
-                      , ("type", JString "object")
-                      , ("required", JArray [JString "value", JString "vars"]) -- TODO only require vars if 
-                      , ("additionalProperties", JBoolean False)
-                      , ("definitions", defs)
-                      , ("properties", props)
-                      ]
+makeSchema td = JObject
+                  [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
+                  , ("type", JString "object")
+                  , ("required", JArray [JString "value"])
+                  , ("additionalProperties", JBoolean False)
+                  , ("definitions", JObject $ evalState (makeDefs td) [])
+                  , ("properties", JObject [ ("value", makeSubSchema td) ])
+                  ]
