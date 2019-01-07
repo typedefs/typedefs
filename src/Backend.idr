@@ -71,10 +71,19 @@ interface Backend lang where
   ||| Generate a new environment with n free names.
   freshEnv : (n: Nat) -> Env n
 
+
+interface NewBackend type def | def where
+  tld : TDef 0 -> type
+  defs : TDef 0 -> List def
+  source : type -> List def -> Doc
+
+generate : {type: Type} -> (def: Type) -> NewBackend type def => TDef 0 -> Doc
+generate {type} def td = source (tld {type} {def} td) (defs {type} {def} td)
+
 ||| Generate code in a specific language for a type definition and all its dependencies.
 ||| Needs to be called with the implicit parameter `lang`, as such: `generate {lang=Haskell} td`.
-generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
-generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
+--generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
+--generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
 
 record SpecialiseEntry where
   constructor MkSpecialiseEntry

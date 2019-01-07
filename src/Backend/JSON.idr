@@ -4,6 +4,7 @@ import Control.Monad.State
 import Language.JSON
 import Text.PrettyPrint.WL
 
+import Backend
 import Backend.Utils
 import Types
 import Typedefs
@@ -21,6 +22,12 @@ nary name = map ((name ++) . show . finToNat) range
 
 defRef : Name -> JSON
 defRef name = JObject [("$ref", JString $ "#/definitions/" ++ name)]
+
+
+record JSONDef where
+  constructor MkJSONDef
+  name   : Name
+  schema : JSON
 
 mutual
   makeSubSchema : TDef 0 -> JSON
@@ -56,15 +63,6 @@ ifNotPresent name gen = do
       then pure []
       else addName name *> gen
 
-flattenMu : Vect (S n) Name -> TDef (S n) -> TDef n
-flattenMu names (TVar v)    = TName (index v names) T0
-flattenMu _     T0          = T0
-flattenMu _     T1          = T1
-flattenMu names t@(TSum ts) = assert_total $ TSum $ map (flattenMu names) ts
-flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
-flattenMu names (TName n t) = assert_total $ TName n $ flattenMu names t
-flattenMu names (TMu n c)   = assert_total $ TMu n $ map (map (flattenMu (n :: names))) c
-
 makeDefs : TDef 0 -> State (List Name) (List (String, JSON))
 makeDefs T0 = ifNotPresent "emptyType" $ pure [("emptyType", emptyType)]
   where
@@ -88,13 +86,39 @@ makeDefs t@(TMu name cases) = ifNotPresent name $ do
     let cases' = map (map (flattenMu [name])) cases
     res <- map concat $ traverse (assert_total makeDefs . snd) cases'
     pure $ (name, disjointSubSchema cases') :: res
+  where
+  -- DO NOT simply lift this function out to the top-level.
+  -- Its behavior is dependent on the type of `makeDefs`.
+  -- (Specifically: all TVars must refer to a TMu, not to any free variables.)
+  flattenMu : Vect (S n) Name -> TDef (S n) -> TDef n
+  flattenMu names (TVar v)    = TName (index v names) T0
+  flattenMu _     T0          = T0
+  flattenMu _     T1          = T1
+  flattenMu names (TSum ts)   = assert_total $ TSum $ map (flattenMu names) ts
+  flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
+  flattenMu names (TName n t) = assert_total $ TName n $ flattenMu names t
+  flattenMu names (TMu n c)   = assert_total $ TMu n $ map (map (flattenMu (n :: names))) c
 
-makeSchema : TDef 0 -> JSON
-makeSchema td = JObject
+makeSchema : JSON -> List JSONDef -> JSON
+makeSchema schema defs = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
                   , ("type", JString "object")
                   , ("required", JArray [JString "value"])
                   , ("additionalProperties", JBoolean False)
-                  , ("definitions", JObject $ evalState (makeDefs td) [])
-                  , ("properties", JObject [ ("value", makeSubSchema td) ])
+                  , ("definitions", jObject defs)
+                  , ("properties", JObject [ ("value", schema) ])
                   ]
+  where
+  jObject : List JSONDef -> JSON
+  jObject = JObject . map (\(MkJSONDef name def) => (name, def))
+
+--Backend JSONDef where
+--  generateTyDefs td = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
+--  generateCode (MkJSONDef name schema) = format 0 schema
+--  generate td defs = format 0 $ makeSchema td defs
+
+NewBackend JSON JSONDef where
+  tld = makeSubSchema
+  defs td = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
+  source topLevelSchema defs = literal $ format 0 $ makeSchema topLevelSchema defs
+
