@@ -102,6 +102,18 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
+
+apply : TDef (S n) -> TDef k -> TDef (n + k)
+apply T0 _ = T0
+apply T1 _ = T1
+apply (TSum ts) x = TSum $ map ?f ts
+apply (TProd ts) x = TProd $ map ?g ts
+apply {n} {k} (TVar FZ) x = weakenTDef x (n + k) (?help)
+apply {n} {k} (TVar v) _ = weakenTDef (TVar v) (n + k) ?halp
+apply (TMu name cs) x = TMu name $ map (map (?me)) cs
+apply (TName name f) x = TName name $ apply f x
+
+
 -------- printing -------
 
 parens : String -> String
