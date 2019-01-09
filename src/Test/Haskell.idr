@@ -34,6 +34,12 @@ intForNat = MkSpecialiseEntry nat "Int"
 generateSpecialised : Vect (S m) SpecialiseEntry -> TDef n -> Doc
 generateSpecialised se td = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
 
+x0 : Doc
+x0 = text "x0"
+
+x1 : Doc
+x1 = text "x1"
+
 testSuite : IO ()
 testSuite = spec $ do
 
@@ -52,19 +58,19 @@ testSuite = spec $ do
 
     it "maybe" $
       generate maybe
-        `shouldBe` text "type" |++| text "Maybe" |++| text "x0" |++| equals |++| text "Either" |++| parens empty |++| text "x0"
+        `shouldBe` text "type" |++| text "Maybe" |++| x0 |++| equals |++| text "Either" |++| parens empty |++| x0
 
     it "list" $
       generate list
-        `shouldBe` text "data" |++| text "List" |++| text "x0" |++|
+        `shouldBe` text "data" |++| text "List" |++| x0 |++|
                                equals |++| text "Nil"  |++|
-                               pipe   |++| text "Cons" |++| text "x0" |++| parens (text "List" |++| text "x0")
+                               pipe   |++| text "Cons" |++| x0 |++| parens (text "List" |++| x0)
 
     it "maybe2" $
       generate maybe2
-        `shouldBe` text "data" |++| text "Maybe2" |++| text "x0" |++|
+        `shouldBe` text "data" |++| text "Maybe2" |++| x0 |++|
                                equals |++| text "Nothing" |++|
-                               pipe   |++| text "Just"    |++| text "x0"
+                               pipe   |++| text "Just"    |++| x0
 
     it "nat" $
       generate nat
@@ -86,25 +92,25 @@ testSuite = spec $ do
     it "parametricSynonym" $
       generate parametricSynonym
         `shouldBe` vsep2
-                    [ text "type" |++| text "Maybe" |++| text "x0" |++|
-                                  equals |++| text "Either" |++| parens empty |++| text "x0"
-                    , text "type" |++| text "ParSyn" |++| text "x0" |++| equals |++| text "Maybe" |++| text "x0"
+                    [ text "type" |++| text "Maybe" |++| x0 |++|
+                                  equals |++| text "Either" |++| parens empty |++| x0
+                    , text "type" |++| text "ParSyn" |++| x0 |++| equals |++| text "Maybe" |++| x0
                     ]
 
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` vsep2
-                    [ text "data" |++| text "Maybe2" |++| text "x0" |++|
+                    [ text "data" |++| text "Maybe2" |++| x0 |++|
                                   equals |++| text "Nothing" |++|
-                                  pipe   |++| text "Just" |++| text "x0"
-                    , text "type" |++| text "ParSyn2" |++| text "x0" |++| equals |++| text "Maybe2" |++| text "x0"
+                                  pipe   |++| text "Just" |++| x0
+                    , text "type" |++| text "ParSyn2" |++| x0 |++| equals |++| text "Maybe2" |++| x0
                     ]
 
     it "aplusbpluscplusd" $
       generate aplusbpluscplusd
         `shouldBe` text "type" |++| text "Aplusbpluscplusd" |++| text "x0 x1 x2 x3" |++|
-                                  equals |++| text "Either" |++| text "x0" |++|
-                                                parens (text "Either" |++| text "x1" |++|
+                                  equals |++| text "Either" |++| x0 |++|
+                                                parens (text "Either" |++| x1 |++|
                                                   parens (text "Either" |++| text "x2" |++| text "x3"))
 
     it "oneoneoneone" $
@@ -116,13 +122,18 @@ testSuite = spec $ do
 
     it "unusedFreeVars" $
       generate unusedFreeVars
-        `shouldBe` text "type" |++| text "Id" |++| text "x0"
-                      |++| equals |++| text "x0" -- not "\ntype Id x0 x1 ... x42 = x0\n"
+        `shouldBe` text "type" |++| text "Id" |++| x0
+                      |++| equals |++| x0 -- not "\ntype Id x0 x1 ... x42 = x0\n"
 
     it "void or unit" $
       generate voidOrUnit
         `shouldBe` text "type" |++| text "VoidOrUnit"
                    |++| equals |++| text "Either" |++| text "Void" |++| text "()"
+
+    it "nonlinear variable usage" $
+      generate nonlinear
+        `shouldBe` text "type" |++| text "Nonlinear" |++| x0
+                   |++| equals |++| tupled [x0, x0]
 
   describe "Haskell specialised types tests:" $ do
 
@@ -154,6 +165,6 @@ testSuite = spec $ do
                         [ text "data" |++| text "ListNat"
                           |++| equals |++| text "NilN"
                           |++| pipe   |++| text "ConsN" |++| text "Int" |++| text "ListNat"
-                        , text "type" |++| text "Triple" |++| text "x0"
-                          |++| equals |++| tupled [text "Char", text "ListNat", text "x0"]
+                        , text "type" |++| text "Triple" |++| x0
+                          |++| equals |++| tupled [text "Char", text "ListNat", x0]
                         ]

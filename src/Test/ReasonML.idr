@@ -154,3 +154,9 @@ testSuite = spec $ do
                       |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
                       |+| semi
                     ]
+
+    it "nonlinear variable usage" $
+      generate nonlinear
+        `shouldBe` text "type" |++| text "nonlinear" |+| parens x0
+                   |++| equals |++| tupled [x0, x0]
+                   |+| semi

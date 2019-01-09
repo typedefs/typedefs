@@ -56,5 +56,8 @@ unusedFreeVars = TName "Id" (TVar 0)
 voidOrUnit : TDef 0
 voidOrUnit = TName "VoidOrUnit" $ TSum [T0, T1]
 
+nonlinear : TDef 1
+nonlinear = TName "Nonlinear" $ TProd [TVar 0, TVar 0]
+
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
