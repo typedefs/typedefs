@@ -117,8 +117,8 @@ makeSchema schema defs = JObject
 --  generateCode (MkJSONDef name schema) = format 0 schema
 --  generate td defs = format 0 $ makeSchema td defs
 
-NewBackend JSON JSONDef where
-  tld = makeSubSchema
-  defs td = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
+NewBackend JSONDef JSON where
+  msgType                    = makeSubSchema
+  typedefs td                = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
   source topLevelSchema defs = literal $ format 0 $ makeSchema topLevelSchema defs
 
