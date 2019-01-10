@@ -167,7 +167,7 @@ testSuite = spec $ do
                     [ muMaybeDoc
                     , text "data" |++| text "Foo"
                       |++| equals |++| text "Bar"
-                                       |++| parens (text "Maybe2" |++| parens (text "Foo"))
+                                       |++| parens (text "Maybe2" |++| text "Foo")
                     ]
 
   describe "Haskell specialised types tests:" $ do
