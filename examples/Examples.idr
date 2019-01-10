@@ -99,7 +99,29 @@ listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, nat, TVar 0])]
   where
   nat : TDef 1
   nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
-  
+
+-- Examples using `ap`
+
+maybeEitherAlpha : TDef 1
+maybeEitherAlpha = maybe `ap` [either `ap` [TVar 0, TVar 0]]
+
+maybeEitherAlphaBeta : TDef 2
+maybeEitherAlphaBeta = maybe `ap` [either `ap` [TVar 0, TVar 1]]
+
+nullBit : TDef 0
+nullBit = maybe `ap` [bit]
+
+listEitherAlpha : TDef 1
+listEitherAlpha = list `ap` [either `ap` [TVar 0, TVar 0]]
+
+listEitherAlphaBeta : TDef 2
+listEitherAlphaBeta = list `ap` [either `ap` [TVar 0, TVar 1]]
+
+listBit : TDef 0
+listBit = list `ap` [bit]
+
+listNullBit : TDef 0
+listNullBit = list `ap` [nullBit]
 
 serializeTest : String
 serializeTest = serialize [Int] [show] Main.maybe (Main.just Int 6)
