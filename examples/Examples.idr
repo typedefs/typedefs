@@ -88,17 +88,17 @@ cons a x xs = Inn $ Right (x, xs)
 
 -- Example: List Nat
 
+nat : TDef 0
+nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
+
+nat1 : TDef 1
+nat1 = weakenTDef nat 1 LTEZero
+
 listNat : TDef 0
-listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, TVar 0])]
-  where
-  nat : TDef 1
-  nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
+listNat = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat1, TVar 0])]
 
 listNat2 : TDef 0
-listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat, nat, TVar 0])]
-  where
-  nat : TDef 1
-  nat = TMu "Nat" [("ZZ", T1), ("SS", TVar 0)]
+listNat2 = TMu "ListNat" [("NilN", T1), ("ConsN", TProd [nat1, nat1, TVar 0])]
 
 -- Examples using `ap`
 
@@ -122,6 +122,9 @@ listBit = list `ap` [bit]
 
 listNullBit : TDef 0
 listNullBit = list `ap` [nullBit]
+
+nestedMu : TDef 0
+nestedMu = TMu "Foo" [("Bar", nat1)]
 
 serializeTest : String
 serializeTest = serialize [Int] [show] Main.maybe (Main.just Int 6)

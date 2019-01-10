@@ -59,5 +59,14 @@ voidOrUnit = TName "VoidOrUnit" $ TSum [T0, T1]
 nonlinear : TDef 1
 nonlinear = TName "Nonlinear" $ TProd [TVar 0, TVar 0]
 
+nestedMu : TDef 2
+nestedMu = TMu "Foo" [("Bar", list `ap` [TSum [TVar 1, TVar 2]])]
+
+nestedMu2 : TDef 1
+nestedMu2 = TMu "Foo" [("Bar", maybe2 `ap` [TVar 1])]
+
+nestedMu3 : TDef 0
+nestedMu3 = TMu "Foo" [("Bar", maybe2 `ap` [TVar 0])]
+
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected

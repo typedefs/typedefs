@@ -40,6 +40,12 @@ x0 = text "x0"
 x1 : Doc
 x1 = text "x1"
 
+x2 : Doc
+x2 = text "x2"
+
+x3 : Doc
+x3 = text "x3"
+
 testSuite : IO ()
 testSuite = spec $ do
 
@@ -60,30 +66,32 @@ testSuite = spec $ do
       generate maybe
         `shouldBe` text "type" |++| text "Maybe" |++| x0 |++| equals |++| text "Either" |++| parens empty |++| x0
 
+    let listDoc = text "data" |++| text "List" |++| x0
+                  |++| equals |++| text "Nil" 
+                  |++| pipe   |++| text "Cons"
+                                   |++| x0 |++| parens (text "List" |++| x0)
+
     it "list" $
-      generate list
-        `shouldBe` text "data" |++| text "List" |++| x0 |++|
-                               equals |++| text "Nil"  |++|
-                               pipe   |++| text "Cons" |++| x0 |++| parens (text "List" |++| x0)
+      generate list `shouldBe` listDoc
+
+    let muMaybeDoc = text "data" |++| text "Maybe2" |++| x0
+                     |++| equals |++| text "Nothing"
+                     |++| pipe   |++| text "Just" |++| x0
 
     it "maybe2" $
-      generate maybe2
-        `shouldBe` text "data" |++| text "Maybe2" |++| x0 |++|
-                               equals |++| text "Nothing" |++|
-                               pipe   |++| text "Just"    |++| x0
+      generate maybe2 `shouldBe` muMaybeDoc
+
+    let natDoc = text "data" |++| text "Nat"
+                 |++| equals |++| text "Z"
+                 |++| pipe   |++| text "S" |++| text "Nat"
 
     it "nat" $
-      generate nat
-        `shouldBe` text "data" |++| text "Nat" |++|
-                               equals |++| text "Z" |++|
-                               pipe   |++| text "S" |++| text "Nat"
+      generate nat `shouldBe` natDoc
 
     it "listNat" $
       generate listNat
         `shouldBe` vsep2
-                    [ text "data" |++| text "Nat" |++|
-                                  equals |++| text "Z" |++|
-                                  pipe   |++| text "S" |++| text "Nat"
+                    [ natDoc
                     , text "data" |++| text "ListNat" |++|
                                   equals |++| text "NilN" |++|
                                   pipe   |++| text "ConsN" |++| text "Nat" |++| text "ListNat"
@@ -108,7 +116,7 @@ testSuite = spec $ do
 
     it "aplusbpluscplusd" $
       generate aplusbpluscplusd
-        `shouldBe` text "type" |++| text "Aplusbpluscplusd" |++| text "x0 x1 x2 x3" |++|
+        `shouldBe` text "type" |++| text "Aplusbpluscplusd" |++| hsep [x0,x1,x2,x3] |++|
                                   equals |++| text "Either" |++| x0 |++|
                                                 parens (text "Either" |++| x1 |++|
                                                   parens (text "Either" |++| text "x2" |++| text "x3"))
@@ -134,6 +142,33 @@ testSuite = spec $ do
       generate nonlinear
         `shouldBe` text "type" |++| text "Nonlinear" |++| x0
                    |++| equals |++| tupled [x0, x0]
+
+    it "nested Mu (Foo/List/Either)" $
+      generate nestedMu
+        `shouldBe` vsep2
+                    [ listDoc 
+                    , text "data" |++| text "Foo" |++| hsep [x0,x1]
+                      |++| equals |++| text "Bar"
+                                       |++| parens (text "List" |++| parens (text "Either" |++| hsep [x0,x1]))
+                    ]
+
+    it "nested Mu 2 (Foo/Maybe/Alpha)" $
+      generate nestedMu2
+        `shouldBe` vsep2
+                    [ muMaybeDoc
+                    , text "data" |++| text "Foo" |++| x0
+                      |++| equals |++| text "Bar"
+                                       |++| parens (text "Maybe2" |++| x0) 
+                    ]
+
+    it "nested Mu 3 (Foo/Maybe/Foo)" $
+      generate nestedMu3
+        `shouldBe` vsep2
+                    [ muMaybeDoc
+                    , text "data" |++| text "Foo"
+                      |++| equals |++| text "Bar"
+                                       |++| parens (text "Maybe2" |++| parens (text "Foo"))
+                    ]
 
   describe "Haskell specialised types tests:" $ do
 

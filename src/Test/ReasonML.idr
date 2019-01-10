@@ -66,20 +66,21 @@ testSuite = spec $ do
     it "maybe" $
       generate maybe `shouldBe` maybeDoc
 
-    it "list" $
-      generate list
-        `shouldBe` text "type" |++| text "list" |+| parens x0
-                   |++| equals |++| text "Nil"
-                   |++| pipe   |++| text "Cons" |+| tupled [x0, text "list" |+| parens x0]
-                   |+| semi
+    let listDoc = text "type" |++| text "list" |+| parens x0
+                  |++| equals |++| text "Nil"
+                  |++| pipe   |++| text "Cons" |+| tupled [x0, text "list" |+| parens x0]
+                  |+| semi
 
-    let maybe2Doc = text "type" |++| text "maybe2" |+| parens x0
-                    |++| equals |++| text "Nothing"
-                    |++| pipe   |++| text "Just" |+| parens x0
-                    |+| semi
+    it "list" $
+      generate list `shouldBe` listDoc
+
+    let muMaybeDoc = text "type" |++| text "maybe2" |+| parens x0
+                     |++| equals |++| text "Nothing"
+                     |++| pipe   |++| text "Just" |+| parens x0
+                     |+| semi
 
     it "maybe2" $
-      generate maybe2 `shouldBe` maybe2Doc
+      generate maybe2 `shouldBe` muMaybeDoc
 
     let natDoc = text "type" |++| text "nat"
                  |++| equals |++| text "Z"
@@ -111,7 +112,7 @@ testSuite = spec $ do
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` vsep2
-                    [ maybe2Doc
+                    [ muMaybeDoc
                     , text "type" |++| text "parSyn2" |+| parens x0
                       |++| equals |++| text "maybe2" |+| parens x0
                       |+| semi
@@ -160,3 +161,34 @@ testSuite = spec $ do
         `shouldBe` text "type" |++| text "nonlinear" |+| parens x0
                    |++| equals |++| tupled [x0, x0]
                    |+| semi
+
+    it "nested Mu (Foo/List/Either)" $
+      generate nestedMu
+        `shouldBe` vsep2
+                    [ listDoc
+                    , eitherDoc
+                    , text "type" |++| text "foo" |+| tupled [x0,x1]
+                      |++| equals |++| text "Bar"
+                                       |++| parens (text "list" |++| parens (text "either" |+| tupled [x0,x1]))
+                      |+| semi
+                    ]
+
+    it "nested Mu 2 (Foo/Maybe/Alpha)" $
+      generate nestedMu2
+        `shouldBe` vsep2
+                    [ muMaybeDoc
+                    , text "type" |++| text "foo" |+| parens x0
+                      |++| equals |++| text "Bar"
+                                       |+| parens (text "maybe2" |+| parens x0)
+                      |+| semi
+                    ]
+
+    it "nested Mu 3 (Foo/Maybe/Foo)" $
+      generate nestedMu3
+        `shouldBe` vsep2
+                    [ muMaybeDoc
+                    , text "type" |++| text "foo"
+                      |++| equals |++| text "Bar"
+                                       |+| parens (text "maybe2" |+| parens (text "foo"))
+                      |+| semi
+                    ]
