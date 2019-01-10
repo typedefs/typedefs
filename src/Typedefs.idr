@@ -32,6 +32,26 @@ data TDef : (n:Nat) -> Type where
 
   TName : Name -> TDef n                    -> TDef n
 
+||| Add 1 to all de Bruijn-indices in a TDef.
+shiftVars : TDef n -> TDef (S n)
+shiftVars T0             = T0
+shiftVars T1             = T1
+shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
+shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
+shiftVars (TVar v)       = TVar $ shift 1 v
+shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
+shiftVars (TMu name cs)  = assert_total $ TMu name $ map (map shiftVars) cs
+
+||| Apply a TDef with free variables to a vector of arguments.
+ap : TDef n -> Vect n (TDef m) -> TDef m
+ap T0             _    = T0
+ap T1             _    = T1
+ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
+ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
+ap (TVar v)       args = index v args
+ap (TName name t) args = TName name $ ap t args
+ap (TMu name cs)  args = assert_total $ TMu name $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
     Inn : Ty (Mu tvars m :: tvars) m -> Mu tvars m
