@@ -14,22 +14,22 @@ import Data.Vect
 %default total
 %access public export
 
-addName : Name -> State (List Name) ()
-addName name = modify ([name] ++)
-
-nary : Name -> Vect k Name
-nary name = map ((name ++) . show . finToNat) range
-
-defRef : Name -> JSON
-defRef name = JObject [("$ref", JString $ "#/definitions/" ++ name)]
-
-
+||| A definition of a JSON schema.
 record JSONDef where
   constructor MkJSONDef
   name   : Name
   schema : JSON
 
+||| Given `name`, create `[name0, name1, ..., namek]`
+nary : Name -> Vect k Name
+nary name = map ((name ++) . show . finToNat) range
+
+||| Reference a definition.
+defRef : Name -> JSON
+defRef name = JObject [("$ref", JString $ "#/definitions/" ++ name)]
+
 mutual
+  ||| Generate a schema for a `TDef 0`. The schema will be unusable without the definitions for the types referenced in the `TDef 0`.
   makeSubSchema : TDef 0 -> JSON
   makeSubSchema T0             = defRef "emptyType"
   makeSubSchema T1             = defRef "singletonType"
@@ -38,6 +38,7 @@ mutual
   makeSubSchema (TName name _) = defRef name
   makeSubSchema (TMu name _)   = defRef name
   
+  ||| Generate a schema that matches exactly one of the supplied schemas, which must be wrapped in its corresponding name.
   disjointSubSchema : Vect k (Name, TDef 0) -> JSON
   disjointSubSchema cases = JObject [("oneOf", JArray . toList $ map makeCase cases)]
     where makeCase : (Name, TDef 0) -> JSON
@@ -48,6 +49,7 @@ mutual
                                   , ("properties", JObject [(name, assert_total $ makeSubSchema td)])
                                   ]
 
+  ||| Generate a schema that requires all of the supplied schemas to match, with each being wrapped in its corresponding name.
   productSubSchema : Vect k Name -> Vect k (TDef 0) -> JSON
   productSubSchema names tds = JObject
                                  [ ("type", JString "object")
@@ -56,13 +58,15 @@ mutual
                                  , ("properties", JObject . toList $ zip names (map (assert_total makeSubSchema) tds))
                                  ]
 
+||| Only perform an action of a name is not already present in the state. If the action is performed, the name will be added.
 ifNotPresent : Name -> State (List Name) (List (String, JSON)) -> State (List Name) (List (String, JSON))
 ifNotPresent name gen = do
     st <- get
     if name `Prelude.List.elem` st
       then pure []
-      else addName name *> gen
+      else modify ([name] ++) *> gen
 
+||| Generate helper definitions for all types contained in a `TDef 0`.
 makeDefs : TDef 0 -> State (List Name) (List (String, JSON))
 makeDefs T0 = ifNotPresent "emptyType" $ pure [("emptyType", emptyType)]
   where
@@ -99,6 +103,7 @@ makeDefs t@(TMu name cases) = ifNotPresent name $ do
   flattenMu names (TName n t) = assert_total $ TName n $ flattenMu names t
   flattenMu names (TMu n c)   = assert_total $ TMu n $ map (map (flattenMu (n :: names))) c
 
+||| Takes a schema and a list of helper definitions and puts them together into a top-level schema. 
 makeSchema : JSON -> List JSONDef -> JSON
 makeSchema schema defs = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
@@ -112,13 +117,7 @@ makeSchema schema defs = JObject
   jObject : List JSONDef -> JSON
   jObject = JObject . map (\(MkJSONDef name def) => (name, def))
 
---Backend JSONDef where
---  generateTyDefs td = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
---  generateCode (MkJSONDef name schema) = format 0 schema
---  generate td defs = format 0 $ makeSchema td defs
-
 NewBackend JSONDef JSON where
   msgType                    = makeSubSchema
   typedefs td                = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
   source topLevelSchema defs = literal $ format 2 $ makeSchema topLevelSchema defs
-
