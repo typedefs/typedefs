@@ -120,5 +120,5 @@ makeSchema schema defs = JObject
 NewBackend JSONDef JSON where
   msgType                    = makeSubSchema
   typedefs td                = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
-  source topLevelSchema defs = literal $ format 0 $ makeSchema topLevelSchema defs
+  source topLevelSchema defs = literal $ format 2 $ makeSchema topLevelSchema defs
 

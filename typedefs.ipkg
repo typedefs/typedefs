@@ -8,11 +8,13 @@ modules = Types
         , Provider
         , Backend
         , Backend.Haskell
+        , Backend.JSON
         , Backend.ReasonML
         , Backend.Utils
         
         , Test.Typedefs
         , Test.Haskell
+        , Test.JSON
         , Test.ReasonML
         , Test.TermParse
         , Test.TermWrite
