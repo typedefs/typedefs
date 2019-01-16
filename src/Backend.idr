@@ -61,7 +61,7 @@ getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 ||| Interface for codegens. `lang` is a type representing (the syntactic structure of)
 ||| a type declaration in the target language.
 interface Backend lang where
-  ||| Given a TDef and a matching environment, generate a list of type definitions
+  ||| Given a `TDef` and a matching environment, generate a list of type definitions
   ||| in the target language.
   generateTyDefs : Env n -> TDef n -> List lang
 
@@ -71,16 +71,24 @@ interface Backend lang where
   ||| Generate a new environment with n free names.
   freshEnv : (n: Nat) -> Env n
 
-||| Generate code in a specific language for a type definition and all its dependencies.
-||| Needs to be called with the implicit parameter `lang`, as such: `generate {lang=Haskell} td`.
+||| Use the given backend to generate code for a type definition and all its dependencies.
 generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
 generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
 
+||| Interface for codegens which distinguish between the message type itself and
+||| its helper definitions. Currently doesn't support typedefs with free variables. 
 interface NewBackend def type | def where
+  ||| Given a `TDef`, generate its corresponding type signature.
   msgType  : TDef 0 -> type
+
+  ||| Given a `TDef`, generate a list of all helper definitions required by it.
   typedefs : TDef 0 -> List def
+
+  ||| Given a type signature and a list of helper definitions which it uses,
+  ||| generate source code.
   source   : type -> List def -> Doc
 
+||| Use the given backend to generate code for a type definition and all its dependencies.
 newGenerate : {type: Type} -> (def: Type) -> NewBackend def type => TDef 0 -> Doc
 newGenerate {type} def td = source (msgType {type} {def} td) (typedefs {type} {def} td)
 
