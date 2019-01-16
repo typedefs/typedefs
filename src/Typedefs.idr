@@ -102,7 +102,6 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
-
 -------- printing -------
 
 parens : String -> String
