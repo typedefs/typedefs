@@ -59,7 +59,7 @@ mutual
                                  , ("properties", JObject . toList $ zip names (map (assert_total makeSubSchema) tds))
                                  ]
 
-||| Only perform an action of a name is not already present in the state. If the action is performed, the name will be added.
+||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
 ifNotPresent : Name -> State (List Name) (List (String, JSON)) -> State (List Name) (List (String, JSON))
 ifNotPresent name gen = do
     st <- get
