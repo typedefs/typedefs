@@ -1,13 +1,14 @@
 module Backend.JSON
 
-import Control.Monad.State
-import Language.JSON
-import Text.PrettyPrint.WL
+import Types
+import Typedefs
 
 import Backend
 import Backend.Utils
-import Types
-import Typedefs
+
+import Control.Monad.State
+import Language.JSON
+import Text.PrettyPrint.WL
 
 import Data.Vect
 
