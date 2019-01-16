@@ -8,29 +8,52 @@ import Types
 %default total
 %access public export
 
-||| Type definition
-||| @n The number of type variables in the type
-data TDef : (n:Nat) -> Type where
-  ||| The empty type
-  T0    :                                      TDef n
+mutual
+  ||| Type definition
+  ||| @n The number of type variables in the type
+  data TDef : (n:Nat) -> Type where
+    ||| The empty type
+    T0    :                                      TDef n
 
-  ||| The unit type
-  T1    :                                      TDef n
+    ||| The unit type
+    T1    :                                      TDef n
 
-  ||| The coproduct type
-  TSum  :         Vect (2 + k) (TDef n)     -> TDef n
+    ||| The coproduct type
+    TSum  :         Vect (2 + k) (TDef n)     -> TDef n
 
-  ||| The product type
-  TProd :         Vect (2 + k) (TDef n)     -> TDef n
+    ||| The product type
+    TProd :         Vect (2 + k) (TDef n)     -> TDef n
 
-  ||| A type variable
-  ||| @i De Bruijn index
-  TVar  :         (i:Fin (S n))             -> TDef (S n)
+    ||| A type variable
+    ||| @i De Bruijn index
+    TVar  :         (i:Fin (S n))             -> TDef (S n)
 
-  ||| Mu
-  TMu   : Name -> Vect k (Name, TDef (S n)) -> TDef n
+--    ||| Mu
+--    TMu   : Name -> Vect k (Name, TDef (S n)) -> TDef n
+--
+--    TName : Name -> TDef n                    -> TDef n
 
-  TName : Name -> TDef n                    -> TDef n
+    TApp  : TNamed k -> Vect k (TDef n)       -> TDef n
+
+  data TNamed : (n : Nat) -> Type where
+    TName : Name -> TDef n -> TNamed n
+
+name : TNamed n -> Name
+name (TName n _) = n
+
+td : TNamed n -> TDef n
+td (TName _ t) = t
+
+arity : TDef n -> Nat
+arity {n} _ = n
+
+idVars : Vect n (TDef n)
+idVars {n} with (n)
+  idVars | Z     = []
+  idVars | (S _) = map TVar range
+
+alias : Name -> TNamed n -> TNamed n
+alias name tn = TName name (TApp tn idVars)
 
 ||| Add 1 to all de Bruijn-indices in a TDef.
 shiftVars : TDef n -> TDef (S n)
@@ -39,8 +62,9 @@ shiftVars T1             = T1
 shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
 shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
-shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
-shiftVars (TMu name cs)  = assert_total $ TMu name $ map (map shiftVars) cs
+--shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
+--shiftVars (TMu name cs)  = assert_total $ TMu name $ map (map shiftVars) cs
+shiftVars (TApp f xs)    = ?shiftTApp
 
 ||| Apply a TDef with free variables to a vector of arguments.
 ap : TDef n -> Vect n (TDef m) -> TDef m
@@ -49,8 +73,9 @@ ap T1             _    = T1
 ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
 ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
 ap (TVar v)       args = index v args
-ap (TName name t) args = TName name $ ap t args
-ap (TMu name cs)  args = assert_total $ TMu name $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+--ap (TName name t) args = TName name $ ap t args
+--ap (TMu name cs)  args = assert_total $ TMu name $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+ap (TApp f xs)    args = ?ap_TApp
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -75,8 +100,9 @@ mutual
   Ty {n} tvars (TSum xs)   = Tnary tvars xs Either 
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
-  Ty     tvars (TMu _ m)   = Mu tvars (args m)
-  Ty     tvars (TName _ t) = Ty tvars t
+  --Ty     tvars (TMu _ m)   = Mu tvars (args m)
+  --Ty     tvars (TName _ t) = Ty tvars t
+  Ty     tvars (TApp f xs) = ?TyTApp
 
 ------ meta ----------
 
@@ -84,6 +110,9 @@ pow : Nat -> TDef n -> TDef n
 pow Z         _ = T1
 pow (S Z)     a = a
 pow (S (S n)) a = TProd (a :: a :: replicate n a)
+
+powN : Nat -> TNamed n -> TDef n
+powN n tn = pow n (TApp tn idVars)
 
 -- TODO add to stdlib?
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
@@ -109,10 +138,11 @@ mutual
     rewrite sym $ minusPlus n m prf' in
     rewrite plusCommutative (m `minus` n) n in
     TVar $ weakenN (m-n) i
-  weakenTDef (TMu nam xs)   m    prf =
-    TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
-  weakenTDef (TName nam x)   m    prf =
-    TName nam $ weakenTDef x m prf
+  --weakenTDef (TMu nam xs)   m    prf =
+  --TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+  --weakenTDef (TName nam x)   m    prf =
+  --TName nam $ weakenTDef x m prf
+  weakenTDef (TApp f xs)    m    prf = ?weakenTApp
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
@@ -143,8 +173,9 @@ mutual
   showTDef (TSum xs)  = parens $ showOp "+" xs
   showTDef (TProd xs) = parens $ showOp "*" xs
   showTDef (TVar x)   = curly $ show $ toNat x
-  showTDef (TMu n ms) = parens $ n ++ " := mu " ++ square (showNTDefs ms)
-  showTDef (TName n x) = n ++ " " ++ square (showTDef x)
+  --showTDef (TMu n ms) = parens $ n ++ " := mu " ++ square (showNTDefs ms)
+  --showTDef (TName n x) = n ++ " " ++ square (showTDef x)
+  showTDef (TApp f xs) = ?showTApp
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -172,6 +203,7 @@ implementation Eq (TDef n) where
   (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
-  (TMu nam xs)  == (TMu nam' xs')  = nam == nam' && (assert_total $ vectEq xs xs')
-  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+  --(TMu nam xs)  == (TMu nam' xs')  = nam == nam' && (assert_total $ vectEq xs xs')
+--  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+  (TApp f xs)   == (TApp f' xs')   = ?eqTApp
   _             == _               = False

@@ -88,37 +88,35 @@ makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
   where
   hsParam : Decl -> HsType
   hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
-makeType e td@(TMu name _)   = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
-makeType e td@(TName name _) = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
+makeType e (TApp f xs)    = HsParam (name f) (map (assert_total $ makeType e) xs)
 
-||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
-makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
-makeDefs _ T0            = pure []
-makeDefs _ T1            = pure []
-makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
-makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) xs
-makeDefs _ (TVar v)      = pure []
-makeDefs e td@(TMu name cs) =
-   do st <- get
+makeType' : Env n -> TNamed n -> HsType
+makeType' e (TName name body) = HsParam name . map HsVar $ getFreeVars (getUsedVars e body)
+
+mutual
+  ||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
+  makeDefs : TDef n -> State (List Name) (List Haskell)
+  makeDefs T0            = pure []
+  makeDefs T1            = pure []
+  makeDefs (TProd xs)    = map concat $ traverse (assert_total makeDefs) xs
+  makeDefs (TSum xs)     = map concat $ traverse (assert_total makeDefs) xs
+  makeDefs (TVar v)      = pure []
+  makeDefs (TApp f xs) = do
+      res <- assert_total $ makeDefs' f
+      res' <- concat <$> traverse (assert_total makeDefs) xs
+      pure (res ++ res')
+
+  makeDefs' : TNamed n -> State (List Name) (List Haskell)
+  makeDefs' {n} (TName name body) = do
+      st <- get
       if List.elem name st then pure []
-       else let
-          decl = MkDecl name (getFreeVars (getUsedVars e td))
-          newEnv = Right decl :: e
-          args = map (map (makeType newEnv)) cs
-         in
-        do res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs)
-           put (name :: st)
-           pure $ ADT decl args :: res
-makeDefs e td@(TName name body) =
-  do st <- get
-     if List.elem name st then pure []
-       else
-        do res <- assert_total $ makeDefs e body
-           put (name :: st)
-           pure $ Synonym (MkDecl name $ getFreeVars (getUsedVars e td)) (makeType e body) :: res
+      else do
+        res <- assert_total $ makeDefs body
+        put (name :: st)
+        pure $ Synonym (MkDecl name $ (getFreeVars $ getUsedVars (freshEnvLC n) body)) (makeType (freshEnvLC n) body) :: res
 
 Backend Haskell where
-  generateTyDefs e td = reverse $ evalState (makeDefs e td) []
+  generateTyDefs e td = reverse $ evalState (makeDefs td) []
   generateCode        = renderDef
   freshEnv            = freshEnvLC
 
