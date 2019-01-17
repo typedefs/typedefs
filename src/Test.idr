@@ -36,8 +36,8 @@ maybe2 = TName "Maybe2" $ TMu [("Nothing", T1), ("Just", TVar 1)]
 nat : TNamed 0
 nat = TName "Nat" $ TMu [("Z", T1), ("S", TVar 0)]
 
--- listNat : TNamed 0 
--- listNat = TName "ListNat" $ TMu [("NilN", T1), ("ConsN", TProd [weakenTDef nat 1 LTEZero, TVar 0])]
+listNat : TNamed 0 
+listNat = TName "ListNat" $ TMu [("NilN", T1), ("ConsN", TProd [weakenTDef (wrap nat) 1 LTEZero, TVar 0])]
 
 parametricSynonym : TNamed 1
 parametricSynonym = alias "ParSyn" maybe
@@ -51,11 +51,11 @@ aplusbpluscplusd = TName "aplusbpluscplusd" $ TSum [TVar 0, TVar 1, TVar 2, TVar
 oneoneoneone : TNamed 0
 oneoneoneone = TName "oneoneoneone" $ TSum [T1, T1, T1, T1]
 
---listByte : TNamed 0
---listByte = TName  "ListByte" $ TMu [("NilC", T1), ("ConsC", TProd [weakenTDef byte 1 LTEZero, TVar 0])]
+listByte : TNamed 0
+listByte = TName  "ListByte" $ TMu [("NilC", T1), ("ConsC", TProd [weakenTDef (wrap byte) 1 LTEZero, TVar 0])]
 
---tripleByteListnatAlpha : TDef 1
---tripleByteListnatAlpha = TName "Triple" (TProd [weakenTDef byte 1 LTEZero, weakenTDef listNat 1 LTEZero, TVar 0])
+tripleByteListnatAlpha : TNamed 1
+tripleByteListnatAlpha = TName "Triple" (TProd [weakenTDef (wrap byte) 1 LTEZero, weakenTDef (wrap listNat) 1 LTEZero, TVar 0])
 
 unusedFreeVars : TNamed 42
 unusedFreeVars = TName "Id" (TVar 0)

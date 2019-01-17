@@ -52,6 +52,9 @@ idVars {n} with (n)
   idVars | Z     = []
   idVars | (S _) = map TVar range
 
+wrap : TNamed n -> TDef n
+wrap tn = TApp tn idVars
+
 alias : Name -> TNamed n -> TNamed n
 alias name tn = TName name (TApp tn idVars)
 
@@ -142,7 +145,7 @@ mutual
     TMu $ weakenNTDefs xs (S m) (LTESucc prf)
   --weakenTDef (TName nam x)   m    prf =
   --TName nam $ weakenTDef x m prf
-  weakenTDef (TApp f xs)    m    prf = ?weakenTApp
+  weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
@@ -151,6 +154,9 @@ mutual
   weakenNTDefs : Vect k (Name, TDef n) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef m)
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
+
+--  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
+--  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 
 -------- printing -------
 
