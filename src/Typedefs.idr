@@ -28,8 +28,8 @@ mutual
     ||| @i De Bruijn index
     TVar  :         (i:Fin (S n))             -> TDef (S n)
 
---    ||| Mu
---    TMu   : Name -> Vect k (Name, TDef (S n)) -> TDef n
+    ||| Mu
+    TMu   :         Vect k (Name, TDef (S n)) -> TDef n
 --
 --    TName : Name -> TDef n                    -> TDef n
 
@@ -63,7 +63,7 @@ shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
 shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
 --shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
---shiftVars (TMu name cs)  = assert_total $ TMu name $ map (map shiftVars) cs
+shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)    = ?shiftTApp
 
 ||| Apply a TDef with free variables to a vector of arguments.
@@ -74,7 +74,7 @@ ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
 ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
 ap (TVar v)       args = index v args
 --ap (TName name t) args = TName name $ ap t args
---ap (TMu name cs)  args = assert_total $ TMu name $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
 ap (TApp f xs)    args = ?ap_TApp
 
 mutual
@@ -100,7 +100,7 @@ mutual
   Ty {n} tvars (TSum xs)   = Tnary tvars xs Either 
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
-  --Ty     tvars (TMu _ m)   = Mu tvars (args m)
+  Ty     tvars (TMu m)     = Mu tvars (args m)
   --Ty     tvars (TName _ t) = Ty tvars t
   Ty     tvars (TApp f xs) = ?TyTApp
 
@@ -138,8 +138,8 @@ mutual
     rewrite sym $ minusPlus n m prf' in
     rewrite plusCommutative (m `minus` n) n in
     TVar $ weakenN (m-n) i
-  --weakenTDef (TMu nam xs)   m    prf =
-  --TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TMu xs)   m    prf =
+    TMu $ weakenNTDefs xs (S m) (LTESucc prf)
   --weakenTDef (TName nam x)   m    prf =
   --TName nam $ weakenTDef x m prf
   weakenTDef (TApp f xs)    m    prf = ?weakenTApp
@@ -173,7 +173,7 @@ mutual
   showTDef (TSum xs)  = parens $ showOp "+" xs
   showTDef (TProd xs) = parens $ showOp "*" xs
   showTDef (TVar x)   = curly $ show $ toNat x
-  --showTDef (TMu n ms) = parens $ n ++ " := mu " ++ square (showNTDefs ms)
+  showTDef (TMu ms)   = parens $ "mu " ++ square (showNTDefs ms)
   --showTDef (TName n x) = n ++ " " ++ square (showTDef x)
   showTDef (TApp f xs) = ?showTApp
 
@@ -203,7 +203,7 @@ implementation Eq (TDef n) where
   (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
-  --(TMu nam xs)  == (TMu nam' xs')  = nam == nam' && (assert_total $ vectEq xs xs')
+  (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
 --  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
   (TApp f xs)   == (TApp f' xs')   = ?eqTApp
   _             == _               = False
