@@ -205,11 +205,11 @@ implementation Eq (TDef n) where
   (TVar i)      == (TVar i')       = i == i'
   (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
 --  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
-  (TApp f xs)   == (TApp f' xs') = name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
+  (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
     where
     heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
     heteroEq {n} {m} tn tm with (cmp n m)
-      heteroEq {n}     tn tm | (CmpLT y) = tm == weakenTDef tn (n + S y) (lteAddRight n) -- or should this be `False`?
-      heteroEq     {m} tn tm | (CmpGT x) = tn == weakenTDef tm (m + S x) (lteAddRight m) -- or should this be `False`?
-      heteroEq         tn tm | (CmpEQ)   = tn == tm
+      heteroEq {n}     tn tm | (CmpLT y) = assert_total $ tm == (weakenTDef tn _ (lteAddRight n)) -- or should this be `False`?
+      heteroEq     {m} tn tm | (CmpGT x) = assert_total $ tn == (weakenTDef tm _ (lteAddRight m)) -- or should this be `False`?
+      heteroEq         tn tm | (CmpEQ)   = assert_total $ tn == tm
   _             == _               = False

@@ -52,8 +52,8 @@ getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZe
   where weedOutZero : Fin (S n) -> List (Fin n)
         weedOutZero FZ     = []
         weedOutZero (FS i) = [i]
-getUsedIndices (TApp f xs) = let fUses = getUsedIndices (td f)
-                              in nub $ concatMap getUsedIndices $ map (flip index xs) fUses
+getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (td f)
+                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
 --getUsedIndices (TName _ t) = getUsedIndices t
 
 ||| Filter out the entries in an `Env` that is referred to by a `TDef`.
