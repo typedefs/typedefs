@@ -78,5 +78,8 @@ nestedMu3 = TName "Foo" $ TMu [("Bar", TApp maybe2 [TVar 0])]
 nestedMu4 : TNamed 1
 nestedMu4 = TName "Foo" $ TMu [("Bar", TApp list [TSum [TVar 0, TVar 1]])]
 
+nestedMu5 : TNamed 1
+nestedMu5 = TName "Foo" $ TMu [("Bar", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])]
+
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
