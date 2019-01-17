@@ -127,6 +127,11 @@ Backend ReasonML where
   generateCode        = renderDef
   freshEnv            = freshEnvLC
 
+NewBackend ReasonML RMLType where
+  msgType = makeType (freshEnv {lang=ReasonML} 0)
+  typedefs td = reverse $ evalState (makeDefs (freshEnv {lang=ReasonML} 0) td) []
+  source type defs = vsep2 $ map renderDef $ defs ++ [Alias (MkDecl "TypedefSchema" []) type]
+
 ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
 generateType : TDef n -> Doc
 generateType {n} = renderType . makeType (freshEnv {lang=ReasonML} n)
