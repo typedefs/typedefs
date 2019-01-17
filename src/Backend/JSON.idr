@@ -63,7 +63,7 @@ mutual
 ifNotPresent : Name -> State (List Name) (List (String, JSON)) -> State (List Name) (List (String, JSON))
 ifNotPresent name gen = do
     st <- get
-    if name `Prelude.List.elem` st
+    if name `List.elem` st
       then pure []
       else modify ([name] ++) *> gen
 
