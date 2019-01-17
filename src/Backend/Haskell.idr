@@ -78,6 +78,9 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
   renderConstructor (name, HsTuple ts) = renderApp name (map guardParen ts)
   renderConstructor (name, params)     = renderApp name [guardParen params]
 
+anonMu : Vect n (Name, a) -> Name
+anonMu = concatMap (uppercase . fst)
+
 ||| Generate a Haskell type from a `TDef`.
 makeType : Env n -> TDef n -> HsType
 makeType _ T0             = HsVoid
@@ -88,6 +91,7 @@ makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
   where
   hsParam : Decl -> HsType
   hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
+makeType e td@(TMu cases) = HsParam (anonMu cases) . map HsVar $ getFreeVars (getUsedVars e td)
 makeType e (TApp f xs)    = HsParam (name f) (map (assert_total $ makeType e) xs)
 
 makeType' : Env n -> TNamed n -> HsType
@@ -105,15 +109,24 @@ mutual
       res <- assert_total $ makeDefs' f
       res' <- concat <$> traverse (assert_total makeDefs) xs
       pure (res ++ res')
+  makeDefs td@(TMu cases) = makeDefs' $ TName (anonMu cases) td -- We name anonymous mus using their constructors.
 
   makeDefs' : TNamed n -> State (List Name) (List Haskell)
-  makeDefs' {n} (TName name body) = do
+  makeDefs' (TName name body) = do
       st <- get
       if List.elem name st then pure []
       else do
-        res <- assert_total $ makeDefs body
+        let decl = MkDecl name (getFreeVars $ getUsedVars (freshEnvLC _) body)
         put (name :: st)
-        pure $ Synonym (MkDecl name $ (getFreeVars $ getUsedVars (freshEnvLC n) body)) (makeType (freshEnvLC n) body) :: res
+        case body of
+          TMu cases => do -- Named `TMu`s are treated as ADTs.
+            let newEnv = Right decl :: freshEnvLC _
+            let args = map (map (makeType newEnv)) cases
+            res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
+            pure $ ADT decl args :: res
+          _         => do -- All other named types are treated as synonyms.
+            res <- assert_total $ makeDefs body
+            pure $ Synonym decl (makeType (freshEnvLC n) body) :: res
 
 Backend Haskell where
   generateTyDefs e td = reverse $ evalState (makeDefs td) []
