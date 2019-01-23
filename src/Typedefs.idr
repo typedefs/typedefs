@@ -78,7 +78,7 @@ ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
 ap (TVar v)       args = index v args
 --ap (TName name t) args = TName name $ ap t args
 ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-ap (TApp f xs)    args = ?ap_TApp
+ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
