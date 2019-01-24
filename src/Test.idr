@@ -66,8 +66,14 @@ voidOrUnit = TName "VoidOrUnit" $ TSum [T0, T1]
 nonlinear : TNamed 1
 nonlinear = TName "Nonlinear" $ TProd [TVar 0, TVar 0]
 
+listAlphaOrBeta : TNamed 2
+listAlphaOrBeta = TName "listAlphaOrBeta" $ TApp list [TSum [TVar 0, TVar 1]]
+
+listBitOrByte : TNamed 0
+listBitOrByte = TName "listBitOrByte" $ TApp listAlphaOrBeta [wrap bit, wrap byte]
+
 nestedMu : TNamed 2
-nestedMu = TName "nestedMu" $ TMu [("Bar", TApp list [TSum [TVar 1, TVar 2]])]
+nestedMu = TName "nestedMu" $ TMu [("Bar", weakenTDef (wrap listAlphaOrBeta) _ (lteAddRight 2))]
 
 nestedMu2 : TNamed 1
 nestedMu2 = TName "nestedMu2" $ TMu [("Bar", TApp maybe2 [TVar 1])]
