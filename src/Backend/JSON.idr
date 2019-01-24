@@ -15,13 +15,11 @@ import Data.Vect
 %default total
 %access public export
 
-data ApplicationTree = AppTree Name (List ApplicationTree)
-
-JSONEnv : Nat -> Type
-JSONEnv n = Vect n (ApplicationTree, JSON)
-
 JSONDef : Type
 JSONDef = (Name, JSON)
+
+JSONEnv : Nat -> Type
+JSONEnv n = Vect n JSONDef
 
 ||| Given `name`, create `[name0, name1, ..., namek]`
 nary : Name -> Vect k Name
@@ -42,37 +40,31 @@ ifNotPresent n gen = do
     then pure []
     else modify {stateType=List name} (n ::) *> gen
 
-toAppTree : JSONEnv n -> TDef n -> ApplicationTree
-toAppTree _   T0          = AppTree "emptyType" []
-toAppTree _   T1          = AppTree "singletonType" []
-toAppTree env (TSum ts)   = AppTree "sum" (toList $ map (assert_total $ toAppTree env) ts)
-toAppTree env (TProd ts)  = AppTree "prod" (toList $ map (assert_total $ toAppTree env) ts)
-toAppTree env (TVar v)    = fst $ index v env
-toAppTree env (TMu cases) = AppTree (anonMu cases) (toList $ map fst env) -- TODO getUsedVars
-toAppTree env (TApp f xs) = AppTree (name f) (toList $ map fst env) -- TODO getUsedVars
-
-appTreeToName : ApplicationTree -> Name
-appTreeToName (AppTree f xs) = f ++ parens (concatMap (assert_total appTreeToName) xs) -- TODO comma separation
-
 makeNameWithEnv' : JSONEnv n -> TNamed n -> Name
-makeNameWithEnv' env (TName name _) = name ++ parens (concatMap (appTreeToName . fst) env) -- TODO getUsedVars
+makeNameWithEnv' env (TName name _) = name ++ parens (concatMap fst env) -- TODO getUsedVars
 
 makeNameWithEnv : JSONEnv n -> TDef n -> Name
-makeNameWithEnv env td = appTreeToName (toAppTree env td)
+makeNameWithEnv _   T0          = "emptyType"
+makeNameWithEnv _   T1          = "singletonType"
+makeNameWithEnv env (TSum ts)   = "sum" ++ parens (concatMap (assert_total $ makeNameWithEnv env) ts)
+makeNameWithEnv env (TProd ts)  = "prod" ++ parens (concatMap (assert_total $ makeNameWithEnv env) ts)
+makeNameWithEnv env (TVar v)    = fst $ index v env
+makeNameWithEnv env (TMu cases) = anonMu cases ++ parens (concatMap fst env) -- TODO getUsedVars
+makeNameWithEnv env (TApp f xs) = name f ++ parens (concatMap fst env) -- TODO getUsedVars
 
 mutual
   makeSubSchema' : JSONEnv n -> TNamed n -> JSON
-  makeSubSchema' env (TName name body) = defRef $ name ++ parens (concatMap (appTreeToName . fst) env) -- TODO getUsedVars
+  makeSubSchema' env (TName name body) = defRef $ name ++ parens (concatMap fst env) -- TODO getUsedVars
 
   makeSubSchema : JSONEnv n -> TDef n -> JSON
   makeSubSchema _    T0         = defRef "emptyType"
   makeSubSchema _    T1         = defRef "singletonType"
   makeSubSchema env (TSum ts)   = disjointSubSchema env (zip (nary "case") ts)
   makeSubSchema env (TProd ts)  = productSubSchema env (nary "proj") ts
-  makeSubSchema env (TVar v)    = defRef . appTreeToName . fst $ index v env
-  makeSubSchema env (TMu cases) = let appTree = AppTree (anonMu cases) (toList $ map fst env)
-                                   in disjointSubSchema ((appTree, defRef $ appTreeToName appTree) :: env) cases
-  makeSubSchema env (TApp f xs) = makeSubSchema' (map (\td => (toAppTree env td, JString "oh no :/")) xs) f
+  makeSubSchema env (TVar v)    = defRef . fst $ index v env
+  makeSubSchema env (TMu cases) = let name = anonMu cases ++ parens (concatMap fst env) -- TODO getUsedVars
+                                   in disjointSubSchema ((name, defRef name) :: env) cases
+  makeSubSchema env (TApp f xs) = assert_total $ makeSubSchema' (map (\td => (makeNameWithEnv env td, makeSubSchema env td)) xs) f
 
   ||| Generate a schema that matches exactly one of the supplied schemas, which must be wrapped in its corresponding name.
   disjointSubSchema : JSONEnv n -> Vect k (Name, TDef n) -> JSON
@@ -95,9 +87,6 @@ mutual
     , ("properties", JObject . toList $ Vect.zip names (map (assert_total $ makeSubSchema env) tds))
     ]
 
---TDefEnv : Nat -> Type
---TDefEnv n = Vect n (All TNamed)
-
 mutual
   ||| Generate helper definitions for all types contained in a `TDef 0`.
   makeDefs : JSONEnv n -> TDef n -> State (List Name) (List JSONDef)
@@ -118,25 +107,25 @@ mutual
   makeDefs env    (TSum ts)   = concat <$> traverse (assert_total $ makeDefs env) ts
   makeDefs env    (TProd ts)  = concat <$> traverse (assert_total $ makeDefs env) ts
   makeDefs env td@(TMu cases) = makeDefs' env (TName (anonMu cases) td)  -- We name anonymous mus using their constructors.
-  makeDefs env    (TVar v)    = let (appTree, json) = index v env
-                                 in ifNotPresent (appTreeToName appTree)
-                                  $ pure [(appTreeToName appTree, json)]
+  makeDefs env    (TVar v)    = let def@(name, _) = index v env
+                                 in ifNotPresent name
+                                  $ pure [def]
   makeDefs env    (TApp f xs) = do
     res <- concat <$> traverse (assert_total $ makeDefs env) xs
-    res' <- makeDefs' (map (\td => (toAppTree env td, makeSubSchema env td)) xs) f
+    res' <- makeDefs' (map (\td => (makeNameWithEnv env td, makeSubSchema env td)) xs) f
     pure $ res ++ res'
 
   makeDefs' : JSONEnv n -> TNamed n -> State (List Name) (List JSONDef)
-  makeDefs' env tn@(TName name body) = ifNotPresent (makeNameWithEnv' env tn) $ 
+  makeDefs' env tn@(TName _ body) = let name = makeNameWithEnv' env tn
+                                     in ifNotPresent name $ 
     case body of
       TMu cases => do -- Named `TMu`s are treated specially
-        let appTree = AppTree name (toList $ map fst env)
-        let newEnv = (appTree, defRef (appTreeToName appTree)) :: env
+        let newEnv = (name, defRef name) :: env
         res <- concat <$> traverse {b=List JSONDef} (assert_total $ makeDefs newEnv . snd) cases
-        pure $ (makeNameWithEnv' env tn, disjointSubSchema newEnv cases) :: res
+        pure $ (name, disjointSubSchema newEnv cases) :: res
       _         => do -- All other named types are treated as synonyms.
         res <- assert_total $ makeDefs env body
-        pure $ (makeNameWithEnv' env tn, makeSubSchema env body) :: res
+        pure $ (name, makeSubSchema env body) :: res
 
 ||| Takes a schema and a list of helper definitions and puts them together into a top-level schema. 
 makeSchema : JSON -> List JSONDef -> JSON
@@ -151,6 +140,7 @@ makeSchema schema defs = JObject
 
 generateSchema : TNamed 0 -> JSON
 generateSchema td = makeSchema (makeSubSchema' [] td) (evalState (makeDefs' [] td) [])
+
 
 --NewBackend JSONDef JSON where
 --  msgType                    = makeSubSchema
