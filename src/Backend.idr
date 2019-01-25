@@ -81,18 +81,18 @@ generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (fresh
 ||| its helper definitions. Currently doesn't support typedefs with free variables. 
 interface NewBackend def type | def where
   ||| Given a `TDef`, generate its corresponding type signature.
-  msgType  : TDef 0 -> type
+  msgType  : TNamed 0 -> type
 
   ||| Given a `TDef`, generate a list of all helper definitions required by it.
-  typedefs : TDef 0 -> List def
+  typedefs : TNamed n -> Vect n def -> List def
 
   ||| Given a type signature and a list of helper definitions which it uses,
   ||| generate source code.
   source   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : {type: Type} -> (def: Type) -> NewBackend def type => TDef 0 -> Doc
-newGenerate {type} def td = source (msgType {type} {def} td) (typedefs {type} {def} td)
+newGenerate : (lang: Type) -> NewBackend lang type => TNamed 0 -> Doc
+newGenerate lang tn = source (msgType {def=lang} tn) (typedefs {def=lang} tn [])
 
 record SpecialiseEntry where
   constructor MkSpecialiseEntry

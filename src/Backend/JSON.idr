@@ -15,6 +15,13 @@ import Data.Vect
 %default total
 %access public export
 
+{-
+TODO
+
+subSchema-functions should maybe returrn JSONDef?
+
+-}
+
 JSONDef : Type
 JSONDef = (Name, JSON)
 
@@ -41,7 +48,7 @@ ifNotPresent n gen = do
     else modify {stateType=List name} (n ::) *> gen
 
 makeNameWithEnv' : JSONEnv n -> TNamed n -> Name
-makeNameWithEnv' env (TName name _) = name ++ parens (concatMap fst env) -- TODO getUsedVars
+makeNameWithEnv' env (TName name _) = name ++ parens (concatMap fst env) -- TODO getUsedVars, comma separation
 
 makeNameWithEnv : JSONEnv n -> TDef n -> Name
 makeNameWithEnv _   T0          = "emptyType"
@@ -49,12 +56,12 @@ makeNameWithEnv _   T1          = "singletonType"
 makeNameWithEnv env (TSum ts)   = "sum" ++ parens (concatMap (assert_total $ makeNameWithEnv env) ts)
 makeNameWithEnv env (TProd ts)  = "prod" ++ parens (concatMap (assert_total $ makeNameWithEnv env) ts)
 makeNameWithEnv env (TVar v)    = fst $ index v env
-makeNameWithEnv env (TMu cases) = anonMu cases ++ parens (concatMap fst env) -- TODO getUsedVars
-makeNameWithEnv env (TApp f xs) = name f ++ parens (concatMap fst env) -- TODO getUsedVars
+makeNameWithEnv env (TMu cases) = anonMu cases ++ parens (concatMap fst env) -- TODO getUsedVars, comma separation
+makeNameWithEnv env (TApp f xs) = name f ++ parens (concatMap fst env) -- TODO getUsedVars, comma separation
 
 mutual
   makeSubSchema' : JSONEnv n -> TNamed n -> JSON
-  makeSubSchema' env (TName name body) = defRef $ name ++ parens (concatMap fst env) -- TODO getUsedVars
+  makeSubSchema' env tn = defRef $ makeNameWithEnv' env tn  -- TODO getUsedVars
 
   makeSubSchema : JSONEnv n -> TDef n -> JSON
   makeSubSchema _    T0         = defRef "emptyType"
@@ -141,6 +148,11 @@ makeSchema schema defs = JObject
 generateSchema : TNamed 0 -> JSON
 generateSchema td = makeSchema (makeSubSchema' [] td) (evalState (makeDefs' [] td) [])
 
+
+NewBackend JSONDef JSON where
+  msgType tn = makeSubSchema' [] tn
+  typedefs tn args = evalState (makeDefs' args tn) []
+  source msg defs = literal $ format 2 $ makeSchema msg defs
 
 --NewBackend JSONDef JSON where
 --  msgType                    = makeSubSchema
