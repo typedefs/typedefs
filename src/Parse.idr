@@ -41,7 +41,8 @@ fromVMax {m} vm = go lteRefl vm
 
 ---
 
--- TODO add to TParsec
+
+{-- TODO add to TParsec
 
 MonadTrans (ResultT e) where
   lift = MkRT . map Value
@@ -63,7 +64,7 @@ randbindm : Monad mn =>
   All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p b)
 randbindm p f = map snd (andbindm p f)
 
----
+---}
 
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
@@ -101,7 +102,7 @@ tdef =
                        in
                      case mx of
                        Z => Nothing
-                       S m => Just (nam, (m ** TMu nam $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
+                       S m => Just (nam, (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
                                                              (fromVMax vx)))
                     ) $
              parens (rand (withSpaces (string "mu"))
@@ -109,9 +110,9 @@ tdef =
                                (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                                   rec))))
             (\(nam, mu) => (lift $ modify $ insert nam mu) *> pure mu)
-        , randbindm
-            (parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec))))
-            (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
+--        , randbindm
+--            (parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec))))
+--            (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
         ]
  where
  nary : All (Box (Parser' (n ** TDef n))

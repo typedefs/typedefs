@@ -135,7 +135,7 @@ Backend Haskell where
 
 NewBackend Haskell HsType where
   msgType          = makeType (freshEnv {lang=Haskell} 0)
-  typedefs td      = reverse $ evalState (makeDefs (freshEnv {lang=Haskell} 0) td) []
+  typedefs td      = reverse $ evalState (makeDefs td) []
   source type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs 
 
 ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)

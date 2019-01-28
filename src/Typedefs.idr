@@ -100,12 +100,12 @@ mutual
   Ty : Vect n Type -> TDef n -> Type
   Ty     tvars T0          = Void
   Ty     tvars T1          = Unit
-  Ty {n} tvars (TSum xs)   = Tnary tvars xs Either 
+  Ty {n} tvars (TSum xs)   = Tnary tvars xs Either
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
   --Ty     tvars (TName _ t) = Ty tvars t
-  Ty     tvars (TApp f xs) = ?TyTApp
+  Ty     tvars (TApp f xs) = assert_total $ Ty tvars (ap (td f) xs) -- TODO: could be done properly
 
 ------ meta ----------
 

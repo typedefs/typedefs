@@ -7,6 +7,8 @@ import Backend
 import Backend.Utils
 import Backend.JSON
 
+import Language.JSON
+
 import Text.PrettyPrint.WL
 import Specdris.Spec
 
@@ -15,8 +17,8 @@ import Test
 
 %access public export
 
-generate : TDef 0 -> Doc
-generate = newGenerate JSONDef
+generate : TNamed 0 -> Doc
+generate = literal . format 2 . generateSchema
 
 dquotes : String -> Doc
 dquotes = dquotes . text
