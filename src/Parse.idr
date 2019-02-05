@@ -41,30 +41,6 @@ fromVMax {m} vm = go lteRefl vm
 
 ---
 
--- TODO add to TParsec
-
-MonadTrans (ResultT e) where
-  lift = MkRT . map Value
-
-MonadTrans (TParsecT e a) where
-  lift = MkTPT . lift . lift
-
-andbindm : Monad mn =>
-  All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p (a, b))
-andbindm p f = MkParser $ \mlen, ts => do ra <- runParser p mlen ts
-                                          b <- f (Value ra)
-                                          pure $ map (flip MkPair b) ra
-
-landbindm : Monad mn =>
-  All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p a)
-landbindm p f = map fst (andbindm p f)
-
-randbindm : Monad mn =>
-  All (Parser mn p a :-> Cst (a -> mn b) :-> Parser mn p b)
-randbindm p f = map snd (andbindm p f)
-
----
-
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
