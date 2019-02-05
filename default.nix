@@ -32,7 +32,7 @@
 #    --arg pkgs 0
 #
 # c) use nixpkgs from an URL
-#    --arg pkgs 0 -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/18.03.tar.gz
+#    --arg pkgs 0 -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/18.09.tar.gz
 #
 # c) use nixpkgs at a given path
 #    --arg pkgs /path/to/nixpkgs
@@ -48,8 +48,8 @@ let
     repo = "nixpkgs";
 
     # binary cache exists for revisions listed in https://nixos.org/channels/
-    rev = "61c3169a0e17d789c566d5b241bfe309ce4a6275"; # https://nixos.org/channels/nixpkgs-unstable/git-revision
-    sha256 = "0qbycg7wkb71v20rchlkafrjfpbk2fnlvvbh3ai9pyfisci5wxvq";
+    rev = "140a648e46f9a255849d938efd92930297258621";
+    sha256 = "0az8ph3kf6pgz5xv2x1n4kiccyyq0p5h2rjqfwc5qh97lnqigmbf";
   };
   usepkgs = if null == pkgs then
              import pinpkgs {}
