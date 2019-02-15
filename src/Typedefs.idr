@@ -67,18 +67,7 @@ shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
 --shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs)    = ?shiftTApp
-
-||| Apply a TDef with free variables to a vector of arguments.
-ap : TDef n -> Vect n (TDef m) -> TDef m
-ap T0             _    = T0
-ap T1             _    = T1
-ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
-ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
-ap (TVar v)       args = index v args
---ap (TName name t) args = TName name $ ap t args
-ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -155,8 +144,8 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
---  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
---  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
+  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
+  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 
 -------- printing -------
 
@@ -171,6 +160,33 @@ curly s = "{" ++ s ++ "}"
 square : String -> String
 square "" = ""
 square s = "[" ++ s ++ "]"
+
+makeName : TDef 0 -> Name
+makeName T0          = "emptyType"
+makeName T1          = "singletonType"
+makeName (TSum ts)   = "sum" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TProd ts)  = "prod" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TMu cases) = concatMap fst cases
+makeName (TApp f xs) = name f ++ parens (concatMap (assert_total makeName) xs) -- TODO comma separation
+
+mutual
+  ||| Apply a TDef with free variables to a vector of arguments.
+  ap : TDef n -> Vect n (TDef m) -> TDef m
+  ap T0             _    = T0
+  ap T1             _    = T1
+  ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
+  ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
+  ap (TVar v)       args = index v args
+  --ap (TName name t) args = TName name $ ap t args
+  ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+  ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+
+
+  apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
+  apN (TName n body) ts = TName
+                              (n ++ parens (concatMap makeName ts)) -- TODO getUsedVars, comma separation
+                              (body `ap` ts)
+
 
 mutual
   showTDef : TDef n -> String
