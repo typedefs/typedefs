@@ -66,7 +66,7 @@ randbindm p f = map snd (andbindm p f)
 ---
 
 PState : Type
-PState = SortedMap Name (DPair Nat TDef)
+PState = SortedMap Name (DPair Nat TNamed)
 
 MonadRun (StateT PState Identity) where
   runMonad st = pure $ evalState st empty
@@ -80,11 +80,19 @@ sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState (sizedtok' Char)
 
+pushName : Name -> (n ** TDef n) -> (n ** TNamed n)
+pushName name (n**td) = (n ** TName name td)
+
+tApp : {n : Nat} -> {m : Nat} -> (k ** TNamed k) -> Vect m (n ** TDef n) -> Maybe (n ** TDef n)
+tApp {n} {m} (k**f) xs with (decEq k m)
+  | Yes p = Just (n ** TApp f (map DPair.snd $ rewrite p in xs))
+  | No _  = Nothing
+
 tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    withSpaces $
-   alts [ guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas
+   alts [ guardM (\(mp, nam) => map (\(n**tn) => (n**td tn)) $ lookup nam mp) $ mand (lift get) alphas
         , cmap (Z ** T0) $ string "0"
         , cmap (Z ** T1) $ string "1"
         , nary rec '*' TProd
@@ -101,17 +109,17 @@ tdef =
                        in
                      case mx of
                        Z => Nothing
-                       S m => Just (nam, (m ** TMu nam $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
+                       S m => Just (nam, (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte))
                                                              (fromVMax vx)))
                     ) $
              parens (rand (withSpaces (string "mu"))
                           (and (withSpaces alphas)
                                (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t)
                                                   rec))))
-            (\(nam, mu) => (lift $ modify $ insert nam mu) *> pure mu)
+            (\(nam, mu) => (lift $ modify $ insert nam $ pushName nam mu) *> pure mu)
         , randbindm
             (parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (map {a=Parser' _} withSpaces rec))))
-            (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
+            (\(nm, (n**td)) => (lift $ modify $ insert nm (n ** TName nm td)) *> pure (n**td))
         ]
  where
  nary : All (Box (Parser' (n ** TDef n))
