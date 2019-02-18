@@ -93,6 +93,12 @@ tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    withSpaces $
    alts [ guardM (\(mp, nam) => map (\(n**tn) => (n**td tn)) $ lookup nam mp) $ mand (lift get) alphas
+        --, guardM
+        --    {a=((k**TNamed k), NEList (n**TDef n))}
+        --    (\(f,xs) => tApp f (Data.NEList.toVect xs)) $
+        --        parens (and
+        --                  (guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas)
+        --                  (map {a=Parser' _} (nelist . withSpaces) rec))
         , cmap (Z ** T0) $ string "0"
         , cmap (Z ** T1) $ string "1"
         , nary rec '*' TProd
@@ -138,6 +144,15 @@ tdef =
                 (\p, q => and p q)
                 (map {a=Parser' _} withSpaces rec)
                 (map {a=Parser' _} (nelist . withSpaces) rec)))
+
+parseTApp : All (Parser' (n ** TDef n))
+parseTApp = guardM
+              {a=((k**TNamed k), NEList (n**TDef n))}
+              (\(f,xs) => tApp f (Data.NEList.toVect xs)) $
+                  parens (and
+                            (guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas)
+                            ((nelist . withSpaces) tdef))
+
 
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
 ||| and substituting named entries in the process
