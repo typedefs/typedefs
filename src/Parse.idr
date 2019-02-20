@@ -39,6 +39,11 @@ fromVMax {m} vm = go lteRefl vm
   go lte (VMConsLess x px vs prf) = (x**(lteTransitive prf lte, px)) :: go lte vs
   go lte (VMConsMore s ps vs prf) = (s**(lte, ps)) :: go (lteTransitive prf lte) vs
 
+--list : (Alternative mn, Monad mn) =>
+--         All (Parser mn p a :-> Parser mn p (List a))
+--list p = alt (map Data.NEList.toList (nelist p))
+--             (cmap Prelude.List.Nil (withSpaces fail))
+
 ---
 
 PState : Type
@@ -60,16 +65,17 @@ tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    withSpaces $
-   alts [ guardM (\(mp, nam) => lookup nam mp) $ mand (lift get) alphas
+   alts [ guardM
+              (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
+              (mand (lift get) alphas)
         , guardM
               {a=((m**TNamed m), NEList (n**TDef n))}
               (\(f,xs) => 
                   let (mx**vx) = toVMax (toVect xs)
-                   in MkDPair mx <$> (tApp (DPair.snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx))
+                   in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
               )
-              (parens (and
-                  (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
-                  (map {a=Parser' _} (nelist . withSpaces) rec)))
+              (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
+                           (map {a=Parser' _} (nelist . withSpaces) rec)))
         , cmap (Z ** T0) $ string "0"
         , cmap (Z ** T1) $ string "1"
         , nary rec '*' TProd

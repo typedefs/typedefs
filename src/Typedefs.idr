@@ -188,7 +188,8 @@ mutual
   showTDef (TProd xs)  = parens $ showOp "*" xs
   showTDef (TVar x)    = curly $ show $ toNat x
   showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
-  showTDef (TApp f xs) = assert_total $ parens $ showTNamed f ++ " " ++ concat (intersperse " " (map showTDef xs)) 
+  showTDef (TApp f []) = name f
+  showTDef (TApp f xs) = parens $ concat (intersperse " " (name f :: map (assert_total showTDef) xs)) 
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -200,8 +201,8 @@ mutual
   showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs
 
-  showTNamed : TNamed n -> String
-  showTNamed (TName n t) = n ++ square (showTDef t)
+showTNamed : TNamed n -> String
+showTNamed (TName n t) = parens $ n ++ " := " ++ showTDef t
 
 Show (TDef n) where
   show = showTDef
