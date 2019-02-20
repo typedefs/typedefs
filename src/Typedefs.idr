@@ -56,6 +56,26 @@ wrap tn = TApp tn idVars
 alias : Name -> TNamed n -> TNamed n
 alias name tn = TName name (TApp tn idVars)
 
+parens : String -> String
+parens "" = ""
+parens s = "(" ++ s ++ ")"
+
+curly : String -> String
+curly "" = ""
+curly s = "{" ++ s ++ "}"
+
+square : String -> String
+square "" = ""
+square s = "[" ++ s ++ "]"
+
+makeName : TDef 0 -> Name
+makeName T0          = "emptyType"
+makeName T1          = "singletonType"
+makeName (TSum ts)   = "sum" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TProd ts)  = "prod" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TMu cases) = concatMap fst cases
+makeName (TApp f xs) = name f ++ parens (concatMap (assert_total makeName) xs) -- TODO comma separation
+
 ||| Add 1 to all de Bruijn-indices in a TDef.
 shiftVars : TDef n -> TDef (S n)
 shiftVars T0             = T0
@@ -66,6 +86,24 @@ shiftVars (TVar v)       = TVar $ shift 1 v
 --shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
+
+mutual
+  ||| Apply a TDef with free variables to a vector of arguments.
+  ap : TDef n -> Vect n (TDef m) -> TDef m
+  ap T0             _    = T0
+  ap T1             _    = T1
+  ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
+  ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
+  ap (TVar v)       args = index v args
+  --ap (TName name t) args = TName name $ ap t args
+  ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+  ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+
+
+  apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
+  apN (TName n body) ts = TName
+                              (n ++ parens (concatMap makeName ts)) -- TODO getUsedVars, comma separation
+                              (body `ap` ts)
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -91,8 +129,7 @@ mutual
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
-  --Ty     tvars (TName _ t) = Ty tvars t
-  Ty     tvars (TApp f xs) = ?TyTApp
+  Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ td f `ap` xs
 
 ------ meta ----------
 
@@ -146,45 +183,6 @@ mutual
   weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 
 -------- printing -------
-
-parens : String -> String
-parens "" = ""
-parens s = "(" ++ s ++ ")"
-
-curly : String -> String
-curly "" = ""
-curly s = "{" ++ s ++ "}"
-
-square : String -> String
-square "" = ""
-square s = "[" ++ s ++ "]"
-
-makeName : TDef 0 -> Name
-makeName T0          = "emptyType"
-makeName T1          = "singletonType"
-makeName (TSum ts)   = "sum" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
-makeName (TProd ts)  = "prod" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
-makeName (TMu cases) = concatMap fst cases
-makeName (TApp f xs) = name f ++ parens (concatMap (assert_total makeName) xs) -- TODO comma separation
-
-mutual
-  ||| Apply a TDef with free variables to a vector of arguments.
-  ap : TDef n -> Vect n (TDef m) -> TDef m
-  ap T0             _    = T0
-  ap T1             _    = T1
-  ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
-  ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
-  ap (TVar v)       args = index v args
-  --ap (TName name t) args = TName name $ ap t args
-  ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-  ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
-
-
-  apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
-  apN (TName n body) ts = TName
-                              (n ++ parens (concatMap makeName ts)) -- TODO getUsedVars, comma separation
-                              (body `ap` ts)
-
 
 mutual
   showTDef : TDef n -> String
