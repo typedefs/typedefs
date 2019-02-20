@@ -30,8 +30,6 @@ mutual
 
     ||| Mu
     TMu   :         Vect k (Name, TDef (S n)) -> TDef n
---
---    TName : Name -> TDef n                    -> TDef n
 
     TApp  : TNamed k -> Vect k (TDef n)       -> TDef n
 
@@ -190,14 +188,13 @@ mutual
 
 mutual
   showTDef : TDef n -> String
-  showTDef T0         = "0"
-  showTDef T1         = "1"
-  showTDef (TSum xs)  = parens $ showOp "+" xs
-  showTDef (TProd xs) = parens $ showOp "*" xs
-  showTDef (TVar x)   = curly $ show $ toNat x
-  showTDef (TMu ms)   = parens $ "mu " ++ square (showNTDefs ms)
-  --showTDef (TName n x) = n ++ " " ++ square (showTDef x)
-  showTDef (TApp f xs) = ?showTApp
+  showTDef T0          = "0"
+  showTDef T1          = "1"
+  showTDef (TSum xs)   = parens $ showOp "+" xs
+  showTDef (TProd xs)  = parens $ showOp "*" xs
+  showTDef (TVar x)    = curly $ show $ toNat x
+  showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
+  showTDef (TApp f xs) = assert_total $ parens $ showTNamed f ++ " " ++ concat (intersperse " " (map showTDef xs)) 
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -209,8 +206,14 @@ mutual
   showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs
 
+  showTNamed : TNamed n -> String
+  showTNamed (TName n t) = n ++ square (showTDef t)
+
 Show (TDef n) where
   show = showTDef
+
+Show (TNamed n) where
+  show = showTNamed
 
 -- Equality -----
 

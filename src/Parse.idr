@@ -161,8 +161,8 @@ parseTNamed str = parseMaybe str tnamedRec
 parseTNameds : String -> Maybe (NEList (n : Nat ** TNamed n))
 parseTNameds str = parseMaybe str tnamedNEL
 
---parseThenShowTNamed : String -> String
---parseThenShowTNamed = show . parseTNamed
+parseThenShowTNamed : String -> String
+parseThenShowTNamed = show . parseTNamed
 
 parseTNamedThenStrFun : String -> ((n ** TNamed n) -> String) -> String
 parseTNamedThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTNamed str
