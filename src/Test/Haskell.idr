@@ -15,24 +15,25 @@ import Test
 
 %access public export
 
-generate : TDef n -> Doc
-generate = generate Haskell
+generate : TNamed n -> Doc
+generate (TName nm td) = generate Haskell td
 
 boolForBit : SpecialiseEntry
-boolForBit = MkSpecialiseEntry bit "Bool"
+boolForBit = MkSpecialiseEntry (td bit) "Bool"
                                "either (\\ () -> True) (\\ () -> False)"
                                "\\ x -> if x then Left () else Right ()"
 
 charForByte : SpecialiseEntry
-charForByte = MkSpecialiseEntry byte "Char" "undefined" "undefined"
+charForByte = MkSpecialiseEntry (td byte) "Char" "undefined" "undefined"
 
 intForNat : SpecialiseEntry
-intForNat = MkSpecialiseEntry nat "Int"
+intForNat = MkSpecialiseEntry (td nat) "Int"
                               "id"
                               "\\ x -> if x >= 0 then x else error \"negative number\""
 
-generateSpecialised : Vect (S m) SpecialiseEntry -> TDef n -> Doc
-generateSpecialised se td = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
+
+generateSpecialised : Vect (S m) SpecialiseEntry -> TNamed n -> Doc
+generateSpecialised se (TName nm td) = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
 
 x0 : Doc
 x0 = text "x0"
