@@ -83,7 +83,6 @@ shiftVars T1             = T1
 shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
 shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
---shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
 
@@ -95,7 +94,6 @@ mutual
   ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
   ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
   ap (TVar v)       args = index v args
-  --ap (TName name t) args = TName name $ ap t args
   ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
   ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
 
@@ -167,8 +165,6 @@ mutual
     TVar $ weakenN (m-n) i
   weakenTDef (TMu xs)   m    prf =
     TMu $ weakenNTDefs xs (S m) (LTESucc prf)
-  --weakenTDef (TName nam x)   m    prf =
-  --TName nam $ weakenTDef x m prf
   weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
@@ -227,7 +223,6 @@ implementation Eq (TDef n) where
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
   (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
---  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
   (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
     where
     heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
