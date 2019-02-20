@@ -30,8 +30,6 @@ mutual
 
     ||| Mu
     TMu   :         Vect k (Name, TDef (S n)) -> TDef n
---
---    TName : Name -> TDef n                    -> TDef n
 
     TApp  : TNamed k -> Vect k (TDef n)       -> TDef n
 
@@ -58,6 +56,26 @@ wrap tn = TApp tn idVars
 alias : Name -> TNamed n -> TNamed n
 alias name tn = TName name (TApp tn idVars)
 
+parens : String -> String
+parens "" = ""
+parens s = "(" ++ s ++ ")"
+
+curly : String -> String
+curly "" = ""
+curly s = "{" ++ s ++ "}"
+
+square : String -> String
+square "" = ""
+square s = "[" ++ s ++ "]"
+
+makeName : TDef 0 -> Name
+makeName T0          = "emptyType"
+makeName T1          = "singletonType"
+makeName (TSum ts)   = "sum" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TProd ts)  = "prod" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TMu cases) = concatMap fst cases
+makeName (TApp f xs) = name f ++ parens (concatMap (assert_total makeName) xs) -- TODO comma separation
+
 ||| Add 1 to all de Bruijn-indices in a TDef.
 shiftVars : TDef n -> TDef (S n)
 shiftVars T0             = T0
@@ -65,20 +83,25 @@ shiftVars T1             = T1
 shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
 shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
---shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs)    = ?shiftTApp
+shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
 
-||| Apply a TDef with free variables to a vector of arguments.
-ap : TDef n -> Vect n (TDef m) -> TDef m
-ap T0             _    = T0
-ap T1             _    = T1
-ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
-ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
-ap (TVar v)       args = index v args
---ap (TName name t) args = TName name $ ap t args
-ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+mutual
+  ||| Apply a TDef with free variables to a vector of arguments.
+  ap : TDef n -> Vect n (TDef m) -> TDef m
+  ap T0             _    = T0
+  ap T1             _    = T1
+  ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
+  ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
+  ap (TVar v)       args = index v args
+  ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+  ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+
+
+  apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
+  apN (TName n body) ts = TName
+                              (n ++ parens (concatMap makeName ts)) -- TODO getUsedVars, comma separation
+                              (body `ap` ts)
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -104,8 +127,7 @@ mutual
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
-  --Ty     tvars (TName _ t) = Ty tvars t
-  Ty     tvars (TApp f xs) = assert_total $ Ty tvars (ap (td f) xs) -- TODO: could be done properly
+  Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ td f `ap` xs -- TODO: could be done properly
 
 ------ meta ----------
 
@@ -143,8 +165,6 @@ mutual
     TVar $ weakenN (m-n) i
   weakenTDef (TMu xs)   m    prf =
     TMu $ weakenNTDefs xs (S m) (LTESucc prf)
-  --weakenTDef (TName nam x)   m    prf =
-  --TName nam $ weakenTDef x m prf
   weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
@@ -155,33 +175,20 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
---  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
---  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
+  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
+  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 
 -------- printing -------
 
-parens : String -> String
-parens "" = ""
-parens s = "(" ++ s ++ ")"
-
-curly : String -> String
-curly "" = ""
-curly s = "{" ++ s ++ "}"
-
-square : String -> String
-square "" = ""
-square s = "[" ++ s ++ "]"
-
 mutual
   showTDef : TDef n -> String
-  showTDef T0         = "0"
-  showTDef T1         = "1"
-  showTDef (TSum xs)  = parens $ showOp "+" xs
-  showTDef (TProd xs) = parens $ showOp "*" xs
-  showTDef (TVar x)   = curly $ show $ toNat x
-  showTDef (TMu ms)   = parens $ "mu " ++ square (showNTDefs ms)
-  --showTDef (TName n x) = n ++ " " ++ square (showTDef x)
-  showTDef (TApp f xs) = ?showTApp
+  showTDef T0          = "0"
+  showTDef T1          = "1"
+  showTDef (TSum xs)   = parens $ showOp "+" xs
+  showTDef (TProd xs)  = parens $ showOp "*" xs
+  showTDef (TVar x)    = curly $ show $ toNat x
+  showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
+  showTDef (TApp f xs) = assert_total $ parens $ showTNamed f ++ " " ++ concat (intersperse " " (map showTDef xs)) 
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -193,8 +200,14 @@ mutual
   showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs
 
+  showTNamed : TNamed n -> String
+  showTNamed (TName n t) = n ++ square (showTDef t)
+
 Show (TDef n) where
   show = showTDef
+
+Show (TNamed n) where
+  show = showTNamed
 
 -- Equality -----
 
@@ -210,7 +223,6 @@ implementation Eq (TDef n) where
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
   (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
---  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
   (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
     where
     heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool

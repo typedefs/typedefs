@@ -91,8 +91,8 @@ interface NewBackend def type | def where
   source   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : {type: Type} -> (def: Type) -> NewBackend def type => TDef 0 -> Doc
-newGenerate {type} def td = source (msgType {type} {def} td) (typedefs {type} {def} td)
+newGenerate : (lang: Type) -> NewBackend lang type => TDef 0 -> Doc
+newGenerate lang td = source (msgType {def=lang} td) (typedefs {def=lang} td)
 
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
