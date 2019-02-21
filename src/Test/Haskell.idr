@@ -19,15 +19,15 @@ generate : TNamed n -> Doc
 generate (TName nm td) = generate Haskell td
 
 boolForBit : SpecialiseEntry
-boolForBit = MkSpecialiseEntry (td bit) "Bool"
+boolForBit = MkSpecialiseEntry (def bit) "Bool"
                                "either (\\ () -> True) (\\ () -> False)"
                                "\\ x -> if x then Left () else Right ()"
 
 charForByte : SpecialiseEntry
-charForByte = MkSpecialiseEntry (td byte) "Char" "undefined" "undefined"
+charForByte = MkSpecialiseEntry (def byte) "Char" "undefined" "undefined"
 
 intForNat : SpecialiseEntry
-intForNat = MkSpecialiseEntry (td nat) "Int"
+intForNat = MkSpecialiseEntry (def nat) "Int"
                               "id"
                               "\\ x -> if x >= 0 then x else error \"negative number\""
 

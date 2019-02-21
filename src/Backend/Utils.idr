@@ -47,7 +47,7 @@ flattenMus muName = flattenMu [muName]
    flattenMu _     T1          = T1
    flattenMu names (TSum ts)   = assert_total $ TSum $ map (flattenMu names) ts
    flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
-   flattenMu names td@(TMu cs) = Typedefs.td $ flattenMu' names $ TName (nameMu cs) td
+   flattenMu names td@(TMu cs) = def $ flattenMu' names $ TName (nameMu cs) td
    flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
 
    flattenMu' : Vect (S n) Name -> TNamed (S n) -> TNamed n

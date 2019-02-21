@@ -30,7 +30,7 @@ mutual
   serialize (_::_)    (w::_)    (TVar FZ)             x         = w x
   serialize (_::_::_) (_::w::_) (TVar (FS FZ))        x         = w x
   serialize (_::ts)   (_::ws)   (TVar (FS (FS i)))    x         = serialize ts ws (TVar (FS i)) x
-  serialize ts        ws        (TApp f ys)           x         = assert_total $ serialize ts ws (ap (td f) ys) x
+  serialize ts        ws        (TApp f ys)           x         = assert_total $ serialize ts ws (ap (def f) ys) x
   serialize ts        ws        (TMu td)              (Inn x)   =
     "(inn " ++
       serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x

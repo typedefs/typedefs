@@ -39,8 +39,8 @@ mutual
 name : TNamed n -> Name
 name (TName n _) = n
 
-td : TNamed n -> TDef n
-td (TName _ t) = t
+def : TNamed n -> TDef n
+def (TName _ t) = t
 
 arity : TDef n -> Nat
 arity {n} _ = n
@@ -95,7 +95,7 @@ mutual
   ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
   ap (TVar v)       args = index v args
   ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-  ap (TApp f xs)    args = assert_total $ td f `ap` (map (flip ap args) xs)
+  ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
 
 
   apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
@@ -127,7 +127,7 @@ mutual
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
-  Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ td f `ap` xs -- TODO: could be done properly
+  Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
 
 ------ meta ----------
 
@@ -224,7 +224,7 @@ implementation Eq (TDef n) where
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
   (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
-  (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
+  (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (def f) (def f') && vectEq xs xs'
     where
     heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
     heteroEq {n} {m} tn tm with (cmp n m)

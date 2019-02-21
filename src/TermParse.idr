@@ -44,7 +44,7 @@ mutual
   chooseParser (TVar FZ)             (_::_)    (p::_)    = p
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
-  chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (td f) xs) ts ps
+  chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (def f) xs) ts ps
   chooseParser (TMu td)              ts        ps        =
     map (\ty => Inn {tvars = ts} {m = args td} ty) $
     parens (rand (string "inn")
