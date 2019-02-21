@@ -5,6 +5,9 @@ import Types
 
 import Data.Vect
 
+import Data.Bytes
+import Data.ByteArray
+
 %default total
 %access public export
 
@@ -36,3 +39,36 @@ mutual
       serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x
       ++ ")"
   -- serialize ts        ws        (TName _ td)          x         = serialize ts ws td x
+
+Serialiser : Type -> Type
+Serialiser a = a -> Bytes
+
+serializeInt : {n : Nat} -> Serialiser (Fin n)
+serializeInt x = pack [prim__truncBigInt_B8 (finToInteger x)]
+
+injectionInv : (ts : Vect (2 + k) (TDef n)) -> Tnary tvars ts Either -> (i : Fin (2 + k) ** Ty tvars (index i ts))
+injectionInv [a,b] (Left x) = (0 ** x)
+injectionInv [a,b] (Right y) = (1 ** y)
+injectionInv (a::b::c::tds) (Left x) = (0 ** x)
+injectionInv (a::b::c::tds) (Right y) =
+  let (i' ** y') = injectionInv (b::c::tds) y in (FS i' ** y')
+
+
+serializeBinary : (t : TDef n) -> (ts : Vect n (a ** Serialiser a)) -> Serialiser (Ty (map DPair.fst ts) t)
+serializeBinary T0 ts x impossible
+serializeBinary T1 ts x = empty
+serializeBinary (TSum {k = k} tds) ts x =
+   let (i ** x') = injectionInv tds x in
+   (serializeInt i) ++ (assert_total $ serializeBinary (index i tds) ts x')
+serializeBinary (TProd [a, b]) ts (x, y) =
+  (serializeBinary a ts x) ++ (serializeBinary b ts y)
+serializeBinary (TProd (a::b::c::tds)) ts (x, y) =
+  (serializeBinary a ts x) ++ (serializeBinary (TProd (b::c::tds))) ts y
+serializeBinary (TMu tds) ts (Inn x) = assert_total $  serializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** serializeBinary (TMu tds) ts)::ts) x
+serializeBinary (TVar FZ) (t::ts) x = snd t x
+serializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
+  serializeBinary {n = (S n')} (TVar i) (ts) x
+serializeBinary (TApp f xs) ts x = assert_total $ serializeBinary (ap (td f) xs) ts x
+
+serializeBinaryClosed : (t : TDef 0) -> Serialiser (Ty [] t)
+serializeBinaryClosed t = serializeBinary t []

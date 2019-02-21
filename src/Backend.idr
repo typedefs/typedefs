@@ -78,20 +78,29 @@ generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
 generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
 
 ||| Interface for codegens which distinguish between the message type itself and
-||| its helper definitions. Currently doesn't support typedefs with free variables. 
-interface NewBackend def type | def where
+||| its helper definitions. Currently doesn't support typedefs with free variables.
+interface NewBackend def type term | def where
   ||| Given a `TDef`, generate its corresponding type signature.
   msgType  : TDef 0 -> type
 
   ||| Given a `TDef`, generate a list of all helper definitions required by it.
   typedefs : TDef 0 -> List def
 
+  ||| Given a `TDef`, generate a serialization and deserialization functions
+  ||| for it. These should have "type" (where bin is the target language
+  ||| representation of termdefs, e.g. bin = String or bin = ByteString)
+  |||   `termdefEncode td : msgtype td -> bin`
+  |||   `termdefDecode td : bin -> msgtype (ap maybe td)`
+  ||| (whatever that means in the target language).
+  termdefEncode : TDef 0 -> List def
+  termdefDecode : TDef 0 -> List def
+
   ||| Given a type signature and a list of helper definitions which it uses,
   ||| generate source code.
   source   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : {type: Type} -> (def: Type) -> NewBackend def type => TDef 0 -> Doc
+newGenerate : {type, term : Type} -> (def : Type) -> NewBackend def type term => TDef 0 -> Doc
 newGenerate {type} def td = source (msgType {type} {def} td) (typedefs {type} {def} td)
 
 record SpecialiseEntry where

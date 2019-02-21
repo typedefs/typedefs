@@ -67,7 +67,7 @@ shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)       = TVar $ shift 1 v
 --shiftVars (TName name t) = assert_total $ TName name $ shiftVars t
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs)    = ?shiftTApp
+shiftVars (TApp f xs)    = assert_total $ TApp f (map shiftVars xs)
 
 ||| Apply a TDef with free variables to a vector of arguments.
 ap : TDef n -> Vect n (TDef m) -> TDef m
@@ -106,6 +106,7 @@ mutual
   Ty     tvars (TMu m)     = Mu tvars (args m)
   --Ty     tvars (TName _ t) = Ty tvars t
   Ty     tvars (TApp f xs) = assert_total $ Ty tvars (ap (td f) xs) -- TODO: could be done properly
+
 
 ------ meta ----------
 
@@ -181,7 +182,7 @@ mutual
   showTDef (TVar x)   = curly $ show $ toNat x
   showTDef (TMu ms)   = parens $ "mu " ++ square (showNTDefs ms)
   --showTDef (TName n x) = n ++ " " ++ square (showTDef x)
-  showTDef (TApp f xs) = ?showTApp
+  showTDef (TApp f xs) = assert_total $ parens $ showTDef (td f) ++ " " ++ showOp "" xs -- TODO
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -203,19 +204,20 @@ vectEq []      []      = True
 vectEq (x::xs) (y::ys) = x == y && vectEq xs ys
 vectEq _       _       = False
 
-implementation Eq (TDef n) where
-  T0            == T0              = True
-  T1            == T1              = True
-  (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
-  (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
-  (TVar i)      == (TVar i')       = i == i'
-  (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
---  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
-  (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
-    where
-    heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
-    heteroEq {n} {m} tn tm with (cmp n m)
-      heteroEq {n}     tn tm | (CmpLT y) = assert_total $ tm == (weakenTDef tn _ (lteAddRight n)) -- or should this be `False`?
-      heteroEq     {m} tn tm | (CmpGT x) = assert_total $ tn == (weakenTDef tm _ (lteAddRight m)) -- or should this be `False`?
-      heteroEq         tn tm | (CmpEQ)   = assert_total $ tn == tm
-  _             == _               = False
+mutual
+  heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
+  heteroEq {n} {m} tn tm with (cmp n m)
+    heteroEq {n}     tn tm | (CmpLT y) = assert_total $ tm == (weakenTDef tn _ (lteAddRight n)) -- or should this be `False`?
+    heteroEq     {m} tn tm | (CmpGT x) = assert_total $ tn == (weakenTDef tm _ (lteAddRight m)) -- or should this be `False`?
+    heteroEq         tn tm | (CmpEQ)   = assert_total $ tn == tm
+
+  implementation Eq (TDef n) where
+    T0            == T0              = True
+    T1            == T1              = True
+    (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
+    (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
+    (TVar i)      == (TVar i')       = i == i'
+    (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
+  --  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+    (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (td f) (td f') && vectEq xs xs'
+    _             == _               = False

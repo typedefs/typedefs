@@ -7,6 +7,10 @@ import Typedefs
 import Types
 
 import Data.Vect
+import Data.Fin
+
+import Data.Bytes
+import Data.ByteArray
 
 %default total
 %access public export
@@ -54,3 +58,84 @@ mutual
 deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDef n) -> String -> Maybe (Ty ts td)
 deserialize ts ps td s  =
   parseMaybe s (chooseParser td ts ps)
+
+
+{-
+Terms are serialised as follows:
+
+- Terms of type T0 or T1 do not need to be serialised — the former does not exist, and the latter are trivial.
+- Terms of type TSum ts with |ts| = 2 + k are serialised as an integer i, followed by the serialisation of a term of type ts[i]. (Alternative: can serialise an integer < 2 + k.)
+- Terms of type TProd ts with |ts| = 2 + k are serialised as the serialisation of ts[0], …, ts[1+k]. This relies on being able to compute the width of each serialised term.
+- Terms of type Tvar j are not serialised, as we only deal with closed types (but encoders and decoders will have to deal with them, because of TMu).
+- Terms of type Tmu ts with |ts| = k are serialised as an integer i, followed by the serialisation of ts[i]. (Alternative: can serialise an integer < k.)
+- Terms of type TApp f xs are serialised as terms of type ap (td f) xs.
+-}
+
+data Deserialiser : Type -> Type where
+  MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
+
+Functor Deserialiser where
+  map f (MkDeserialiser a) = MkDeserialiser (\ bs => do
+    (a', bs') <- a bs
+    Just (f a', bs'))
+
+Applicative Deserialiser where
+  pure x = MkDeserialiser (\ bs => Just (x, bs))
+  (MkDeserialiser f) <*> (MkDeserialiser a) =  MkDeserialiser (\ bs => do
+    (f', bs') <- f bs
+    (a', bs'') <- a bs'
+    Just (f' a', bs''))
+
+Monad Deserialiser where
+  (MkDeserialiser a) >>= g = MkDeserialiser (\ bs => do
+    (a', bs') <- a bs
+    let (MkDeserialiser ga') = g a'
+    ga' bs')
+
+  join (MkDeserialiser ma) = MkDeserialiser (\ bs => do
+    (ma', bs') <- ma bs
+    let (MkDeserialiser a) = ma'
+    a bs')
+
+fail : Deserialiser a
+fail = MkDeserialiser (\ bs => Nothing)
+
+-- ||| Interprets the first byte as an Int, and returns the rest of the bytestring, if possible
+deserializeInt : (n : Nat) -> Deserialiser (Fin n)
+deserializeInt n = MkDeserialiser (\ bs => case (consView bs) of
+    Nil => Nothing
+    Cons b bs' => do
+      k <- integerToFin (prim__zextB8_BigInt b) n
+      pure (k, bs'))
+
+injection : (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDef n)) -> Ty tvars (index i ts) -> Tnary tvars ts Either
+injection FZ      [a, b]             x = Left x
+injection (FS FZ) [a, b]             x = Right x
+injection FZ     (a :: b :: c :: ts) x = Left x
+injection (FS i) (a :: b :: c :: ts) x = Right (injection i (b :: c :: ts) x)
+
+deserializeBinary : (t : TDef n) -> (ts : Vect n (a ** Deserialiser a)) -> Deserialiser (Ty (map DPair.fst ts) t)
+deserializeBinary T0 ts = fail -- will never happen!
+deserializeBinary T1 ts = pure ()
+deserializeBinary td@(TSum {k = k} tds) ts = do
+  i <- deserializeInt (2 + k)
+  t' <- deserializeBinary (assert_smaller td (index i tds)) ts
+  pure (injection i tds t')
+deserializeBinary (TProd [a, b]) ts = do
+  ta <- deserializeBinary a ts
+  tb <- deserializeBinary b ts
+  pure (ta, tb)
+deserializeBinary td@(TProd (a ::  b :: c :: tds)) ts = do
+  ta <- deserializeBinary a ts
+  t' <- deserializeBinary (assert_smaller td (TProd (b :: c :: tds))) ts
+  pure (ta, t')
+deserializeBinary (TMu tds) ts = do
+  t <- assert_total $ deserializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** assert_total $ deserializeBinary (TMu tds) ts)::ts)
+  pure (Inn t)
+deserializeBinary (TVar FZ) (t::ts) = snd t
+deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = S n'} (TVar i) ts
+deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (td f) xs) ts
+
+deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
+deserializeBinaryClosed t bs =
+  let MkDeserialiser d = deserializeBinary t [] in d bs

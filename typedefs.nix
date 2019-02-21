@@ -17,6 +17,7 @@ build-idris-package {
     contrib
     tparsec
     specdris
+    bytes
   ];
 
   meta = {
