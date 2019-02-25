@@ -84,7 +84,7 @@ nestedMu3 = TName "nestedMu3" $ TMu [("Foobar", TApp maybe2 [TVar 0])]
 nestedMu4 : TNamed 1
 nestedMu4 = TName "nestedMu4" $ TMu [("Foobar", TApp list [TSum [TVar 0, TVar 1]])]
 
-nestedMu5 : TNamed 1
+nestedMu5 : TNamed 0
 nestedMu5 = TName "nestedMu5" $ TMu [("Foobar", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])]
 
 nestedMu6 : TNamed 1

@@ -207,16 +207,16 @@ testSuite = spec $ do
     it "nested Mu 4: List(Either (Mu, Alpha))" $
       generate nestedMu4 `shouldBe` nestedMu4Doc
 
-    it "nested Mu 5: NilCons(Mu)" $ 
+    it "Nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
         `shouldBe` vsep2
                     [ text "data" |++| text "NilCons" |++| x0
                       |++| equals |++| text "Nil" 
                       |++| pipe   |++| text "Cons"
                                        |++| x0 |++| parens (text "NilCons" |++| x0)
-                    , text "data" |++| text "NestedMu5" |++| hsep [x0]
+                    , text "data" |++| text "NestedMu5"
                       |++| equals |++| text "Foobar"
-                                       |++| parens (text "NilCons" |++| parens (text "NestedMu5" |++| x0))
+                                       |++| parens (text "NilCons" |++| text "NestedMu5")
                     ]
 
     it "nested Mu 6: NestedMu4(Maybe2(Either(Alpha, Nat)))" $

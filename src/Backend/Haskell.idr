@@ -81,6 +81,9 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
 anonMu : Vect n (Name, a) -> Name
 anonMu = concatMap (uppercase . fst)
 
+hsParam : Decl -> HsType
+hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
+
 ||| Generate a Haskell type from a `TDef`.
 makeType : Env n -> TDef n -> HsType
 makeType _ T0             = HsVoid
@@ -88,10 +91,7 @@ makeType _ T1             = HsUnit
 makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
 makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
-  where
-  hsParam : Decl -> HsType
-  hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
-makeType e td@(TMu cases) = HsParam (anonMu cases) . map HsVar $ getFreeVars (getUsedVars e td)
+makeType e td@(TMu cases) = HsParam (anonMu cases) . map (either HsVar hsParam) $ (getUsedVars e td)
 makeType e (TApp f xs)    = HsParam (name f) (map (assert_total $ makeType e) xs)
 
 makeType' : Env n -> TNamed n -> HsType
