@@ -91,11 +91,11 @@ makeType _ T1             = HsUnit
 makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
 makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
-makeType e td@(TMu cases) = HsParam (anonMu cases) . map (either HsVar hsParam) $ (getUsedVars e td)
+makeType e td@(TMu cases) = HsParam (anonMu cases) . map (either HsVar hsParam) $ getUsedVars e td
 makeType e (TApp f xs)    = HsParam (name f) (map (assert_total $ makeType e) xs)
 
 makeType' : Env n -> TNamed n -> HsType
-makeType' e (TName name body) = HsParam name . map HsVar $ getFreeVars (getUsedVars e body)
+makeType' e (TName name body) = HsParam name . map (either HsVar hsParam) $ getUsedVars e body
 
 mutual
   ||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
