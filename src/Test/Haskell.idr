@@ -50,16 +50,19 @@ testSuite : IO ()
 testSuite = spec $ do
 
   describe "Haskell code generation tests:" $ do
+    let bitDoc = text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
 
     it "bit" $
       generate bit
-        `shouldBe` text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
+        `shouldBe` bitDoc
+
+    let byteDoc = text "type" |++| text "Byte" |++| equals |++| tupled (replicate 8 $ text "Bit")
 
     it "byte" $
       generate byte
         `shouldBe` vsep2
-                    [ text "type" |++| text "Bit" |++| equals |++| text "Either" |++| parens empty |++| parens empty
-                    , text "type" |++| text "Byte" |++| equals |++| tupled (replicate 8 $ text "Bit")
+                    [ bitDoc
+                    , byteDoc
                     ]
 
     it "maybe" $
@@ -143,32 +146,94 @@ testSuite = spec $ do
         `shouldBe` text "type" |++| text "Nonlinear" |++| x0
                    |++| equals |++| tupled [x0, x0]
 
-    it "nested Mu (Foo/List/Either)" $
-      generate nestedMu
+    let listAlphaOrBetaDoc =
+      vsep2
+        [ listDoc
+        , text "type" |++| text "ListAlphaOrBeta" |++| hsep [x0,x1]
+          |++| equals |++| text "List" |++| parens (text "Either" |++| hsep [x0,x1])
+        ]
+
+    it "listAlphaOrBeta" $
+      generate listAlphaOrBeta `shouldBe` listAlphaOrBetaDoc
+
+    it "listBitOrByte" $
+      generate listBitOrByte
         `shouldBe` vsep2
-                    [ listDoc 
-                    , text "data" |++| text "Foo" |++| hsep [x0,x1]
-                      |++| equals |++| text "Bar"
+                    [ byteDoc
+                    , bitDoc
+                    , listAlphaOrBetaDoc
+                    , text "type" |++| text "ListBitOrByte"
+                      |++| equals |++| text "ListAlphaOrBeta" |++| text "Bit" |++| text "Byte"
+                    ]
+
+    it "nested Mu 1: List(Either(Alpha, Beta))" $
+      generate nestedMu1
+        `shouldBe` vsep2
+                    [ listDoc
+                    , text "data" |++| text "NestedMu1" |++| hsep [x0,x1]
+                      |++| equals |++| text "Foobar"
                                        |++| parens (text "List" |++| parens (text "Either" |++| hsep [x0,x1]))
                     ]
 
-    it "nested Mu 2 (Foo/Maybe/Alpha)" $
+    it "nested Mu 2: Maybe2(Alpha)" $
       generate nestedMu2
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "data" |++| text "Foo" |++| x0
-                      |++| equals |++| text "Bar"
+                    , text "data" |++| text "NestedMu2" |++| x0
+                      |++| equals |++| text "Foobar"
                                        |++| parens (text "Maybe2" |++| x0) 
                     ]
 
-    it "nested Mu 3 (Foo/Maybe/Foo)" $
+    it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "data" |++| text "Foo"
-                      |++| equals |++| text "Bar"
-                                       |++| parens (text "Maybe2" |++| text "Foo")
+                    , text "data" |++| text "NestedMu3"
+                      |++| equals |++| text "Foobar"
+                                       |++| parens (text "Maybe2" |++| text "NestedMu3")
                     ]
+
+    let nestedMu4Doc =
+      vsep2
+        [ listDoc
+        , text "data" |++| text "NestedMu4" |++| x0
+          |++| equals |++| text "Foobar"
+                           |++| parens (text "List"
+                                |++| parens (text "Either" 
+                                     |++| parens (text "NestedMu4" |++| x0)
+                                     |++| x0))
+        ]
+
+    it "nested Mu 4: List(Either (Mu, Alpha))" $
+      generate nestedMu4 `shouldBe` nestedMu4Doc
+
+    it "nested Mu 5: NilCons(Mu)" $ 
+      generate nestedMu5
+        `shouldBe` vsep2
+                    [ text "data" |++| text "NilCons" |++| x0
+                      |++| equals |++| text "Nil" 
+                      |++| pipe   |++| text "Cons"
+                                       |++| x0 |++| parens (text "NilCons" |++| x0)
+                    , text "data" |++| text "NestedMu5" |++| hsep [x0]
+                      |++| equals |++| text "Foobar"
+                                       |++| parens (text "NilCons" |++| parens (text "NestedMu5" |++| x0))
+                    ]
+
+    it "nested Mu 6: NestedMu4(Maybe2(Either(Alpha, Nat)))" $
+      generate nestedMu6
+        `shouldBe` vsep2
+                    [ natDoc
+                    , muMaybeDoc
+                    , nestedMu4Doc
+                    , text "data" |++| text "NestedMu6" |++| x0
+                      |++| equals |++| text "Foobar"
+                                       |++| parens (text "NestedMu4"
+                                            |++| parens (text "Maybe2"
+                                                 |++| parens (text "Either"
+                                                      |++| x0
+                                                      |++| text "Nat")))
+                    ]
+
 {-
   describe "Haskell specialised types tests:" $ do
 
