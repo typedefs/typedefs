@@ -94,6 +94,7 @@ interface NewBackend def type | def where
 newGenerate : (lang: Type) -> NewBackend lang type => TDef 0 -> Doc
 newGenerate lang td = source (msgType {def=lang} td) (typedefs {def=lang} td)
 
+{-
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
@@ -128,3 +129,4 @@ generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
                    go x = x -- only TVar i case left
          td' : TDef (n + m)
          td' = foldl (flip (traverseTD n)) (weakenTDef td (n + m) (lteAddRight n)) (zip range table)
+-}

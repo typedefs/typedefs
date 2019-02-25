@@ -17,7 +17,7 @@ import Test
 
 generate : TNamed n -> Doc
 generate (TName nm td) = generate Haskell td
-
+{-
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry (def bit) "Bool"
                                "either (\\ () -> True) (\\ () -> False)"
@@ -31,10 +31,9 @@ intForNat = MkSpecialiseEntry (def nat) "Int"
                               "id"
                               "\\ x -> if x >= 0 then x else error \"negative number\""
 
-
 generateSpecialised : Vect (S m) SpecialiseEntry -> TNamed n -> Doc
 generateSpecialised se (TName nm td) = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
-
+-}
 x0 : Doc
 x0 = text "x0"
 
@@ -170,7 +169,7 @@ testSuite = spec $ do
                       |++| equals |++| text "Bar"
                                        |++| parens (text "Maybe2" |++| text "Foo")
                     ]
-
+{-
   describe "Haskell specialised types tests:" $ do
 
     let boolForBitDoc = text "type" |++| text "Byte"
@@ -204,3 +203,4 @@ testSuite = spec $ do
                         , text "type" |++| text "Triple" |++| x0
                           |++| equals |++| tupled [text "Char", text "ListNat", x0]
                         ]
+-}
