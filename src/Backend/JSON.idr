@@ -118,7 +118,7 @@ generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
 NewBackend JSONDef JSON where
   msgType td = makeSubSchema td
-  typedefs td = evalState (makeDefs td) []
+  typedefs tn = evalState (makeDefs' tn) []
   source msg defs = literal $ format 2 $ makeSchema msg defs
 
 --NewBackend JSONDef JSON where

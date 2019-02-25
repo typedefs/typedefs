@@ -129,13 +129,13 @@ mutual
             pure $ Synonym decl (makeType (freshEnvLC n) body) :: res
 
 Backend Haskell where
-  generateTyDefs e td = reverse $ evalState (makeDefs td) []
+  generateTyDefs e tn = reverse $ evalState (makeDefs' tn) []
   generateCode        = renderDef
   freshEnv            = freshEnvLC
 
 NewBackend Haskell HsType where
   msgType          = makeType (freshEnv {lang=Haskell} 0)
-  typedefs td      = reverse $ evalState (makeDefs td) []
+  typedefs tn      = reverse $ evalState (makeDefs' tn) []
   source type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs 
 
 ||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)

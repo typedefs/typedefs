@@ -65,7 +65,7 @@ getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 interface Backend lang where
   ||| Given a `TDef` and a matching environment, generate a list of type definitions
   ||| in the target language.
-  generateTyDefs : Env n -> TDef n -> List lang
+  generateTyDefs : Env n -> TNamed n -> List lang
 
   ||| Given a type definition in the target language, generate its code.
   generateCode : lang -> Doc
@@ -74,7 +74,7 @@ interface Backend lang where
   freshEnv : (n: Nat) -> Env n
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
+generate : (lang: Type) -> Backend lang => {n: Nat} -> TNamed n -> Doc
 generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
 
 ||| Interface for codegens which distinguish between the message type itself and
@@ -84,15 +84,15 @@ interface NewBackend def type | def where
   msgType  : TDef 0 -> type
 
   ||| Given a `TDef`, generate a list of all helper definitions required by it.
-  typedefs : TDef 0 -> List def
+  typedefs : TNamed 0 -> List def
 
   ||| Given a type signature and a list of helper definitions which it uses,
   ||| generate source code.
   source   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : (lang: Type) -> NewBackend lang type => TDef 0 -> Doc
-newGenerate lang td = source (msgType {def=lang} td) (typedefs {def=lang} td)
+newGenerate : (lang: Type) -> NewBackend lang type => TNamed 0 -> Doc
+newGenerate lang tn = source (msgType {def=lang} (def tn)) (typedefs {def=lang} tn)
 
 {-
 record SpecialiseEntry where

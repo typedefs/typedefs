@@ -16,7 +16,7 @@ import Test
 %access public export
 
 generate : TNamed n -> Doc
-generate (TName nm td) = generate Haskell td
+generate = generate Haskell
 {-
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry (def bit) "Bool"
