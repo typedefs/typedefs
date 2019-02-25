@@ -46,7 +46,7 @@ testSuite = spec $ do
 
     it "bit" $
       generate bit `shouldBe` bitDoc
-{-
+
     it "byte" $
       generate byte
         `shouldBe` vsep2
@@ -162,14 +162,14 @@ testSuite = spec $ do
                    |++| equals |++| tupled [x0, x0]
                    |+| semi
 
-    it "nested Mu (Foo/List/Either)" $
-      generate nestedMu
+    it "nested Mu 1: List(Either(Alpha, Beta))" $
+      generate nestedMu1
         `shouldBe` vsep2
-                    [ listDoc
-                    , eitherDoc
-                    , text "type" |++| text "foo" |+| tupled [x0,x1]
-                      |++| equals |++| text "Bar"
-                                       |++| parens (text "list" |++| parens (text "either" |+| tupled [x0,x1]))
+                    [ eitherDoc
+                    , listDoc
+                    , text "type" |++| text "nestedMu1" |+| tupled [x0,x1]
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "list" |+| parens (text "either" |+| tupled [x0,x1]))
                       |+| semi
                     ]
 
@@ -177,8 +177,8 @@ testSuite = spec $ do
       generate nestedMu2
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "type" |++| text "foo" |+| parens x0
-                      |++| equals |++| text "Bar"
+                    , text "type" |++| text "nestedMu2" |+| parens x0
+                      |++| equals |++| text "Foobar"
                                        |+| parens (text "maybe2" |+| parens x0)
                       |+| semi
                     ]
@@ -187,9 +187,8 @@ testSuite = spec $ do
       generate nestedMu3
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "type" |++| text "foo"
-                      |++| equals |++| text "Bar"
-                                       |+| parens (text "maybe2" |+| parens (text "foo"))
+                    , text "type" |++| text "nestedMu3"
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "maybe2" |+| parens (text "nestedMu3"))
                       |+| semi
                     ]
--}
