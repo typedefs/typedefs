@@ -12,7 +12,7 @@ import Control.Monad.State
 import Data.Vect
 
 %default total
-%access public export
+%access export
 
 ||| The syntactic structure of ReasonML types.
 data RMLType : Type where
@@ -37,12 +37,10 @@ data ReasonML : Type where
   ||| and a number of constructors, each wrapping a ReasonML type.
   Variant : Decl -> Vect k (Name, RMLType) -> ReasonML
 
+-- ReasonML type variables start with an apostrophe and a lowercase letter.
+private
 freshEnv : Env n
-freshEnv = freshEnv "x"
-
-||| Render a name as a type variable.
-renderVar : Name -> Doc
-renderVar v = squote |+| text (lowercase v)
+freshEnv = freshEnv "'x"
 
 ||| Given a name and a vector of arguments, render an application of the name to the arguments.
 renderApp : Name -> Vect n Doc -> Doc
@@ -54,12 +52,12 @@ renderApp name params = text name |+| case params of
 renderType : RMLType -> Doc
 renderType RMLUnit                = text "unit"
 renderType (RMLTuple xs)          = tupled . toList $ map (assert_total renderType) xs
-renderType (RMLVar v)             = renderVar v
+renderType (RMLVar v)             = text v
 renderType (RMLParam name params) = renderApp (lowercase name) . map (assert_total renderType) $ params
 
 ||| Helper function to render a top-level declaration as source code.
 renderDecl : Decl -> Doc
-renderDecl decl = renderApp (lowercase $ name decl) (map renderVar $ params decl)
+renderDecl decl = renderApp (lowercase $ name decl) (map text $ params decl)
 
 ||| Generate source code for a ReasonML type definition.
 renderDef : ReasonML -> Doc
@@ -77,9 +75,7 @@ renderDef (Variant decl cases) = text "type" |++| renderDecl decl
   renderConstructor (name, RMLTuple ts) = renderApp (uppercase name) (map renderType ts)
   renderConstructor (name, t)           = renderApp (uppercase name) [renderType t]
 
-anonMu : Vect n (Name, a) -> Name
-anonMu = concatMap (uppercase . fst)
-
+private
 rmlParam : Decl -> RMLType
 rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 
@@ -91,74 +87,53 @@ mutual
   makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
   makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
   makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
-  makeType e td@(TMu cases) = RMLParam (anonMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
+  makeType e td@(TMu cases) = RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
   makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
 
+  ||| Generate a ReasonML type from a `TNamed`.
   makeType' : Env n -> TNamed n -> RMLType
   makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ getUsedVars e body
 
 mutual
-   ||| Generate ReasonML type definitions from a `TDef`, includig all of its dependencies.
-   makeDefs : TDef n -> State (List Name) (List ReasonML)
-   makeDefs T0            = assert_total $ makeDefs' voidDef
-     where
-     voidDef : TNamed 0
-     voidDef = TName "void" $ TMu []
-   makeDefs T1            = pure []
-   makeDefs (TProd xs)    = map concat $ traverse (assert_total makeDefs) xs
-   makeDefs (TSum xs)     =
-     do res <- map concat $ traverse (assert_total makeDefs) xs
-        map (++ res) (assert_total $ makeDefs' eitherDef)
-     where
-     eitherDef : TNamed 2
-     eitherDef = TName "either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
-   makeDefs (TVar v)      = pure []
-   makeDefs (TApp f xs) = do
-     res <- assert_total $ makeDefs' f
-     res' <- concat <$> traverse (assert_total makeDefs) xs
-     pure (res ++ res')
-   makeDefs td@(TMu cases) = makeDefs' $ TName (anonMu cases) td -- We name anonymous mus using their constructors.
-   {-
-   makeDefs e td@(TName name body) =
-     do st <- get
-        if List.elem name st then pure []
-          else
-           do res <- assert_total $ makeDefs e body
-              put (name :: st)
-              pure $ Alias (MkDecl name (getFreeVars $ getUsedVars e td)) (makeType e body) :: res
-   -}
+  ||| Generate all the ReasonML type definitions that a `TDef` depends on.
+  makeDefs : TDef n -> State (List Name) (List ReasonML)
+  makeDefs T0 = assert_total $ makeDefs' voidDef
+    where
+    voidDef : TNamed 0
+    voidDef = TName "void" $ TMu []
+  makeDefs T1            = pure []
+  makeDefs (TProd xs)    = map concat $ traverse (assert_total makeDefs) xs
+  makeDefs (TSum xs)     = do
+      res <- map concat $ traverse (assert_total makeDefs) xs
+      map (++ res) (assert_total $ makeDefs' eitherDef)
+    where
+    eitherDef : TNamed 2
+    eitherDef = TName "either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
+  makeDefs    (TVar v)    = pure []
+  makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
+  makeDefs    (TApp f xs) = do
+      res <- assert_total $ makeDefs' f
+      res' <- concat <$> traverse (assert_total makeDefs) xs
+      pure (res ++ res')
 
-   makeDefs' : TNamed n -> State (List Name) (List ReasonML)
-   makeDefs' (TName name body) = do
-      st <- get
-      if List.elem name st then pure []
-      else do
-        let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body)
-        put (name :: st)
-        case body of
-          TMu cases => do -- Named `TMu`s are treated as ADTs.
-            let newEnv = Right decl :: freshEnv
-            let args = map (map (makeType newEnv)) cases
-            res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
-            pure $ Variant decl args :: res
-          _         => do -- All other named types are treated as synonyms.
-            res <- assert_total $ makeDefs body
-            pure $ Alias decl (makeType freshEnv body) :: res
+  ||| Generate ReasonML type definitions for a `TNamed` and all of its dependencies.
+  makeDefs' : TNamed n -> State (List Name) (List ReasonML)
+  makeDefs' (TName name body) = ifNotPresent name $ 
+      let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
+      case body of
+        TMu cases => do -- Named `TMu`s are treated as ADTs.
+          let newEnv = Right decl :: freshEnv
+          let args = map (map (makeType newEnv)) cases
+          res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
+          pure $ Variant decl args :: res
+        _ => do -- All other named types are treated as synonyms.
+          res <- assert_total $ makeDefs body
+          pure $ Alias decl (makeType freshEnv body) :: res
 
-
---Backend ReasonML where
---  generateTyDefs e tn = reverse $ evalState (makeDefs' tn) []
---  generateCode        = renderDef
---  freshEnv            = freshEnvLC
-
-AST ReasonML RMLType n where
-  msgType = makeType' freshEnv
+ASTGen ReasonML RMLType n where
+  msgType           = makeType' freshEnv
   generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
-  --sourceCode type defs = vsep2 $ map renderDef $ defs ++ [Alias (MkDecl "TypedefSchema" []) type]
 
 CodegenIndep ReasonML RMLType where
   typeSource = renderType
   defSource  = renderDef
---||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
---generateType : TDef n -> Doc
---generateType {n} = renderType . makeType (freshEnv {lang=ReasonML} n)

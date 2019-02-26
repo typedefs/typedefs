@@ -3,6 +3,7 @@ module Backend.Utils
 import Typedefs
 import Types
 
+import Control.Monad.State
 import Data.Vect
 import Text.PrettyPrint.WL
 
@@ -50,6 +51,14 @@ getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
 getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
 getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
+||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
+ifNotPresent : Eq name => name -> State (List name) (List def) -> State (List name) (List def)
+ifNotPresent n gen = do
+  st <- get
+  if n `List.elem` st
+    then pure []
+    else modify {stateType=List name} (n ::) *> gen 
+
 -- TODO implementation in base was erroneous, this has been merged but is not in a version yet. 
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
@@ -65,7 +74,7 @@ vsep2 = vsep . punctuate line
 
 ||| Produce a name for an anonymous `TMu` by simply concatenating its constructors.
 nameMu : Vect n (Name, TDef k) -> Name
-nameMu = concatMap fst
+nameMu = concatMap (uppercase . fst)
 
 ||| "Flatten" all `TVar` references to `TMu`s into `TName`s named after the corresponding `TMu`, referencing `T0`s.
 ||| This is strictly meant to remove any `TVar`s from an AST.

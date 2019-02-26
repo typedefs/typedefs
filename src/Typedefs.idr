@@ -36,25 +36,27 @@ mutual
   data TNamed : (n : Nat) -> Type where
     TName : Name -> TDef n -> TNamed n
 
+||| Get the name of a `TNamed`.
 name : TNamed n -> Name
 name (TName n _) = n
 
+||| Get the `TDef` that is named by a `TNamed`.
 def : TNamed n -> TDef n
 def (TName _ t) = t
 
-arity : TDef n -> Nat
-arity {n} _ = n
-
+||| Generate `[TVar 0, ..., TVar (n-1)]`.
 idVars : Vect n (TDef n)
-idVars {n} with (n)
-  idVars | Z     = []
-  idVars | (S _) = map TVar range
+idVars {n=Z}   = []
+idVars {n=S _} = map TVar range
 
+||| Apply a `TNamed` to the variable list `[TVar 0, ..., TVar (n-1)]`. Semantically, this is the same as
+||| doing nothing, but it allows us to embed a named definition in a regular `TDef`.
 wrap : TNamed n -> TDef n
 wrap tn = TApp tn idVars
 
+||| Alias one `TNamed` with a new name. Note: this is not the same as naming the underlying `TDef` again.
 alias : Name -> TNamed n -> TNamed n
-alias name tn = TName name (TApp tn idVars)
+alias name tn = TName name (wrap tn)
 
 parens : String -> String
 parens "" = ""
@@ -68,15 +70,17 @@ square : String -> String
 square "" = ""
 square s = "[" ++ s ++ "]"
 
+||| Generate the canonical name of a closed type.
 makeName : TDef 0 -> Name
 makeName T0          = "emptyType"
 makeName T1          = "singletonType"
-makeName (TSum ts)   = "sum" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
-makeName (TProd ts)  = "prod" ++ parens (concatMap (assert_total makeName) ts) -- TODO comma separation
+makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
 makeName (TMu cases) = concatMap fst cases
-makeName (TApp f xs) = name f ++ parens (concatMap (assert_total makeName) xs) -- TODO comma separation
+makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
 
-||| Add 1 to all de Bruijn-indices in a TDef.
+||| Add 1 to all de Bruijn-indices in a `TDef`.
+||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
 shiftVars : TDef n -> TDef (S n)
 shiftVars T0             = T0
 shiftVars T1             = T1
@@ -87,7 +91,7 @@ shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
 
 mutual
-  ||| Apply a TDef with free variables to a vector of arguments.
+  ||| Substitute all variables in a `TDef` with a vector of arguments.
   ap : TDef n -> Vect n (TDef m) -> TDef m
   ap T0             _    = T0
   ap T1             _    = T1
@@ -97,10 +101,10 @@ mutual
   ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
   ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
 
-
+  ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
   apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
   apN (TName n body) ts = TName
-                              (n ++ parens (concatMap makeName ts)) -- TODO getUsedVars, comma separation
+                              (n ++ parens (concat . intersperse "," . map makeName $ ts)) -- TODO getUsedVars
                               (body `ap` ts)
 
 mutual
@@ -175,6 +179,10 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
+  ||| Increase the type index representing the number of variables accessible
+  ||| to a `TNamed`, without actually changing the variables that are used by it.
+  |||
+  ||| @m The new amount of variables.
   weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
   weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 

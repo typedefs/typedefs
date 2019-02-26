@@ -26,14 +26,6 @@ nary name = map ((name ++) . show . finToNat) range
 defRef : Name -> JSON
 defRef name = JObject [("$ref", JString $ "#/definitions/" ++ name)]
 
-||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
-ifNotPresent : Eq name => name -> State (List name) (List def) -> State (List name) (List def)
-ifNotPresent n gen = do
-  st <- get
-  if n `List.elem` st
-    then pure []
-    else modify {stateType=List name} (n ::) *> gen 
-
 makeSubSchema' : TNamed 0 -> JSON
 makeSubSchema' = defRef . name
 
@@ -118,14 +110,9 @@ generateSchema : TNamed 0 -> JSON
 generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
 
-AST JSONDef JSON 0 where
+ASTGen JSONDef JSON 0 where
   msgType tn = makeSubSchema' tn
   generateTyDefs tn = evalState (makeDefs' tn) []
 
 CodegenInterdep JSONDef JSON where
   sourceCode msg defs = literal $ format 2 $ makeSchema msg defs
-
---NewBackend JSONDef JSON where
---  msgType                    = makeSubSchema
---  typedefs td                = map (uncurry MkJSONDef) $ evalState (makeDefs td) []
---  source topLevelSchema defs = literal $ format 2 $ makeSchema topLevelSchema defs

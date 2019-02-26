@@ -39,13 +39,6 @@ fromVMax {m} vm = go lteRefl vm
   go lte (VMConsLess x px vs prf) = (x**(lteTransitive prf lte, px)) :: go lte vs
   go lte (VMConsMore s ps vs prf) = (s**(lte, ps)) :: go (lteTransitive prf lte) vs
 
---list : (Alternative mn, Monad mn) =>
---         All (Parser mn p a :-> Parser mn p (List a))
---list p = alt (map Data.NEList.toList (nelist p))
---             (cmap Prelude.List.Nil (withSpaces fail))
-
----
-
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 

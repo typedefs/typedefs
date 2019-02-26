@@ -35,4 +35,3 @@ mutual
     "(inn " ++
       serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x
       ++ ")"
-  -- serialize ts        ws        (TName _ td)          x         = serialize ts ws td x
