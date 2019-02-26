@@ -16,7 +16,7 @@ import Test
 %access public export
 
 generate : TNamed n -> Doc
-generate = generate Haskell
+generate = generateDefs Haskell
 {-
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry (def bit) "Bool"
@@ -207,7 +207,7 @@ testSuite = spec $ do
     it "nested Mu 4: List(Either (Mu, Alpha))" $
       generate nestedMu4 `shouldBe` nestedMu4Doc
 
-    it "Nested mu 5: AnonList(Mu)" $ 
+    it "nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
         `shouldBe` vsep2
                     [ text "data" |++| text "NilCons" |++| x0

@@ -12,54 +12,7 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
-||| A parametric type declaration (no definition, only name and parameters).
-record Decl where
-  constructor MkDecl
-
-  ||| The name of the type.
-  name   : Name
-
-  ||| The names of the type's parameters.
-  params : Vect n Name -- TODO is number of parameters enough?
-
-||| A variable environment. Left=free, Right=bound.
-Env : Nat -> Type
-Env k = Vect k (Either String Decl)
-
-||| Standard implmementation of `freshEnv` for languages that require type parameters to
-||| start with lower case letters (and allow numbers in names).
-freshEnvLC : (n : Nat) -> Env n
-freshEnvLC n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
-
-||| Standard implmementation of `freshEnv` for languages that require type parameters to
-||| start with upper case letters (and allow numbers in names).
-freshEnvUC : (n : Nat) -> Env n
-freshEnvUC n = unindex {n} (\f => Left ("X" ++ show (finToInteger f)))
-
-||| Get the free names from the environment.
-getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
-getFreeVars e with (filter isLeft e)
-  | (p ** v) = map (either id (const "")) v
-
-||| Get a list of the de Brujin indices that are actually used in a `TDef`.
-getUsedIndices : TDef n -> List (Fin n)
-getUsedIndices T0         = []
-getUsedIndices T1         = []
-getUsedIndices (TSum xs)  = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TProd xs) = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TVar i)   = [i]
-getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
-  where weedOutZero : Fin (S n) -> List (Fin n)
-        weedOutZero FZ     = []
-        weedOutZero (FS i) = [i]
-getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
-                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
---getUsedIndices (TName _ t) = getUsedIndices t
-
-||| Filter out the entries in an `Env` that is referred to by a `TDef`.
-getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
-getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
-
+{-
 ||| Interface for codegens. `lang` is a type representing (the syntactic structure of)
 ||| a type declaration in the target language.
 interface Backend lang where
@@ -76,23 +29,58 @@ interface Backend lang where
 ||| Use the given backend to generate code for a type definition and all its dependencies.
 generate : (lang: Type) -> Backend lang => {n: Nat} -> TNamed n -> Doc
 generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
+-}
 
-||| Interface for codegens which distinguish between the message type itself and
-||| its helper definitions. Currently doesn't support typedefs with free variables. 
-interface NewBackend def type | def where
+||| Interface for interpreting type definitions as ASTs.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+||| @n    the number of variables the interpretor supports in a type definition. (Should always be either `n` or `0`.)
+interface AST def type (n : Nat) | def where
   ||| Given a `TDef`, generate its corresponding type signature.
-  msgType  : TDef 0 -> type
+  msgType  : TNamed n -> type
 
-  ||| Given a `TDef`, generate a list of all helper definitions required by it.
-  typedefs : TNamed 0 -> List def
+  ||| Generate definitions for a `TNamed` and all its helper definitions.
+  generateTyDefs : TNamed n -> List def
 
-  ||| Given a type signature and a list of helper definitions which it uses,
-  ||| generate source code.
-  source   : type -> List def -> Doc
+||| Interface for code generators that can generate code for type definitions and
+||| type signatures independently of each other.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+interface CodegenIndep def type | def where
+  ||| Generate source code for a type signature.
+  typeSource : type -> Doc
+
+  ||| Generate source code for a type definition.
+  defSource : def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : (lang: Type) -> NewBackend lang type => TNamed 0 -> Doc
-newGenerate lang tn = source (msgType {def=lang} (def tn)) (typedefs {def=lang} tn)
+generateDefs : (def: Type) -> AST def type n => CodegenIndep def type => TNamed n -> Doc
+generateDefs def tn = vsep2 $ map defSource (generateTyDefs {def} tn)
+
+||| Use the given backend to generate code for a type signature.
+generateType : (def: Type) -> AST def type n => CodegenIndep def type => TNamed n -> Doc
+generateType def tn = typeSource {def} (msgType {def} tn)
+
+||| Interface for code generators that need to generate code for type definitions and
+||| type signatures at the same time.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+interface CodegenInterdep def type where
+  ||| Generate source code for a type signature and a list of helper definitions.
+  sourceCode   : type -> List def -> Doc
+
+||| Use the given backend to generate code for a type definition and all its dependencies.
+generate : (def: Type) -> AST def type n => CodegenInterdep def type => TNamed n -> Doc
+generate def tn = sourceCode (msgType {def} tn) (generateTyDefs {def} tn)
+
+
+--generate : (lang: Type) -> Backend lang type n => TNamed n -> Doc
+--generate lang tn = sourceCode ?hmm (generateTyDefs {def=lang} tn)
+
+--||| Interface for codegens which support code generation of open type definitions.
+--interface Backend def type => OpenBackend def where
+--  ||| Generate definitions for a `TNamed` and all its helper definitions.
+--  generateOpenTyDefs : TNamed n -> List def
 
 {-
 record SpecialiseEntry where

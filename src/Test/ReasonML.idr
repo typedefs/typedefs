@@ -32,7 +32,7 @@ eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
             |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
 
 generate : TNamed n -> Doc
-generate = generate ReasonML
+generate = generateDefs ReasonML
 
 testSuite : IO ()
 testSuite = spec $ do

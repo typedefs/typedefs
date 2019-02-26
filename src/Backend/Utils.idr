@@ -9,15 +9,51 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
+||| A parametric type declaration (no definition, only name and parameters).
+record Decl where
+  constructor MkDecl
+
+  ||| The name of the type.
+  name   : Name
+
+  ||| The names of the type's parameters.
+  params : Vect n Name -- TODO is number of parameters enough?
+
+||| A variable environment. Left=free, Right=bound.
+Env : Nat -> Type
+Env k = Vect k (Either String Decl)
+
+||| Generate a fresh environment, using the supplied string as a prefix for variable names.
+freshEnv : String -> Env n
+freshEnv var = map (\ix => Left (var ++ show (finToInteger ix))) range
+
+||| Get the free names from the environment.
+getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
+getFreeVars e with (filter isLeft e)
+  | (p ** v) = map (either id (const "")) v
+
+||| Get a list of the de Brujin indices that are actually used in a `TDef`.
+getUsedIndices : TDef n -> List (Fin n)
+getUsedIndices T0         = []
+getUsedIndices T1         = []
+getUsedIndices (TSum xs)  = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TProd xs) = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TVar i)   = [i]
+getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
+  where weedOutZero : Fin (S n) -> List (Fin n)
+        weedOutZero FZ     = []
+        weedOutZero (FS i) = [i]
+getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
+                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
+
+||| Filter out the entries in an `Env` that is referred to by a `TDef`.
+getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
+getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
+
 -- TODO implementation in base was erroneous, this has been merged but is not in a version yet. 
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
 foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
-
--- TODO exists after 1.3 in Control.Isomorphism.Vect            
-unindex : (Fin n -> a) -> Vect n a
-unindex {n=Z}   _ = []
-unindex {n=S k} f = f FZ :: unindex (f . FS)
 
 ||| Print a document with a width of 80 symbols.
 print : Doc -> String

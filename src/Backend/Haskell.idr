@@ -40,6 +40,9 @@ data Haskell : Type where
   ||| and a number of constructors, each wrapping a Haskell type.
   ADT     : Decl -> Vect n (Name, HsType) -> Haskell
 
+freshEnv : Env n
+freshEnv = freshEnv "x"
+
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
 renderApp : Name -> Vect n Doc -> Doc
@@ -116,28 +119,27 @@ mutual
       st <- get
       if List.elem name st then pure []
       else do
-        let decl = MkDecl name (getFreeVars $ getUsedVars (freshEnvLC _) body)
+        let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body)
         put (name :: st)
         case body of
           TMu cases => do -- Named `TMu`s are treated as ADTs.
-            let newEnv = Right decl :: freshEnvLC _
+            let newEnv = Right decl :: freshEnv
             let args = map (map (makeType newEnv)) cases
             res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
             pure $ ADT decl args :: res
           _         => do -- All other named types are treated as synonyms.
             res <- assert_total $ makeDefs body
-            pure $ Synonym decl (makeType (freshEnvLC n) body) :: res
+            pure $ Synonym decl (makeType freshEnv body) :: res
 
-Backend Haskell where
-  generateTyDefs e tn = reverse $ evalState (makeDefs' tn) []
-  generateCode        = renderDef
-  freshEnv            = freshEnvLC
+AST Haskell HsType n where
+  msgType          = makeType' freshEnv
+  generateTyDefs tn      = reverse $ evalState (makeDefs' tn) []
+  --sourceCode type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs 
 
-NewBackend Haskell HsType where
-  msgType          = makeType (freshEnv {lang=Haskell} 0)
-  typedefs tn      = reverse $ evalState (makeDefs' tn) []
-  source type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs 
+CodegenIndep Haskell HsType where
+  typeSource = renderType
+  defSource  = renderDef
 
-||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshEnv {lang=Haskell} n)
+--||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
+--generateType : TDef n -> Doc
+--generateType {n} = renderType . makeType (freshEnv {lang=Haskell} n)

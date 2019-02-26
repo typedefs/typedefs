@@ -18,7 +18,7 @@ import Test
 %access public export
 
 generate : TNamed 0 -> Doc
-generate = literal . format 2 . generateSchema
+generate = generate JSONDef
 
 dquotes : String -> Doc
 dquotes = dquotes . text

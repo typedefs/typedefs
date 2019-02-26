@@ -116,10 +116,12 @@ generateSchema : TNamed 0 -> JSON
 generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
 
-NewBackend JSONDef JSON where
-  msgType td = makeSubSchema td
-  typedefs tn = evalState (makeDefs' tn) []
-  source msg defs = literal $ format 2 $ makeSchema msg defs
+AST JSONDef JSON 0 where
+  msgType tn = makeSubSchema' tn
+  generateTyDefs tn = evalState (makeDefs' tn) []
+
+CodegenInterdep JSONDef JSON where
+  sourceCode msg defs = literal $ format 2 $ makeSchema msg defs
 
 --NewBackend JSONDef JSON where
 --  msgType                    = makeSubSchema

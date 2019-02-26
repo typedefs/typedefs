@@ -37,6 +37,9 @@ data ReasonML : Type where
   ||| and a number of constructors, each wrapping a ReasonML type.
   Variant : Decl -> Vect k (Name, RMLType) -> ReasonML
 
+freshEnv : Env n
+freshEnv = freshEnv "x"
+
 ||| Render a name as a type variable.
 renderVar : Name -> Doc
 renderVar v = squote |+| text (lowercase v)
@@ -80,15 +83,19 @@ anonMu = concatMap (uppercase . fst)
 rmlParam : Decl -> RMLType
 rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 
-||| Generate a ReasonML type from a `TDef`.
-makeType : Env n -> TDef n -> RMLType
-makeType _ T0             = RMLParam "void" []
-makeType _ T1             = RMLUnit
-makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
-makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
-makeType e td@(TMu cases) = RMLParam (anonMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
-makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
+mutual
+  ||| Generate a ReasonML type from a `TDef`.
+  makeType : Env n -> TDef n -> RMLType
+  makeType _ T0             = RMLParam "void" []
+  makeType _ T1             = RMLUnit
+  makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+  makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
+  makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
+  makeType e td@(TMu cases) = RMLParam (anonMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
+  makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
+
+  makeType' : Env n -> TNamed n -> RMLType
+  makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ getUsedVars e body
 
 mutual
    ||| Generate ReasonML type definitions from a `TDef`, includig all of its dependencies.
@@ -126,29 +133,32 @@ mutual
       st <- get
       if List.elem name st then pure []
       else do
-        let decl = MkDecl name (getFreeVars $ getUsedVars (freshEnvLC _) body)
+        let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body)
         put (name :: st)
         case body of
           TMu cases => do -- Named `TMu`s are treated as ADTs.
-            let newEnv = Right decl :: freshEnvLC _
+            let newEnv = Right decl :: freshEnv
             let args = map (map (makeType newEnv)) cases
             res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
             pure $ Variant decl args :: res
           _         => do -- All other named types are treated as synonyms.
             res <- assert_total $ makeDefs body
-            pure $ Alias decl (makeType (freshEnvLC n) body) :: res
+            pure $ Alias decl (makeType freshEnv body) :: res
 
 
-Backend ReasonML where
-  generateTyDefs e tn = reverse $ evalState (makeDefs' tn) []
-  generateCode        = renderDef
-  freshEnv            = freshEnvLC
+--Backend ReasonML where
+--  generateTyDefs e tn = reverse $ evalState (makeDefs' tn) []
+--  generateCode        = renderDef
+--  freshEnv            = freshEnvLC
 
-NewBackend ReasonML RMLType where
-  msgType = makeType (freshEnv {lang=ReasonML} 0)
-  typedefs tn = reverse $ evalState (makeDefs' tn) []
-  source type defs = vsep2 $ map renderDef $ defs ++ [Alias (MkDecl "TypedefSchema" []) type]
+AST ReasonML RMLType n where
+  msgType = makeType' freshEnv
+  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
+  --sourceCode type defs = vsep2 $ map renderDef $ defs ++ [Alias (MkDecl "TypedefSchema" []) type]
 
-||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshEnv {lang=ReasonML} n)
+CodegenIndep ReasonML RMLType where
+  typeSource = renderType
+  defSource  = renderDef
+--||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
+--generateType : TDef n -> Doc
+--generateType {n} = renderType . makeType (freshEnv {lang=ReasonML} n)
