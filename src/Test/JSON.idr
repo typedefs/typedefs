@@ -49,13 +49,13 @@ taggedSumDef ds = subthing braces [ dquotes "oneOf" |+| colon |++| subthing brac
   where
   f : (String, Doc) -> Doc
   f (tag,d) = let inj = dquotes tag
-             in subthing braces
-                 [ dquotes "type"                 |+| colon |++| dquotes "object"
-                 , dquotes "required"             |+| colon |++| subthing brackets [ inj ]
-                 , dquotes "additionalProperties" |+| colon |++| text "false"
-                 , dquotes "properties"           |+| colon |++| subthing braces
-                   [ inj |+| colon |++| d ]
-                 ]
+              in subthing braces
+                  [ dquotes "type"                 |+| colon |++| dquotes "object"
+                  , dquotes "required"             |+| colon |++| subthing brackets [ inj ]
+                  , dquotes "additionalProperties" |+| colon |++| text "false"
+                  , dquotes "properties"           |+| colon |++| subthing braces
+                    [ inj |+| colon |++| d ]
+                  ]
 
 sumDef : List Doc -> Doc
 sumDef ds = taggedSumDef (zip (map (\ix => "case" ++ show ix) [0 .. length ds]) ds)
@@ -87,8 +87,21 @@ listNatDef = dquotes "ListNat" |+| colon |++| taggedSumDef [ ("NilN", unitRef), 
 oneoneoneoneDef : Doc
 oneoneoneoneDef = dquotes "oneoneoneone" |+| colon |++| sumDef (replicate 4 unitRef)
 
+listByteDef : Doc
+listByteDef = dquotes "ListByte" |+| colon |++| taggedSumDef [ ("NilC", unitRef), ("ConsC", prodDef [ref "Byte", ref "ListByte"]) ]
+
 voidOrUnitDef : Doc
 voidOrUnitDef = dquotes "VoidOrUnit" |+| colon |++| sumDef [ref "emptyType", unitRef]
+
+listBitOrByteDef : List Doc
+listBitOrByteDef = [ dquotes "listBitOrByte" |+| colon |++| ref "listAlphaOrBeta(Bit,Byte)"
+                   , appliedParametric ]
+  where
+  appliedParametric = dquotes "listAlphaOrBeta(Bit,Byte)" |+| colon
+               |++| taggedSumDef [ ("Nil", unitRef)
+                                 , ("Cons", prodDef [ sumDef [ ref "Bit"
+                                                             , ref "Byte"]
+                                                    , ref "listAlphaOrBeta(Bit,Byte)"]) ]
 
 generalDoc : Doc -> List Doc -> Doc
 generalDoc top defs = subthing braces
@@ -126,6 +139,22 @@ testSuite = spec $ do
       generate oneoneoneone
         `shouldBe` generalDoc (ref "oneoneoneone") [oneoneoneoneDef, unitDef]
 
+    it "listByte" $
+      generate listByte
+        `shouldBe` generalDoc (ref "ListByte") [listByteDef, unitDef, byteDef, bitDef]
+
     it "void or unit" $
       generate voidOrUnit
         `shouldBe` generalDoc (ref "VoidOrUnit") [voidOrUnitDef, voidDef, unitDef]
+
+    it "listBitOrByte" $
+      generate listBitOrByte
+        `shouldBe` generalDoc (ref "listBitOrByte") (listBitOrByteDef ++ [unitDef, bitDef, byteDef])
+
+--    it "nested Mu 3: Maybe2(Mu)" $
+--      generate nestedMu3
+--        `shouldBe` ?huh
+--
+--    it "nested mu 5: AnonList(Mu)" $ 
+--      generate nestedMu5
+--        `shouldBe` ?halp
