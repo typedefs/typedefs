@@ -45,6 +45,7 @@ mutual
   makeSubSchema (TProd ts)  = productSubSchema (nary "proj") ts
   makeSubSchema (TMu cs)    = let cases = map (map (flattenMus (nameMu cs))) cs
                                in disjointSubSchema cases
+  makeSubSchema (TApp f []) = defRef . name $ f
   makeSubSchema (TApp f xs) = defRef . name $ f `apN` xs
   
   ||| Generate a schema that matches exactly one of the supplied schemas, which must be wrapped in its corresponding name.
@@ -88,6 +89,7 @@ mutual
   makeDefs    (TSum ts)   = concat <$> traverse (assert_total makeDefs) ts
   makeDefs    (TProd ts)  = concat <$> traverse (assert_total makeDefs) ts
   makeDefs td@(TMu cases) = makeDefs' (TName (nameMu cases) td)
+  makeDefs    (TApp f []) = makeDefs' f
   makeDefs    (TApp f xs) = makeDefs' (f `apN` xs)
 
   makeDefs' : TNamed 0 -> State (List Name) (List JSONDef)
