@@ -7,6 +7,7 @@ import Typedefs
 import Types
 
 import Data.Vect
+import Data.Vect.Quantifiers
 
 %default total
 %access public export
