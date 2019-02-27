@@ -79,20 +79,19 @@ private
 rmlParam : Decl -> RMLType
 rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 
-mutual
-  ||| Generate a ReasonML type from a `TDef`.
-  makeType : Env n -> TDef n -> RMLType
-  makeType _ T0             = RMLParam "void" []
-  makeType _ T1             = RMLUnit
-  makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-  makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
-  makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
-  makeType e td@(TMu cases) = RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
-  makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
+||| Generate a ReasonML type from a `TDef`.
+makeType : Env n -> TDef n -> RMLType
+makeType _ T0             = RMLParam "void" []
+makeType _ T1             = RMLUnit
+makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
+makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
+makeType e td@(TMu cases) = RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
+makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
 
-  ||| Generate a ReasonML type from a `TNamed`.
-  makeType' : Env n -> TNamed n -> RMLType
-  makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ getUsedVars e body
+||| Generate a ReasonML type from a `TNamed`.
+makeType' : Env n -> TNamed n -> RMLType
+makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ getUsedVars e body
 
 mutual
   ||| Generate all the ReasonML type definitions that a `TDef` depends on.

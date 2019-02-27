@@ -90,22 +90,21 @@ shiftVars (TVar v)       = TVar $ shift 1 v
 shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
 
-mutual
-  ||| Substitute all variables in a `TDef` with a vector of arguments.
-  ap : TDef n -> Vect n (TDef m) -> TDef m
-  ap T0             _    = T0
-  ap T1             _    = T1
-  ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
-  ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
-  ap (TVar v)       args = index v args
-  ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-  ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
+||| Substitute all variables in a `TDef` with a vector of arguments.
+ap : TDef n -> Vect n (TDef m) -> TDef m
+ap T0             _    = T0
+ap T1             _    = T1
+ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
+ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
+ap (TVar v)       args = index v args
+ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
 
-  ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
-  apN : TNamed n -> Vect n (TDef 0) -> TNamed 0 
-  apN (TName n body) ts = TName
-                              (n ++ parens (concat . intersperse "," . map makeName $ ts)) -- TODO getUsedVars
-                              (body `ap` ts)
+||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
+apN : TNamed n -> Vect n (TDef 0) -> TNamed 0
+apN (TName n body) ts = TName
+                            (n ++ parens (concat . intersperse "," . map makeName $ ts)) -- TODO getUsedVars
+                            (body `ap` ts)
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -179,12 +178,12 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
-  ||| Increase the type index representing the number of variables accessible
-  ||| to a `TNamed`, without actually changing the variables that are used by it.
-  |||
-  ||| @m The new amount of variables.
-  weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
-  weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
+||| Increase the type index representing the number of variables accessible
+||| to a `TNamed`, without actually changing the variables that are used by it.
+|||
+||| @m The new amount of variables.
+weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
+weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
 
 -------- printing -------
 
