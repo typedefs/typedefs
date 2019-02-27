@@ -93,15 +93,43 @@ listByteDef = dquotes "ListByte" |+| colon |++| taggedSumDef [ ("NilC", unitRef)
 voidOrUnitDef : Doc
 voidOrUnitDef = dquotes "VoidOrUnit" |+| colon |++| sumDef [ref "emptyType", unitRef]
 
-listBitOrByteDef : List Doc
-listBitOrByteDef = [ dquotes "listBitOrByte" |+| colon |++| ref "listAlphaOrBeta(Bit,Byte)"
-                   , appliedParametric ]
+listBitOrByteDefs : List Doc
+listBitOrByteDefs = [ dquotes "listBitOrByte" |+| colon |++| ref "listAlphaOrBeta(Bit,Byte)"
+                    , appliedParametric
+                    , unitDef
+                    , bitDef
+                    , byteDef
+                    ]
   where
   appliedParametric = dquotes "listAlphaOrBeta(Bit,Byte)" |+| colon
                |++| taggedSumDef [ ("Nil", unitRef)
                                  , ("Cons", prodDef [ sumDef [ ref "Bit"
                                                              , ref "Byte"]
                                                     , ref "listAlphaOrBeta(Bit,Byte)"]) ]
+
+nestedMu3Defs : List Doc
+nestedMu3Defs = [ dquotes "nestedMu3" |+| colon
+                  |++| taggedSumDef [("Foobar", ref "Maybe2(nestedMu3)")]
+                , appliedMaybe2
+                , unitDef
+                ]
+  where
+  appliedMaybe2 : Doc
+  appliedMaybe2 = dquotes "Maybe2(nestedMu3)" |+| colon
+                  |++| taggedSumDef [ ("Nothing", unitRef)
+                                    , ("Just", ref "nestedMu3") ]
+
+nestedMu5Defs : List Doc
+nestedMu5Defs = [ dquotes "nestedMu5" |+| colon
+                  |++| taggedSumDef [("Foobar", ref "NilCons")]
+                , appliedNilCons
+                , unitDef
+                ]
+  where
+  appliedNilCons : Doc
+  appliedNilCons = dquotes "NilCons" |+| colon
+            |++| taggedSumDef [ ("Nil", unitRef)
+                              , ("Cons", prodDef [ref "nestedMu5", ref "NilCons"]) ]
 
 generalDoc : Doc -> List Doc -> Doc
 generalDoc top defs = subthing braces
@@ -149,12 +177,12 @@ testSuite = spec $ do
 
     it "listBitOrByte" $
       generate listBitOrByte
-        `shouldBe` generalDoc (ref "listBitOrByte") (listBitOrByteDef ++ [unitDef, bitDef, byteDef])
+        `shouldBe` generalDoc (ref "listBitOrByte") listBitOrByteDefs
 
---    it "nested Mu 3: Maybe2(Mu)" $
---      generate nestedMu3
---        `shouldBe` ?huh
---
---    it "nested mu 5: AnonList(Mu)" $ 
---      generate nestedMu5
---        `shouldBe` ?halp
+    it "nested Mu 3: Maybe2(Mu)" $
+      generate nestedMu3
+        `shouldBe` generalDoc (ref "nestedMu3") nestedMu3Defs
+
+    it "nested mu 5: AnonList(Mu)" $ 
+      generate nestedMu5
+        `shouldBe` generalDoc (ref "nestedMu5") nestedMu5Defs

@@ -33,24 +33,6 @@ getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
-||| Get a list of the de Brujin indices that are actually used in a `TDef`.
-getUsedIndices : TDef n -> List (Fin n)
-getUsedIndices T0         = []
-getUsedIndices T1         = []
-getUsedIndices (TSum xs)  = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TProd xs) = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TVar i)   = [i]
-getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
-  where weedOutZero : Fin (S n) -> List (Fin n)
-        weedOutZero FZ     = []
-        weedOutZero (FS i) = [i]
-getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
-                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
-
-||| Filter out the entries in an `Env` that is referred to by a `TDef`.
-getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
-getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
-
 ||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
 ifNotPresent : Eq name => name -> State (List name) (List def) -> State (List name) (List def)
 ifNotPresent n gen = do

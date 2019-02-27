@@ -35,8 +35,9 @@ mutual
   makeSubSchema  T1         = defRef "singletonType"
   makeSubSchema (TSum ts)   = disjointSubSchema (zip (nary "case") ts)
   makeSubSchema (TProd ts)  = productSubSchema (nary "proj") ts
-  makeSubSchema (TMu cs)    = let cases = map (map (flattenMus (nameMu cs))) cs
-                               in disjointSubSchema cases
+  makeSubSchema (TMu cs)    = defRef (nameMu cs)
+  --let cases = map (map (flattenMus (nameMu cs))) cs
+                              -- in disjointSubSchema cases
   makeSubSchema (TApp f []) = defRef . name $ f
   makeSubSchema (TApp f xs) = defRef . name $ f `apN` xs
   
@@ -44,7 +45,17 @@ mutual
   disjointSubSchema : Vect k (Name, TDef 0) -> JSON
   disjointSubSchema cases = JObject [("oneOf", JArray . toList $ map makeCase cases)]
     where
+    isMu : TDef n -> Bool
+    isMu (TMu _) = True
+    isMu _       = False
+
     makeCase : (Name, TDef 0) -> JSON
+    --makeCase (name, TMu cases) = JObject
+    --  [ ("type", JString "object")
+    --  , ("required", JArray [JString name])
+    --  , ("additionalProperties", JBoolean False)
+    --  , ("properties", JObject [(name, makeSubSchema' $ TName (nameMu cases) (TMu cases))])
+    --  ]
     makeCase (name, td) = JObject
       [ ("type", JString "object")
       , ("required", JArray [JString name])
@@ -97,6 +108,13 @@ mutual
 
 ||| Takes a schema and a list of helper definitions and puts them together into a top-level schema. 
 makeSchema : JSON -> List JSONDef -> JSON
+makeSchema schema [] = JObject
+                  [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
+                  , ("type", JString "object")
+                  , ("required", JArray [JString "value"])
+                  , ("additionalProperties", JBoolean False)
+                  , ("properties", JObject [ ("value", schema) ])
+                  ]
 makeSchema schema defs = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
                   , ("type", JString "object")
