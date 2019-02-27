@@ -3,7 +3,7 @@ module Typedefs
 import Data.Fin
 import Data.Vect
 
-import Types
+import Names
 
 %default total
 %access public export
@@ -13,25 +13,25 @@ mutual
   ||| @n The number of type variables in the type
   data TDef : (n:Nat) -> Type where
     ||| The empty type
-    T0    :                                      TDef n
+    T0    :                                          TDef n
 
     ||| The unit type
-    T1    :                                      TDef n
+    T1    :                                          TDef n
 
     ||| The coproduct type
-    TSum  :         Vect (2 + k) (TDef n)     -> TDef n
+    TSum  :             Vect (2 + k) (TDef n)     -> TDef n
 
     ||| The product type
-    TProd :         Vect (2 + k) (TDef n)     -> TDef n
+    TProd :             Vect (2 + k) (TDef n)     -> TDef n
 
     ||| A type variable
     ||| @i De Bruijn index
-    TVar  :         (i:Fin (S n))             -> TDef (S n)
+    TVar  :             (i:Fin (S n))             -> TDef (S n)
 
     ||| Mu
-    TMu   :         Vect k (Name, TDef (S n)) -> TDef n
+    TMu   :             Vect k (Name, TDef (S n)) -> TDef n
 
-    TApp  : TNamed k -> Vect k (TDef n)       -> TDef n
+    TApp  : TNamed k -> Vect k (TDef n)           -> TDef n
 
   data TNamed : (n : Nat) -> Type where
     TName : Name -> TDef n -> TNamed n
@@ -82,22 +82,22 @@ makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_
 ||| Add 1 to all de Bruijn-indices in a `TDef`.
 ||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
 shiftVars : TDef n -> TDef (S n)
-shiftVars T0             = T0
-shiftVars T1             = T1
-shiftVars (TSum ts)      = assert_total $ TSum $ map shiftVars ts
-shiftVars (TProd ts)     = assert_total $ TProd $ map shiftVars ts
-shiftVars (TVar v)       = TVar $ shift 1 v
-shiftVars (TMu cs)       = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs)    = assert_total $ TApp f $ map shiftVars xs 
+shiftVars T0          = T0
+shiftVars T1          = T1
+shiftVars (TSum ts)   = assert_total $ TSum $ map shiftVars ts
+shiftVars (TProd ts)  = assert_total $ TProd $ map shiftVars ts
+shiftVars (TVar v)    = TVar $ shift 1 v
+shiftVars (TMu cs)    = assert_total $ TMu $ map (map shiftVars) cs
+shiftVars (TApp f xs) = assert_total $ TApp f $ map shiftVars xs 
 
 ||| Get a list of the de Brujin indices that are actually used in a `TDef`.
 getUsedIndices : TDef n -> List (Fin n)
-getUsedIndices T0         = []
-getUsedIndices T1         = []
-getUsedIndices (TSum xs)  = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TProd xs) = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TVar i)   = [i]
-getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
+getUsedIndices T0          = []
+getUsedIndices T1          = []
+getUsedIndices (TSum xs)   = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TProd xs)  = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TVar i)    = [i]
+getUsedIndices (TMu xs)    = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
   where weedOutZero : Fin (S n) -> List (Fin n)
         weedOutZero FZ     = []
         weedOutZero (FS i) = [i]
@@ -110,13 +110,13 @@ getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
 ||| Substitute all variables in a `TDef` with a vector of arguments.
 ap : TDef n -> Vect n (TDef m) -> TDef m
-ap T0             _    = T0
-ap T1             _    = T1
-ap (TSum ts)      args = assert_total $ TSum $ map (flip ap args) ts
-ap (TProd ts)     args = assert_total $ TProd $ map (flip ap args) ts
-ap (TVar v)       args = index v args
-ap (TMu cs)       args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
+ap T0          _    = T0
+ap T1          _    = T1
+ap (TSum ts)   args = assert_total $ TSum $ map (flip ap args) ts
+ap (TProd ts)  args = assert_total $ TProd $ map (flip ap args) ts
+ap (TVar v)    args = index v args
+ap (TMu cs)    args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+ap (TApp f xs) args = assert_total $ def f `ap` (map (flip ap args) xs)
 
 ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
 apN : TNamed n -> Vect n (TDef 0) -> TNamed 0

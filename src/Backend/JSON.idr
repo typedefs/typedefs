@@ -1,6 +1,6 @@
 module Backend.JSON
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -36,8 +36,6 @@ mutual
   makeSubSchema (TSum ts)   = disjointSubSchema (zip (nary "case") ts)
   makeSubSchema (TProd ts)  = productSubSchema (nary "proj") ts
   makeSubSchema (TMu cs)    = defRef (nameMu cs)
-  --let cases = map (map (flattenMus (nameMu cs))) cs
-                              -- in disjointSubSchema cases
   makeSubSchema (TApp f []) = defRef . name $ f
   makeSubSchema (TApp f xs) = defRef . name $ f `apN` xs
   
@@ -50,12 +48,6 @@ mutual
     isMu _       = False
 
     makeCase : (Name, TDef 0) -> JSON
-    --makeCase (name, TMu cases) = JObject
-    --  [ ("type", JString "object")
-    --  , ("required", JArray [JString name])
-    --  , ("additionalProperties", JBoolean False)
-    --  , ("properties", JObject [(name, makeSubSchema' $ TName (nameMu cases) (TMu cases))])
-    --  ]
     makeCase (name, td) = JObject
       [ ("type", JString "object")
       , ("required", JArray [JString name])
@@ -102,7 +94,7 @@ mutual
         let cases = map (map (flattenMus name)) cs
         res <- concat <$> traverse {b=List JSONDef} (assert_total $ makeDefs . snd) cases
         pure $ (name, disjointSubSchema cases) :: res
-      _         => do -- All other named types are treated as synonyms.
+      _ => do -- All other named types are treated as synonyms.
         res <- assert_total $ makeDefs body
         pure $ (name, makeSubSchema body) :: res
 
@@ -129,7 +121,7 @@ generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
 
 ASTGen JSONDef JSON 0 where
-  msgType tn = makeSubSchema' tn
+  msgType           = makeSubSchema'
   generateTyDefs tn = evalState (makeDefs' tn) []
 
 CodegenInterdep JSONDef JSON where

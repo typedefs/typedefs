@@ -11,4 +11,4 @@ main = do
   putStrLn $ "parsed typedef: "
   putStrLn $ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => show $ DPair.snd tp) tpm
   putStrLn $ ""
-  putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => print . generate Haskell $ DPair.snd tp) tpm
+  putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => print . generateDefs Haskell $ DPair.snd tp) tpm

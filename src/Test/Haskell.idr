@@ -1,6 +1,6 @@
 module Test.Haskell
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -17,6 +17,7 @@ import Test
 
 generate : TNamed n -> Doc
 generate = generateDefs Haskell
+
 {-
 boolForBit : SpecialiseEntry
 boolForBit = MkSpecialiseEntry (def bit) "Bool"
@@ -34,6 +35,7 @@ intForNat = MkSpecialiseEntry (def nat) "Int"
 generateSpecialised : Vect (S m) SpecialiseEntry -> TNamed n -> Doc
 generateSpecialised se (TName nm td) = vsep2 $ map generateCode $ generateDefsSpecialised {lang=Haskell} se _ td
 -}
+
 x0 : Doc
 x0 = text "x0"
 

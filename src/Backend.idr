@@ -2,7 +2,7 @@ module Backend
 
 import Data.Vect
 
-import Types
+import Names
 import Typedefs
 import Backend.Utils
 
@@ -18,7 +18,7 @@ import Text.PrettyPrint.WL
 ||| @n    the number of variables the interpretor supports in a type definition. (Should always be either `n` or `0`.)
 interface ASTGen def type (n : Nat) | def where
   ||| Given a `TDef`, generate its corresponding type signature.
-  msgType  : TNamed n -> type
+  msgType        : TNamed n -> type
 
   ||| Generate definitions for a `TNamed` and all its helper definitions.
   generateTyDefs : TNamed n -> List def
@@ -32,7 +32,7 @@ interface CodegenIndep def type | def where
   typeSource : type -> Doc
 
   ||| Generate source code for a type definition.
-  defSource : def -> Doc
+  defSource  : def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
 generateDefs : (def: Type) -> ASTGen def type n => CodegenIndep def type => TNamed n -> Doc

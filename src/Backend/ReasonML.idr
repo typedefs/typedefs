@@ -1,6 +1,6 @@
 module Backend.ReasonML
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -20,7 +20,7 @@ data RMLType : Type where
   RMLUnit  :                                  RMLType
 
   ||| The tuple type, containing two or more further types.
-  RMLTuple  :         Vect (2 + k) RMLType -> RMLType
+  RMLTuple  :        Vect (2 + k) RMLType -> RMLType
 
   ||| A type variable.
   RMLVar   :         Name                  -> RMLType
@@ -81,13 +81,13 @@ rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 
 ||| Generate a ReasonML type from a `TDef`.
 makeType : Env n -> TDef n -> RMLType
-makeType _ T0             = RMLParam "void" []
-makeType _ T1             = RMLUnit
-makeType e (TSum xs)      = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType e (TProd xs)     = RMLTuple . map (assert_total $ makeType e) $ xs
-makeType e (TVar v)       = either RMLVar rmlParam $ Vect.index v e
+makeType _    T0          = RMLParam "void" []
+makeType _    T1          = RMLUnit
+makeType e    (TSum xs)   = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+makeType e    (TProd xs)  = RMLTuple . map (assert_total $ makeType e) $ xs
+makeType e    (TVar v)    = either RMLVar rmlParam $ Vect.index v e
 makeType e td@(TMu cases) = RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
-makeType e (TApp f xs)    = RMLParam (name f) (map (assert_total $ makeType e) xs)
+makeType e    (TApp f xs) = RMLParam (name f) (map (assert_total $ makeType e) xs)
 
 ||| Generate a ReasonML type from a `TNamed`.
 makeType' : Env n -> TNamed n -> RMLType
@@ -96,13 +96,13 @@ makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ g
 mutual
   ||| Generate all the ReasonML type definitions that a `TDef` depends on.
   makeDefs : TDef n -> State (List Name) (List ReasonML)
-  makeDefs T0 = assert_total $ makeDefs' voidDef
+  makeDefs T0             = assert_total $ makeDefs' voidDef
     where
     voidDef : TNamed 0
     voidDef = TName "void" $ TMu []
-  makeDefs T1            = pure []
-  makeDefs (TProd xs)    = map concat $ traverse (assert_total makeDefs) xs
-  makeDefs (TSum xs)     = do
+  makeDefs T1             = pure []
+  makeDefs (TProd xs)     = map concat $ traverse (assert_total makeDefs) xs
+  makeDefs (TSum xs)      = do
       res <- map concat $ traverse (assert_total makeDefs) xs
       map (++ res) (assert_total $ makeDefs' eitherDef)
     where

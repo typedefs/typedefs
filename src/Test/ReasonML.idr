@@ -1,6 +1,6 @@
 module Test.ReasonML
 
-import Types
+import Names
 import Typedefs
 
 import Backend

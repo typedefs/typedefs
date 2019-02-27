@@ -4,7 +4,7 @@ import TParsec
 import TParsec.Running
 
 import Typedefs
-import Types
+import Names
 
 import Data.Vect
 

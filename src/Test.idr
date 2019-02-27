@@ -3,7 +3,7 @@ module Test
 import Data.Vect 
 
 import Typedefs
-import Types
+import Names
 import Backend.Utils
 
 import Specdris.Spec

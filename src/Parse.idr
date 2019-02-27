@@ -8,7 +8,7 @@ import TParsec.Running
 import Data.NEList
 
 import Typedefs
-import Types
+import Names
 
 import Data.Vect
 

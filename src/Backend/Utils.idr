@@ -1,7 +1,7 @@
 module Backend.Utils
 
 import Typedefs
-import Types
+import Names
 
 import Control.Monad.State
 import Data.Vect
@@ -61,7 +61,7 @@ nameMu = concatMap (uppercase . fst)
 ||| "Flatten" all `TVar` references to `TMu`s into `TName`s named after the corresponding `TMu`, referencing `T0`s.
 ||| This is strictly meant to remove any `TVar`s from an AST.
 ||| The variable in the argument `TDef 1` is expected to reference the supplied name.
-flattenMus : Name -> TDef 1 -> TDef 0
+flattenMus : Name -> TDef 1 -> TDef 0 -- TODO this should take a proof that all variables refer to a TMu.
 flattenMus muName = flattenMu [muName]
   where
   mutual

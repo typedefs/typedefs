@@ -1,6 +1,6 @@
 module Test.JSON
 
-import Types
+import Names
 import Typedefs
 
 import Backend

@@ -1,6 +1,6 @@
 module Backend.Haskell
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -130,8 +130,8 @@ mutual
           pure $ Synonym decl (makeType freshEnv body) :: res
 
 ASTGen Haskell HsType n where
-  msgType          = makeType' freshEnv
-  generateTyDefs tn      = reverse $ evalState (makeDefs' tn) []
+  msgType           = makeType' freshEnv
+  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
 
 CodegenIndep Haskell HsType where
   typeSource = renderType

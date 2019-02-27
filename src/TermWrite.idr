@@ -1,7 +1,7 @@
 module TermWrite
 
 import Typedefs
-import Types
+import Names
 
 import Data.Vect
 
