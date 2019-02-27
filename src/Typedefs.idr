@@ -121,7 +121,7 @@ ap (TApp f xs)    args = assert_total $ def f `ap` (map (flip ap args) xs)
 ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
 apN : TNamed n -> Vect n (TDef 0) -> TNamed 0
 apN (TName n body) ts = TName
-                            (n ++ parens (concat . intersperse "," . map makeName $ getUsedVars ts body)) -- TODO getUsedVars
+                            (n ++ parens (concat . intersperse "," . map makeName $ getUsedVars ts body))
                             (body `ap` ts)
 
 mutual

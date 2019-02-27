@@ -74,6 +74,15 @@ testSuite = spec $ do
       `tnamedShouldParseAs`
         "Just (0 ** (listmnat := (mu [nil: 1, cons: (mnat * {0})])))"
 
+    """
+    (name either (+ (var 0) (var 1)))
+    (name bit (+ 1 1))
+    (name nibble (* bit bit bit bit))
+    (name bitOrNibble (either bit nibble))
+    """ 
+      `tnamedShouldParseAs`
+        "Just (0 ** (bitOrNibble := (either bit nibble)))"
+
   describe "Parser tests: ill-formed definitions" $ do
     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
       `tnamedShouldParseAs`
