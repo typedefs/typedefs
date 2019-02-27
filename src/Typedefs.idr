@@ -31,8 +31,11 @@ mutual
     ||| Mu
     TMu   :             Vect k (Name, TDef (S n)) -> TDef n
 
+    ||| Application of a named type to a vector of arguments.
     TApp  : TNamed k -> Vect k (TDef n)           -> TDef n
 
+  ||| Named type definition.
+  ||| @n The number of type variables in the type.
   data TNamed : (n : Nat) -> Type where
     TName : Name -> TDef n -> TNamed n
 
