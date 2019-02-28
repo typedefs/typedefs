@@ -64,20 +64,14 @@ nameMu = concatMap (uppercase . fst)
 flattenMus : Name -> TDef 1 -> TDef 0 -- TODO this should take a proof that all variables refer to a TMu.
 flattenMus muName = flattenMu [muName]
   where
-  mutual
-    -- DO NOT simply lift this function out to the top-level.
-    -- Its behavior is dependent on the type of `makeDefs'`.
-    -- (Specifically: all TVars must refer to a TMu, not to any free variables.)
-    flattenMu : Vect (S n) Name -> TDef (S n) -> TDef n
-    flattenMu names (TVar v)    = wrap $ TName (index v names) T0
-    flattenMu _     T0          = T0
-    flattenMu _     T1          = T1
-    flattenMu names (TSum ts)   = assert_total $ TSum $ map (flattenMu names) ts
-    flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
-    flattenMu names td@(TMu cs) = def $ flattenMu' names $ TName (nameMu cs) td
-    flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
-
-    flattenMu' : Vect (S n) Name -> TNamed (S n) -> TNamed n
-    flattenMu' names (TName name body) = case body of
-     TMu cases => assert_total $ TName name $ TMu $ map (map (flattenMu (name :: names))) cases
-     _         => assert_total $ TName name $ flattenMu names body 
+  -- DO NOT simply lift this function out to the top-level.
+  -- Its behavior is dependent on the type of `makeDefs'`.
+  -- (Specifically: all TVars must refer to a TMu, not to any free variables.)
+  flattenMu : Vect (S n) Name -> TDef (S n) -> TDef n
+  flattenMu names (TVar v)    = wrap $ TName (index v names) T0
+  flattenMu _     T0          = T0
+  flattenMu _     T1          = T1
+  flattenMu names (TSum ts)   = assert_total $ TSum $ map (flattenMu names) ts
+  flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
+  flattenMu names (TMu cs)    = assert_total $ TMu $ map (map (flattenMu ((nameMu cs) :: names))) cs
+  flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
