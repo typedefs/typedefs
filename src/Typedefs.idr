@@ -76,7 +76,7 @@ square s = "[" ++ s ++ "]"
 ||| Generate the canonical name of a closed type.
 makeName : TDef 0 -> Name
 makeName T0          = "void"
-makeName T1          = "singletonType"
+makeName T1          = "unit"
 makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
 makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
 makeName (TMu cases) = concatMap fst cases
