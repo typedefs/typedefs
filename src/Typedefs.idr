@@ -40,40 +40,107 @@ mutual
   data TNamed : (n : Nat) -> Type where
     TName : Name -> TDef n -> TNamed n
 
-||| Proof that all variable indices in a `TDef` are less than `max`.
-data VarsLT : (max : Nat) -> (TDef n) -> Type where
-  T0Max    :                                                        VarsLT max T0
-  T1Max    :                                                        VarsLT max T1
-  TSumMax  : All (VarsLT max) ts                                 -> VarsLT max (TSum ts)
-  TProdMax : All (VarsLT max) ts                                 -> VarsLT max (TProd ts)
-  TVarMax  : LTE (S (finToNat i)) max                            -> VarsLT max (TVar i)
-  TMuMax   : All (VarsLT (S max)) (map Prelude.Basics.snd cases) -> VarsLT max (TMu cases)
-  TAppMax  : All (VarsLT max) xs                                 -> VarsLT max (TApp f xs)
+||| Proof that all variable indices in a `TDef` are less than the `bound`.
+data VarsLT : (bound : Nat) -> TDef n -> Type where
+  T0Max    :                                                       VarsLT bound T0
+  T1Max    :                                                       VarsLT bound T1
+  TSumMax  : All (VarsLT bound) ts                              -> VarsLT bound (TSum ts)
+  TProdMax : All (VarsLT bound) ts                              -> VarsLT bound (TProd ts)
+  TVarMax  : LT (finToNat i) bound                              -> VarsLT bound (TVar i)
+  TMuMax   : All (VarsLT (S bound)) (map Prelude.Basics.snd cs) -> VarsLT bound (TMu cs)
+  TAppMax  : All (VarsLT bound) xs                              -> VarsLT bound (TApp f xs)
+
+mutual
+  ||| Weaken the upper bound of a `VarsLT` proof.
+  weakenVarsLT : LTE n m -> VarsLT n td -> VarsLT m td
+  weakenVarsLT _ T0Max           = T0Max
+  weakenVarsLT _ T1Max           = T1Max
+  weakenVarsLT p (TSumMax prfs)  = TSumMax  (weakenVarsLTs p           prfs)
+  weakenVarsLT p (TProdMax prfs) = TProdMax (weakenVarsLTs p           prfs)
+  weakenVarsLT p (TVarMax prf)   = TVarMax  (lteTransitive prf         p)
+  weakenVarsLT p (TMuMax prfs)   = TMuMax   (weakenVarsLTs (LTESucc p) prfs)
+  weakenVarsLT p (TAppMax prfs)  = TAppMax  (weakenVarsLTs p           prfs)
+
+  ||| Weaken the upper bound of a list of `VarsLT` proof.
+  weakenVarsLTs : LTE n m -> All (VarsLT n) ts -> All (VarsLT m) ts
+  weakenVarsLTs _ Nil         = Nil
+  weakenVarsLTs p (prf::prfs) = weakenVarsLT p prf :: weakenVarsLTs p prfs
+
+mutual
+  ||| Generate a `VarsLT` proof with a tight bound.
+  tightMaxVar : (td : TDef n) -> (m ** VarsLT m td)
+  tightMaxVar T0          = (0 ** T0Max)
+  tightMaxVar T1          = (0 ** T1Max)
+  tightMaxVar (TSum ts)   = let maxes = tightMaxVars ts 
+                             in (fst maxes ** TSumMax (snd maxes))
+  tightMaxVar (TProd ts)  = let maxes = tightMaxVars ts 
+                             in (fst maxes ** TProdMax (snd maxes))
+  tightMaxVar (TVar i)    = (S (finToNat i) ** TVarMax lteRefl)
+  tightMaxVar (TMu cs)    = ?tightTMuVars
+  tightMaxVar (TApp f xs) = let maxes = tightMaxVars xs
+                             in (fst maxes ** TAppMax (snd maxes))
+
+  ||| Generate a list of `VarsLT` proofs, with the bound as tight as the loosest element of the input. 
+  tightMaxVars : (ts : Vect k (TDef n)) -> (m ** All (VarsLT m) ts)
+  tightMaxVars [] = (0 ** Nil)
+  tightMaxVars (t::ts) = let (tMax ** tPrf) = tightMaxVar t
+                             (tsMax ** tsPrfs) = tightMaxVars ts
+                          in case cmp tMax tsMax of
+                              CmpLT y => (tMax + S y ** (weakenVarsLT (lteAddRight tMax) tPrf :: tsPrfs))
+                              CmpEQ   => (tMax ** (tPrf :: tsPrfs))
+                              CmpGT x => (tsMax + S x ** (tPrf :: weakenVarsLTs (lteAddRight tsMax) tsPrfs))
+
+||| A `Nat` can always be turned into a `Fin` if it is less than the bound.
+natToFinTotal : {n : Nat} -> LT n m -> Fin m
+natToFinTotal {n=Z}   (LTESucc _) = FZ
+natToFinTotal {n=S n} (LTESucc p) = FS (natToFinTotal {n} p)
+
+mutual
+  ||| Given a proof that the number of free variables in `td` is less than the `bound`,
+  ||| re-index this `TDef` using `bound`. 
+  tightenTDef : VarsLT bound td -> TDef bound
+  tightenTDef               T0Max           = T0
+  tightenTDef               T1Max           = T1
+  tightenTDef               (TSumMax prfs)  = TSum   (tightenTDefs  prfs)
+  tightenTDef               (TProdMax prfs) = TProd  (tightenTDefs  prfs)
+  tightenTDef {bound=S _}   (TVarMax prf)   = TVar   (natToFinTotal prf)
+  tightenTDef               (TMuMax prfs)   = TMu    (tightenNTDefs prfs)
+  tightenTDef {td=TApp f _} (TAppMax prfs)  = TApp f (tightenTDefs  prfs)
+
+  ||| Given proofs that the number of free variables in the elements of `ts` is less than the `bound`,
+  ||| re-index these `TDef`s using `bound`.
+  tightenTDefs : {ts : Vect k (TDef n)} -> All (VarsLT bound) ts -> Vect k (TDef bound)
+  tightenTDefs Nil = []
+  tightenTDefs (prf::prfs) = tightenTDef prf :: tightenTDefs prfs
+
+  tightenNTDefs : {cs : Vect k (Name, TDef n)} -> All (VarsLT bound) (map Prelude.Basics.snd cs) -> Vect k (Name, TDef bound)
+  tightenNTDefs {cs=[]}       Nil         = []
+  tightenNTDefs {cs=(n,_)::_} (prf::prfs) = (n,tightenTDef prf) :: tightenNTDefs prfs 
+
+||| Decision procedure for determining whether all variable indices in a `TDef`
+||| are strictly less than some bound.
+decMaxVar : (bound : Nat) -> (td : TDef n) -> Dec (VarsLT bound td)
+decMaxVar _     T0          = Yes T0Max
+decMaxVar _     T1          = Yes T1Max
+decMaxVar bound (TSum ts)   = case all (decMaxVar bound) ts of
+                                Yes prfs   => Yes    (TSumMax prfs)
+                                No  contra => No  $ \(TSumMax prfs)  => contra prfs
+decMaxVar bound (TProd ts)  = case all (decMaxVar bound) ts of
+                                Yes prfs   => Yes    (TProdMax prfs)
+                                No  contra => No  $ \(TProdMax prfs) => contra prfs
+decMaxVar bound (TVar i)    = case isLTE (S (finToNat i)) bound of
+                                Yes prf    => Yes    (TVarMax prf)
+                                No  contra => No  $ \(TVarMax prf)   => contra prf
+decMaxVar bound (TMu cases) = case all (decMaxVar (S bound)) (map snd cases) of
+                                Yes prfs   => Yes    (TMuMax prfs)
+                                No  contra => No  $ \(TMuMax prfs)   => contra prfs
+decMaxVar bound (TApp _ xs) = case all (decMaxVar bound) xs of
+                                Yes prfs   => Yes    (TAppMax prfs)
+                                No  contra => No  $ \(TAppMax prfs)  => contra prfs
 
 ||| Proof that a `TDef` does not contain any free variables.
 NoFreeVars : TDef n -> Type
 NoFreeVars = VarsLT 0
-
-||| Decision procedure for determining whether all variable indices in a `TDef`
-||| are strictly less than some bound.
-decMaxVar : (max : Nat) -> (td : TDef n) -> Dec (VarsLT max td)
-decMaxVar _   T0          = Yes T0Max
-decMaxVar _   T1          = Yes T1Max
-decMaxVar max (TSum ts)   = case all (decMaxVar max) ts of
-                              Yes prfs   => Yes $   TSumMax prfs
-                              No  contra => No  $ \(TSumMax prfs)  => contra prfs
-decMaxVar max (TProd ts)  = case all (decMaxVar max) ts of
-                              Yes prfs   => Yes $   TProdMax prfs
-                              No  contra => No  $ \(TProdMax prfs) => contra prfs
-decMaxVar max (TVar i)    = case isLTE (S (finToNat i)) max of
-                              Yes prf    => Yes $   TVarMax prf
-                              No  contra => No  $ \(TVarMax prf)   => contra prf
-decMaxVar max (TMu cases) = case all (decMaxVar (S max)) (map snd cases) of
-                              Yes prfs   => Yes $   TMuMax prfs
-                              No  contra => No  $ \(TMuMax prfs)   => contra prfs
-decMaxVar max (TApp _ xs) = case all (decMaxVar max) xs of
-                              Yes prfs   => Yes $   TAppMax prfs
-                              No  contra => No  $ \(TAppMax prfs)  => contra prfs
 
 ||| Get the name of a `TNamed`.
 name : TNamed n -> Name
