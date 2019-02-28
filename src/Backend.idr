@@ -24,7 +24,7 @@ interface ASTGen def type (n : Nat) | def where
   generateTyDefs : TNamed n -> List def
 
 ||| Interface for code generators that can generate code for type definitions and
-||| type signatures independently of each other.
+||| type signatures independently of each other, for example Haskell and ReasonML.
 ||| @def  the type representing type definitions.
 ||| @type the type representing type signatures.
 interface CodegenIndep def type | def where
@@ -43,7 +43,7 @@ generateType : (def: Type) -> ASTGen def type n => CodegenIndep def type => TNam
 generateType def tn = typeSource {def} (msgType {def} tn)
 
 ||| Interface for code generators that need to generate code for type definitions and
-||| type signatures at the same time.
+||| type signatures at the same time, for example the JSON schema backend.
 ||| @def  the type representing type definitions.
 ||| @type the type representing type signatures.
 interface CodegenInterdep def type where
