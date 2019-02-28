@@ -93,7 +93,7 @@ shiftVars (TVar v)    = TVar $ shift 1 v
 shiftVars (TMu cs)    = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs) = assert_total $ TApp f $ map shiftVars xs 
 
-||| Get a list of the de Brujin indices that are actually used in a `TDef`.
+||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
 getUsedIndices : TDef n -> List (Fin n)
 getUsedIndices T0          = []
 getUsedIndices T1          = []
