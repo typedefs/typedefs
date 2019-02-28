@@ -2,6 +2,7 @@ module Typedefs
 
 import Data.Fin
 import Data.Vect
+import Data.Vect.Quantifiers
 
 import Names
 
@@ -38,6 +39,41 @@ mutual
   ||| @n The number of type variables in the type.
   data TNamed : (n : Nat) -> Type where
     TName : Name -> TDef n -> TNamed n
+
+||| Proof that all variable indices in a `TDef` are less than `max`.
+data VarsLT : (max : Nat) -> (TDef n) -> Type where
+  T0Max    :                                                        VarsLT max T0
+  T1Max    :                                                        VarsLT max T1
+  TSumMax  : All (VarsLT max) ts                                 -> VarsLT max (TSum ts)
+  TProdMax : All (VarsLT max) ts                                 -> VarsLT max (TProd ts)
+  TVarMax  : LTE (S (finToNat i)) max                            -> VarsLT max (TVar i)
+  TMuMax   : All (VarsLT (S max)) (map Prelude.Basics.snd cases) -> VarsLT max (TMu cases)
+  TAppMax  : All (VarsLT max) xs                                 -> VarsLT max (TApp f xs)
+
+||| Proof that a `TDef` does not contain any free variables.
+NoFreeVars : TDef n -> Type
+NoFreeVars = VarsLT 0
+
+||| Decision procedure for determining whether all variable indices in a `TDef`
+||| are strictly less than some bound.
+decMaxVar : (max : Nat) -> (td : TDef n) -> Dec (VarsLT max td)
+decMaxVar _   T0          = Yes T0Max
+decMaxVar _   T1          = Yes T1Max
+decMaxVar max (TSum ts)   = case all (decMaxVar max) ts of
+                              Yes prfs   => Yes $   TSumMax prfs
+                              No  contra => No  $ \(TSumMax prfs)  => contra prfs
+decMaxVar max (TProd ts)  = case all (decMaxVar max) ts of
+                              Yes prfs   => Yes $   TProdMax prfs
+                              No  contra => No  $ \(TProdMax prfs) => contra prfs
+decMaxVar max (TVar i)    = case isLTE (S (finToNat i)) max of
+                              Yes prf    => Yes $   TVarMax prf
+                              No  contra => No  $ \(TVarMax prf)   => contra prf
+decMaxVar max (TMu cases) = case all (decMaxVar (S max)) (map snd cases) of
+                              Yes prfs   => Yes $   TMuMax prfs
+                              No  contra => No  $ \(TMuMax prfs)   => contra prfs
+decMaxVar max (TApp _ xs) = case all (decMaxVar max) xs of
+                              Yes prfs   => Yes $   TAppMax prfs
+                              No  contra => No  $ \(TAppMax prfs)  => contra prfs
 
 ||| Get the name of a `TNamed`.
 name : TNamed n -> Name
