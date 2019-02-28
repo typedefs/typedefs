@@ -17,7 +17,7 @@ import Text.PrettyPrint.WL
 ||| @type the type representing type signatures.
 ||| @n    the number of variables the interpretor supports in a type definition. (Should always be either `n` or `0`.)
 interface ASTGen def type (n : Nat) | def where
-  ||| Given a `TDef`, generate its corresponding type signature.
+  ||| Given a `TNamed`, generate its corresponding type signature.
   msgType        : TNamed n -> type
 
   ||| Generate definitions for a `TNamed` and all its helper definitions.
