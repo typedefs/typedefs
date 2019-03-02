@@ -106,8 +106,8 @@ mutual
   makeDefs : TDef n -> State (List Name) (List Haskell)
   makeDefs    T0          = pure []
   makeDefs    T1          = pure []
-  makeDefs    (TProd xs)  = map concat $ traverse (assert_total makeDefs) xs
-  makeDefs    (TSum xs)   = map concat $ traverse (assert_total makeDefs) xs
+  makeDefs    (TProd xs)  = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TSum xs)   = concat <$> traverse (assert_total makeDefs) xs
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
   makeDefs    (TApp f xs) = do
