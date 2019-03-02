@@ -35,11 +35,11 @@ interface CodegenIndep def type | def where
   defSource  : def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-generateDefs : (def: Type) -> ASTGen def type n => CodegenIndep def type => TNamed n -> Doc
+generateDefs : (def: Type) -> (ASTGen def type n, CodegenIndep def type) => TNamed n -> Doc
 generateDefs def tn = vsep2 $ map defSource (generateTyDefs {def} tn)
 
 ||| Use the given backend to generate code for a type signature.
-generateType : (def: Type) -> ASTGen def type n => CodegenIndep def type => TNamed n -> Doc
+generateType : (def: Type) -> (ASTGen def type n, CodegenIndep def type) => TNamed n -> Doc
 generateType def tn = typeSource {def} (msgType {def} tn)
 
 ||| Interface for code generators that need to generate code for type definitions and
@@ -51,7 +51,7 @@ interface CodegenInterdep def type where
   sourceCode   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-generate : (def: Type) -> ASTGen def type n => CodegenInterdep def type => TNamed n -> Doc
+generate : (def: Type) -> (ASTGen def type n, CodegenInterdep def type) => TNamed n -> Doc
 generate def tn = sourceCode (msgType {def} tn) (generateTyDefs {def} tn)
 
 {-
