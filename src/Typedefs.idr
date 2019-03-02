@@ -36,16 +36,10 @@ mutual
 
   ||| Named type definition.
   ||| @n The number of type variables in the type.
-  data TNamed : (n : Nat) -> Type where
-    TName : Name -> TDef n -> TNamed n
-
-||| Get the name of a `TNamed`.
-name : TNamed n -> Name
-name (TName n _) = n
-
-||| Get the `TDef` that is named by a `TNamed`.
-def : TNamed n -> TDef n
-def (TName _ t) = t
+  record TNamed (n : Nat) where
+    constructor TName
+    name : Name
+    def  : TDef n
 
 ||| Generate `[TVar 0, ..., TVar (n-1)]`.
 idVars : Vect n (TDef n)
