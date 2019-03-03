@@ -1,4 +1,4 @@
-module Types
+module Names
 
 import Prelude.Chars
 import Prelude.Strings

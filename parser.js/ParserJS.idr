@@ -11,4 +11,4 @@ setResult : String -> JS_IO ()
 setResult = foreign FFI_JS "setResult(%0)" _
 
 main : JS_IO ()
-main = setResult $ parseThenStrFun !getSource (\td => print . generate Haskell $ DPair.snd td)
+main = setResult $ parseTNamedThenStrFun !getSource (\td => print . generateDefs Haskell $ DPair.snd td)
