@@ -3,7 +3,7 @@ module Test.TermWrite
 import Data.Vect
 
 import Typedefs
-import Types
+import Names
 import TermWrite
 
 import Specdris.Spec

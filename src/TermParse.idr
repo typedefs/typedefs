@@ -4,7 +4,7 @@ import TParsec
 import TParsec.Running
 
 import Typedefs
-import Types
+import Names
 
 import Data.Vect
 import Data.Fin
@@ -48,7 +48,7 @@ mutual
   chooseParser (TVar FZ)             (_::_)    (p::_)    = p
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
-  chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (td f) xs) ts ps
+  chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (def f) xs) ts ps
   chooseParser (TMu td)              ts        ps        =
     map (\ty => Inn {tvars = ts} {m = args td} ty) $
     parens (rand (string "inn")
@@ -60,16 +60,7 @@ deserialize ts ps td s  =
   parseMaybe s (chooseParser td ts ps)
 
 
-{-
-Terms are serialised as follows:
-
-- Terms of type T0 or T1 do not need to be serialised — the former does not exist, and the latter are trivial.
-- Terms of type TSum ts with |ts| = 2 + k are serialised as an integer i, followed by the serialisation of a term of type ts[i]. (Alternative: can serialise an integer < 2 + k.)
-- Terms of type TProd ts with |ts| = 2 + k are serialised as the serialisation of ts[0], …, ts[1+k]. This relies on being able to compute the width of each serialised term.
-- Terms of type Tvar j are not serialised, as we only deal with closed types (but encoders and decoders will have to deal with them, because of TMu).
-- Terms of type Tmu ts with |ts| = k are serialised as an integer i, followed by the serialisation of ts[i]. (Alternative: can serialise an integer < k.)
-- Terms of type TApp f xs are serialised as terms of type ap (td f) xs.
--}
+-- Binary deserialization
 
 data Deserialiser : Type -> Type where
   MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
@@ -134,7 +125,7 @@ deserializeBinary (TMu tds) ts = do
   pure (Inn t)
 deserializeBinary (TVar FZ) (t::ts) = snd t
 deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = S n'} (TVar i) ts
-deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (td f) xs) ts
+deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
 
 deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
 deserializeBinaryClosed t bs =

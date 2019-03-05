@@ -1,6 +1,6 @@
 module Test.ReasonML
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -32,7 +32,7 @@ eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
             |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
 
 generate : TNamed n -> Doc
-generate (TName nm td) = generate ReasonML td
+generate = generateDefs ReasonML
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -46,7 +46,7 @@ testSuite = spec $ do
 
     it "bit" $
       generate bit `shouldBe` bitDoc
-{-
+
     it "byte" $
       generate byte
         `shouldBe` vsep2
@@ -162,34 +162,80 @@ testSuite = spec $ do
                    |++| equals |++| tupled [x0, x0]
                    |+| semi
 
-    it "nested Mu (Foo/List/Either)" $
-      generate nestedMu
+    it "nested Mu 1: List(Either(Alpha, Beta))" $
+      generate nestedMu1
         `shouldBe` vsep2
-                    [ listDoc
-                    , eitherDoc
-                    , text "type" |++| text "foo" |+| tupled [x0,x1]
-                      |++| equals |++| text "Bar"
-                                       |++| parens (text "list" |++| parens (text "either" |+| tupled [x0,x1]))
+                    [ eitherDoc
+                    , listDoc
+                    , text "type" |++| text "nestedMu1" |+| tupled [x0,x1]
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "list" |+| parens (text "either" |+| tupled [x0,x1]))
                       |+| semi
                     ]
 
-    it "nested Mu 2 (Foo/Maybe/Alpha)" $
+    it "nested Mu 2: Maybe2(Alpha)" $
       generate nestedMu2
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "type" |++| text "foo" |+| parens x0
-                      |++| equals |++| text "Bar"
+                    , text "type" |++| text "nestedMu2" |+| parens x0
+                      |++| equals |++| text "Foobar"
                                        |+| parens (text "maybe2" |+| parens x0)
                       |+| semi
                     ]
 
-    it "nested Mu 3 (Foo/Maybe/Foo)" $
+    it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
         `shouldBe` vsep2
                     [ muMaybeDoc
-                    , text "type" |++| text "foo"
-                      |++| equals |++| text "Bar"
-                                       |+| parens (text "maybe2" |+| parens (text "foo"))
+                    , text "type" |++| text "nestedMu3"
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "maybe2" |+| parens (text "nestedMu3"))
                       |+| semi
                     ]
--}
+
+    let nestedMu4Doc =
+      vsep2
+        [ eitherDoc
+        , listDoc
+        , text "type" |++| text "nestedMu4" |+| parens x0
+          |++| equals |++| text "Foobar"
+                           |+| parens (text "list"
+                                |+| parens (text "either" 
+                                     |+| tupled [ text "nestedMu4" |+| parens x0
+                                                , x0 ]))
+          |+| semi
+        ]
+
+    it "nested Mu 4: List(Either (Mu, Alpha))" $
+      generate nestedMu4 `shouldBe` nestedMu4Doc
+
+    it "Nested mu 5: AnonList(Mu)" $ 
+      generate nestedMu5
+        `shouldBe` vsep2
+                    [ text "type" |++| text "nilCons" |+| parens x0
+                      |++| equals |++| text "Nil" 
+                      |++| pipe   |++| text "Cons"
+                                       |+| tupled [ x0
+                                                  , text "nilCons" |+| parens x0 ]
+                      |+| semi
+                    , text "type" |++| text "nestedMu5"
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "nilCons" |+| parens (text "nestedMu5"))
+                      |+| semi
+                    ]
+
+    it "nested Mu 6: NestedMu4(Maybe2(Either(Alpha, Nat)))" $
+      generate nestedMu6
+        `shouldBe` vsep2
+                    [ natDoc
+                    , muMaybeDoc
+                    , nestedMu4Doc
+                    , text "type" |++| text "nestedMu6" |+| parens x0
+                      |++| equals |++| text "Foobar"
+                                       |+| parens (text "nestedMu4"
+                                           |+| parens (text "maybe2"
+                                               |+| parens (text "either"
+                                                   |+| tupled [ x0
+                                                              , text "nat" ])))
+                      |+| semi
+                    ]

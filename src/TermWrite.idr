@@ -1,7 +1,7 @@
 module TermWrite
 
 import Typedefs
-import Types
+import Names
 
 import Data.Vect
 
@@ -33,12 +33,13 @@ mutual
   serialize (_::_)    (w::_)    (TVar FZ)             x         = w x
   serialize (_::_::_) (_::w::_) (TVar (FS FZ))        x         = w x
   serialize (_::ts)   (_::ws)   (TVar (FS (FS i)))    x         = serialize ts ws (TVar (FS i)) x
-  serialize ts        ws        (TApp f ys)           x         = assert_total $ serialize ts ws (ap (td f) ys) x
+  serialize ts        ws        (TApp f ys)           x         = assert_total $ serialize ts ws (ap (def f) ys) x
   serialize ts        ws        (TMu td)              (Inn x)   =
     "(inn " ++
       serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x
       ++ ")"
-  -- serialize ts        ws        (TName _ td)          x         = serialize ts ws td x
+
+-- Binary serialisation
 
 Serialiser : Type -> Type
 Serialiser a = a -> Bytes
@@ -68,7 +69,7 @@ serializeBinary (TMu tds) ts (Inn x) = assert_total $  serializeBinary (args tds
 serializeBinary (TVar FZ) (t::ts) x = snd t x
 serializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
   serializeBinary {n = (S n')} (TVar i) (ts) x
-serializeBinary (TApp f xs) ts x = assert_total $ serializeBinary (ap (td f) xs) ts x
+serializeBinary (TApp f xs) ts x = assert_total $ serializeBinary (ap (def f) xs) ts x
 
 serializeBinaryClosed : (t : TDef 0) -> Serialiser (Ty [] t)
 serializeBinaryClosed t = serializeBinary t []

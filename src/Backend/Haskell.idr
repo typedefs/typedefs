@@ -1,6 +1,6 @@
 module Backend.Haskell
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -12,7 +12,7 @@ import Control.Monad.State
 import Data.Vect
 
 %default total
-%access public export
+%access export
 
 ||| The syntactic structure of Haskell types.
 data HsType : Type where -- TODO could be interesting to index this by e.g. used variable names?
@@ -95,6 +95,11 @@ data Haskell : Type where
   ||| A function definition is a declared name, a type, and a list of
   ||| clauses of the form ((arg1, ..., argk), rhs)
   FunDef : Name -> HsType -> Vect n (List HsTerm, HsTerm) -> Haskell
+
+-- Haskell type variables start with lowercase letters.
+private
+freshEnv : Env n
+freshEnv = freshEnv "x"
 
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
@@ -254,60 +259,51 @@ simplify (HsCase t cases) = HsCase (simplify t) (map (\ (p,e) => (p, assert_tota
 simplify (HsApp f xs) = HsApp (simplify f) (map (assert_total simplify) xs)
 simplify t = t
 
-anonMu : Vect n (Name, a) -> Name
-anonMu = concatMap (uppercase . fst)
+private
+hsParam : Decl -> HsType
+hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 
 ||| Generate a Haskell type from a `TDef`.
 makeType : Env n -> TDef n -> HsType
-makeType _ T0             = HsVoid
-makeType _ T1             = HsUnit
-makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
-makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
-  where
-  hsParam : Decl -> HsType
-  hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
-makeType e td@(TMu cases) = HsParam (anonMu cases) . map HsVar $ getFreeVars (getUsedVars e td)
-makeType e (TApp f xs)    = HsParam (name f) (map (assert_total $ makeType e) xs)
+makeType _    T0          = HsVoid
+makeType _    T1          = HsUnit
+makeType e    (TSum xs)   = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+makeType e    (TProd xs)  = HsTuple $ map (assert_total $ makeType e) xs
+makeType e    (TVar v)    = either HsVar hsParam $ Vect.index v e
+makeType e td@(TMu cases) = HsParam (nameMu cases) . map (either HsVar hsParam) $ getUsedVars e td
+makeType e    (TApp f xs) = HsParam (name f) (map (assert_total $ makeType e) xs)
 
+||| Generate a Haskell type from a `TNamed`.
 makeType' : Env n -> TNamed n -> HsType
-makeType' e (TName name body) = HsParam name . map HsVar $ getFreeVars (getUsedVars e body)
+makeType' e (TName name body) = HsParam name . map (either HsVar hsParam) $ getUsedVars e body
 
 mutual
-  ||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
+  ||| Generate all the Haskell type definitions that a `TDef` depends on.
   makeDefs : TDef n -> State (List Name) (List Haskell)
-  makeDefs T0            = pure []
-  makeDefs T1            = pure []
-  makeDefs (TProd xs)    = map concat $ traverse (assert_total makeDefs) xs
-  makeDefs (TSum xs)     = map concat $ traverse (assert_total makeDefs) xs
-  makeDefs (TVar v)      = pure []
-  makeDefs (TApp f xs) = do
+  makeDefs    T0          = pure []
+  makeDefs    T1          = pure []
+  makeDefs    (TProd xs)  = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TSum xs)   = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TVar v)    = pure []
+  makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
+  makeDefs    (TApp f xs) = do
       res <- assert_total $ makeDefs' f
       res' <- concat <$> traverse (assert_total makeDefs) xs
       pure (res ++ res')
-  makeDefs td@(TMu cases) = makeDefs' $ TName (anonMu cases) td -- We name anonymous mus using their constructors.
 
+  ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
   makeDefs' : TNamed n -> State (List Name) (List Haskell)
-  makeDefs' (TName name body) = do
-      st <- get
-      if List.elem name st then pure []
-      else do
-        let decl = MkDecl name (getFreeVars $ getUsedVars (freshEnvLC _) body)
-        put (name :: st)
-        case body of
-          TMu cases => do -- Named `TMu`s are treated as ADTs.
-            let newEnv = Right decl :: freshEnvLC _
-            let args = map (map (makeType newEnv)) cases
-            res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
-            pure $ ADT decl args :: res
-          _         => do -- All other named types are treated as synonyms.
-            res <- assert_total $ makeDefs body
-            pure $ Synonym decl (makeType (freshEnvLC n) body) :: res
-
-Backend Haskell where
-  generateTyDefs e td = reverse $ evalState (makeDefs td) []
-  generateCode        = renderDef
-  freshEnv            = freshEnvLC
+  makeDefs' (TName name body) = ifNotPresent name $
+      let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
+      case body of
+        TMu cases => do -- Named `TMu`s are treated as ADTs.
+          let newEnv = Right decl :: freshEnv
+          let args = map (map (makeType newEnv)) cases
+          res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
+          pure $ ADT decl args :: res
+        _ => do -- All other named types are treated as synonyms.
+          res <- assert_total $ makeDefs body
+          pure $ Synonym decl (makeType freshEnv body) :: res
 
 -------- Termdefs -------------------------------------------
 
@@ -369,8 +365,8 @@ derivedName T1 = "Unit"
 derivedName (TSum xs) = "Sum" ++ (concatMap (assert_total derivedName) xs)
 derivedName (TProd xs) = "Prod" ++ (concatMap (assert_total derivedName) xs)
 derivedName (TVar v)    = "error: deriving name of type variable" -- should never happen
-derivedName (TMu tds) = "Mu" ++ (anonMu tds)
-derivedName (TApp f xs) = assert_total $ derivedName (ap (td f) xs)
+derivedName (TMu tds) = "Mu" ++ (nameMu tds)
+derivedName (TApp f xs) = assert_total $ derivedName (ap (def f) xs)
 
 
 
@@ -421,7 +417,7 @@ allMuInside namer t = nubBy (\ (m ** k ** (td, fs)), (m' ** k' ** (td', fs')) =>
   go fs (TProd xs) = concatMap (assert_total $ go fs) xs
   go fs (TVar v)    = []
   go {n = n} fs (TMu {k = k} tds) = (n ** k ** (tds, fs)) ::  (concatMap (assert_total $ go ((namer (TMu tds)) :: fs) . snd) tds)
-  go fs (TApp f xs) = assert_total $ go fs (ap (td f) xs)
+  go fs (TApp f xs) = assert_total $ go fs (ap (def f) xs)
 
 -- ||| Given a TDef and a Haskell term variable, gives a Haskell term
 -- ||| of type Builder
@@ -453,11 +449,11 @@ encode (TVar i) t = do
   encoders <- encoderList
   pure $ HsApp (HsFun (index i encoders)) [t]
 encode {n = n} (TMu {k} td) t = pure $ HsApp (HsFun (encodeName (TMu td))) [t] -- assumes this is generated elsewhere
-encode (TApp f xs) t = assert_total $ encode (ap (td f) xs) t
+encode (TApp f xs) t = assert_total $ encode (ap (def f) xs) t
 
 encodeTMu : Vect k (String, TDef (S n)) -> TermEncode n Haskell
 encodeTMu {k = k} tds = locallyExtend (encodeName (TMu tds)) $ do
-  let funType = HsArrow (HsParam (anonMu tds) []) hsByteString
+  let funType = HsArrow (HsParam (nameMu tds) []) hsByteString
   args <- mapWithIndexA f tds
   pure $ FunDef (encodeName (TMu tds)) funType args
  where f : Fin k -> (String, TDef (S n)) -> TermEncode (S n) (List HsTerm, HsTerm)
@@ -495,11 +491,11 @@ decode (TVar i) = do
   decoders <- encoderList
   pure $ HsFun (index i decoders)
 decode {n = n} (TMu {k} td) = pure $ (HsFun (decodeName (TMu td))) -- assumes this is generated elsewhere
-decode (TApp f xs) = assert_total $ decode (ap (td f) xs)
+decode (TApp f xs) = assert_total $ decode (ap (def f) xs)
 
 decodeTMu : Vect k (String, TDef (S n)) -> TermEncode n Haskell -- TODO!!!
 decodeTMu {k = k} tds = locallyExtend (decodeName (TMu tds)) $ do
-  let funType = hsDeserializer (HsParam (anonMu tds) [])
+  let funType = hsDeserializer (HsParam (nameMu tds) [])
   cases <- mapWithIndexA f tds
   [i] <- freshVars 1 "i"
   let rhs = HsDo [(Just i, hsReadInt (fromNat k))
@@ -513,30 +509,38 @@ decodeTMu {k = k} tds = locallyExtend (decodeName (TMu tds)) $ do
          pure (HsInt (finToInteger i), HsDo [(Just x, rest)
                                             ,(Nothing, hsReturn (HsInn name [x]))])
 
-NewBackend Haskell HsType HsTerm where
-  msgType          = makeType (freshEnv {lang=Haskell} 0)
-  typedefs td      = reverse $ evalState (makeDefs td) []
-  termdefEncode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName td)
-  termdefEncode td =
-    let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName td)
-        funName = encodeName td
-        funType = HsArrow (msgType {def=Haskell} td) hsByteString
-        v = HsTermVar "x"
-        rhs = hstoBS (runTermEncode [] (encode td v))
-    in deps ++ [FunDef funName funType [([v], rhs)]]
-  termdefDecode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName td)
-  termdefDecode td =
-    let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName td)
-        funName = decodeName td
-        funType = HsArrow hsByteString (HsParam "Maybe" [HsTuple [(msgType {def=Haskell} td), hsByteString]])
-        rhs = hsrunDeserializer (simplify $ runTermEncode [] (decode td))
-    in deps ++ [FunDef funName funType [([], rhs)]]
-  source type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs
 
-||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshEnv {lang=Haskell} n)
+ASTGen Haskell HsType n where
+  msgType           = makeType' freshEnv
+  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
+  generateTermDefs {n = Z} tn = termdefEncode tn ++ termdefDecode tn
+    where
+     termdefEncode : TNamed 0 -> List Haskell
+     -- termdefEncode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName td)
+     termdefEncode td =
+       let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName (def td))
+           funName = encodeName (def td)
+           funType = HsArrow (msgType {def=Haskell} td) hsByteString
+           v = HsTermVar "x"
+           rhs = hstoBS (runTermEncode [] (encode (def td) v))
+       in deps ++ [FunDef funName funType [([v], rhs)]]
 
+     termdefDecode : TNamed 0 -> List Haskell
+     -- termdefDecode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName td)
+     termdefDecode td =
+       let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName (def td))
+           funName = decodeName (def td)
+           funType = HsArrow hsByteString (HsParam "Maybe" [HsTuple [(msgType {def=Haskell} td), hsByteString]])
+           rhs = hsrunDeserializer (simplify $ runTermEncode [] (decode (def td)))
+       in deps ++ [FunDef funName funType [([], rhs)]]
+  generateTermDefs {n = S m} tn = [] -- TODO
+
+CodegenIndep Haskell HsType where
+  typeSource = renderType
+  defSource  = renderDef
+
+
+{-
 -- TODO: move tests
 
 t : TDef 0 -> String
@@ -553,6 +557,7 @@ nat = TMu [("Zero", T1), ("Suc", TVar 0)]
 
 rose : TDef 0
 rose = TMu [("Leaf", nat), ("Branch", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])] )]
+-}
 
 -- TODO: add backend preamble
 

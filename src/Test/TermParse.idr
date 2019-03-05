@@ -3,7 +3,7 @@ module Test.TermParse
 import Data.Vect
 
 import Typedefs
-import Types
+import Names
 import TermParse
 import TParsec
 

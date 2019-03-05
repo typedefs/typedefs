@@ -2,7 +2,7 @@ module Backend
 
 import Data.Vect
 
-import Types
+import Names
 import Typedefs
 import Backend.Utils
 
@@ -12,97 +12,54 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
-||| A parametric type declaration (no definition, only name and parameters).
-record Decl where
-  constructor MkDecl
+||| Interface for interpreting type definitions as ASTs.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+||| @n    the number of variables the interpreter supports in a type definition. (Should always be either `n` or `0`.)
+interface ASTGen def type (n : Nat) | def where
+  ||| Given a `TNamed`, generate its corresponding type signature.
+  msgType        : TNamed n -> type
 
-  ||| The name of the type.
-  name   : Name
+  ||| Generate definitions for a `TNamed` and all its helper definitions.
+  generateTyDefs : TNamed n -> List def
 
-  ||| The names of the type's parameters.
-  params : Vect n Name -- TODO is number of parameters enough?
+  ||| Generate serialisation and deserialisation term definitions for a
+  ||| a `TNamed` and all its helper definitions.
+  generateTermDefs : TNamed n -> List def
 
-||| A variable environment. Left=free, Right=bound.
-Env : Nat -> Type
-Env k = Vect k (Either String Decl)
 
-||| Standard implmementation of `freshEnv` for languages that require type parameters to
-||| start with lower case letters (and allow numbers in names).
-freshEnvLC : (n : Nat) -> Env n
-freshEnvLC n = unindex {n} (\f => Left ("x" ++ show (finToInteger f)))
+||| Interface for code generators that can generate code for type definitions and
+||| type signatures independently of each other, for example Haskell and ReasonML.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+interface CodegenIndep def type | def where
+  ||| Generate source code for a type signature.
+  typeSource : type -> Doc
 
-||| Standard implmementation of `freshEnv` for languages that require type parameters to
-||| start with upper case letters (and allow numbers in names).
-freshEnvUC : (n : Nat) -> Env n
-freshEnvUC n = unindex {n} (\f => Left ("X" ++ show (finToInteger f)))
-
-||| Get the free names from the environment.
-getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
-getFreeVars e with (filter isLeft e)
-  | (p ** v) = map (either id (const "")) v
-
-||| Get a list of the de Brujin indices that are actually used in a `TDef`.
-getUsedIndices : TDef n -> List (Fin n)
-getUsedIndices T0         = []
-getUsedIndices T1         = []
-getUsedIndices (TSum xs)  = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TProd xs) = assert_total $ nub $ concatMap getUsedIndices xs
-getUsedIndices (TVar i)   = [i]
-getUsedIndices (TMu xs)   = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
-  where weedOutZero : Fin (S n) -> List (Fin n)
-        weedOutZero FZ     = []
-        weedOutZero (FS i) = [i]
-getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (td f)
-                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
---getUsedIndices (TName _ t) = getUsedIndices t
-
-||| Filter out the entries in an `Env` that is referred to by a `TDef`.
-getUsedVars : Env n -> (td: TDef n) -> Env (length (getUsedIndices td))
-getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
-
-||| Interface for codegens. `lang` is a type representing (the syntactic structure of)
-||| a type declaration in the target language.
-interface Backend lang where
-  ||| Given a `TDef` and a matching environment, generate a list of type definitions
-  ||| in the target language.
-  generateTyDefs : Env n -> TDef n -> List lang
-
-  ||| Given a type definition in the target language, generate its code.
-  generateCode : lang -> Doc
-
-  ||| Generate a new environment with n free names.
-  freshEnv : (n: Nat) -> Env n
+  ||| Generate source code for a type definition.
+  defSource  : def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-generate : (lang: Type) -> Backend lang => {n: Nat} -> TDef n -> Doc
-generate lang {n} td = vsep2 . map (generateCode) . generateTyDefs {lang} (freshEnv {lang} n) $ td
+generateDefs : (def: Type) -> (ASTGen def type n, CodegenIndep def type) => TNamed n -> Doc
+generateDefs def tn = vsep2 $ map defSource (generateTyDefs {def} tn ++ generateTermDefs {def} tn)
 
-||| Interface for codegens which distinguish between the message type itself and
-||| its helper definitions. Currently doesn't support typedefs with free variables.
-interface NewBackend def type term | def where
-  ||| Given a `TDef`, generate its corresponding type signature.
-  msgType  : TDef 0 -> type
+||| Use the given backend to generate code for a type signature.
+generateType : (def: Type) -> (ASTGen def type n, CodegenIndep def type) => TNamed n -> Doc
+generateType def tn = typeSource {def} (msgType {def} tn)
 
-  ||| Given a `TDef`, generate a list of all helper definitions required by it.
-  typedefs : TDef 0 -> List def
-
-  ||| Given a `TDef`, generate a serialization and deserialization functions
-  ||| for it. These should have "type" (where bin is the target language
-  ||| representation of termdefs, e.g. bin = String or bin = ByteString)
-  |||   `termdefEncode td : msgtype td -> bin`
-  |||   `termdefDecode td : bin -> msgtype (ap maybe td)`
-  ||| (whatever that means in the target language).
-  termdefEncode : TDef 0 -> List def
-  termdefDecode : TDef 0 -> List def
-
-  ||| Given a type signature and a list of helper definitions which it uses,
-  ||| generate source code.
-  source   : type -> List def -> Doc
+||| Interface for code generators that need to generate code for type definitions and
+||| type signatures at the same time, for example the JSON schema backend.
+||| @def  the type representing type definitions.
+||| @type the type representing type signatures.
+interface CodegenInterdep def type where
+  ||| Generate source code for a type signature and a list of helper definitions.
+  sourceCode   : type -> List def -> Doc
 
 ||| Use the given backend to generate code for a type definition and all its dependencies.
-newGenerate : {type, term : Type} -> (def : Type) -> NewBackend def type term => TDef 0 -> Doc
-newGenerate {type} def td = source (msgType {type} {def} td) (typedefs {type} {def} td)
+generate : (def: Type) -> (ASTGen def type n, CodegenInterdep def type) => TNamed n -> Doc
+generate def tn = sourceCode (msgType {def} tn) (generateTyDefs {def} tn ++ generateTermDefs {def} tn)
 
+{-
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
@@ -137,3 +94,4 @@ generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
                    go x = x -- only TVar i case left
          td' : TDef (n + m)
          td' = foldl (flip (traverseTD n)) (weakenTDef td (n + m) (lteAddRight n)) (zip range table)
+-}

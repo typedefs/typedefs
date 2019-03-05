@@ -3,7 +3,7 @@ module Test
 import Data.Vect 
 
 import Typedefs
-import Types
+import Names
 import Backend.Utils
 
 import Specdris.Spec
@@ -72,23 +72,23 @@ listAlphaOrBeta = TName "listAlphaOrBeta" $ TApp list [TSum [TVar 0, TVar 1]]
 listBitOrByte : TNamed 0
 listBitOrByte = TName "listBitOrByte" $ TApp listAlphaOrBeta [wrap bit, wrap byte]
 
-nestedMu : TNamed 2
-nestedMu = TName "nestedMu" $ TMu [("Bar", weakenTDef (wrap listAlphaOrBeta) _ (lteAddRight 2))]
+nestedMu1 : TNamed 2
+nestedMu1 = TName "nestedMu1" $ TMu [("Foobar", shiftVars (def listAlphaOrBeta))]
 
 nestedMu2 : TNamed 1
-nestedMu2 = TName "nestedMu2" $ TMu [("Bar", TApp maybe2 [TVar 1])]
+nestedMu2 = TName "nestedMu2" $ TMu [("Foobar", TApp maybe2 [TVar 1])]
 
 nestedMu3 : TNamed 0
-nestedMu3 = TName "nestedMu3" $ TMu [("Bar", TApp maybe2 [TVar 0])]
+nestedMu3 = TName "nestedMu3" $ TMu [("Foobar", TApp maybe2 [TVar 0])]
 
 nestedMu4 : TNamed 1
-nestedMu4 = TName "nestedMu4" $ TMu [("Bar", TApp list [TSum [TVar 0, TVar 1]])]
+nestedMu4 = TName "nestedMu4" $ TMu [("Foobar", TApp list [TSum [TVar 0, TVar 1]])]
 
-nestedMu5 : TNamed 1
-nestedMu5 = TName "nestedMu5" $ TMu [("Bar", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])]
+nestedMu5 : TNamed 0
+nestedMu5 = TName "nestedMu5" $ TMu [("Foobar", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])]
 
 nestedMu6 : TNamed 1
-nestedMu6 = TName "nestedMu6" $ TMu [("Bar", TApp nestedMu4 [TApp maybe2 [TSum [TVar 1, weakenTDef (wrap nat) _ (lteAddRight 0)]]])]
+nestedMu6 = TName "nestedMu6" $ TMu [("Foobar", TApp nestedMu4 [TApp maybe2 [TSum [TVar 1, weakenTDef (wrap nat) _ (lteAddRight 0)]]])]
 
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
