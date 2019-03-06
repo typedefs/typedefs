@@ -3,7 +3,7 @@ module ParserUtils
 import TParsec
 import Data.NEList
 
-%access export
+%access public export
 
 except : (Alternative mn, Monad mn, Inspect (Toks p) (Tok p), Eq (Tok p)) =>
          Tok p -> All (Parser mn p (Tok p))
