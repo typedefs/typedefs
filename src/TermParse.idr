@@ -65,6 +65,9 @@ deserialize ts ps td s  =
 data Deserialiser : Type -> Type where
   MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
 
+runDeserializer : Deserialiser a -> Bytes -> Maybe (a, Bytes)
+runDeserializer (MkDeserialiser d) = d
+
 Functor Deserialiser where
   map f (MkDeserialiser a) = MkDeserialiser (\ bs => do
     (a', bs') <- a bs
@@ -128,5 +131,4 @@ deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = 
 deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
 
 deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
-deserializeBinaryClosed t bs =
-  let MkDeserialiser d = deserializeBinary t [] in d bs
+deserializeBinaryClosed t bs = runDeserializer (deserializeBinary t []) bs

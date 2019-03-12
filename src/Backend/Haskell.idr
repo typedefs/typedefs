@@ -5,7 +5,6 @@ import Typedefs
 
 import Backend
 import Backend.Utils
-
 import Text.PrettyPrint.WL
 import Control.Monad.State
 
@@ -34,6 +33,10 @@ data HsType : Type where -- TODO could be interesting to index this by e.g. used
   ||| A function type (only used for top-level type of termdef
   ||| decoders and encoders)
   HsArrow :         HsType -> HsType    -> HsType
+
+private
+hsParam : Decl -> HsType
+hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 
 ||| The syntactic structure of Haskell terms (TODO clean up)
 data HsTerm : Type where
@@ -81,7 +84,7 @@ data HsTerm : Type where
   -- special functions
 
   ||| `mconcat :: [Builder] -> Builder` from Data.ByteString.Builder
-  HsConcat : Vect k HsTerm -> HsTerm
+  HsConcat : List HsTerm -> HsTerm
 
 ||| The syntactic structure of Haskell type declarations.
 data Haskell : Type where
@@ -94,12 +97,13 @@ data Haskell : Type where
 
   ||| A function definition is a declared name, a type, and a list of
   ||| clauses of the form ((arg1, ..., argk), rhs)
-  FunDef : Name -> HsType -> Vect n (List HsTerm, HsTerm) -> Haskell
+  FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
 -- Haskell type variables start with lowercase letters.
+-- ||| A fresh "semantic" environment
 private
-freshEnv : Env n
-freshEnv = freshEnv "x"
+freshEnv : Vect n HsType
+freshEnv = map (either HsVar hsParam) $ freshEnv "x"
 
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
@@ -131,6 +135,7 @@ mutual
   renderTerm (HsTupC xs) = tupled . toList . map (assert_total guardParenTerm) $ xs
   renderTerm (HsTermVar x)    = text x
   renderTerm HsWildcard       = text "_"
+  renderTerm (HsInn name []) = text name
   renderTerm (HsInn name args) = text name |++| hsep (toList $ map (assert_total guardParenTerm) $ args)
   renderTerm (HsCase t bs)  = align $ text "case" |++| align (renderTerm t) |++| text "of" |+| breakLine
       |+| indent 2
@@ -138,6 +143,7 @@ mutual
     where
     renderCase : (HsTerm, HsTerm) -> Doc
     renderCase (lhs, rhs) = renderTerm lhs |++| text "->" |++| (renderTerm rhs)
+  renderTerm (HsApp f [])  = renderTerm f
   renderTerm (HsApp f xs)  = renderTerm f |++| hsep (toList $ map (assert_total guardParenTerm) $ xs)
   renderTerm (HsFun f) = text f
   renderTerm (HsDo exprs) =
@@ -149,13 +155,14 @@ mutual
     renderDoExp (Just x, e) = renderTerm x |++| text "<-" |++| renderTerm e
   renderTerm (HsWord8 i) = text "fromIntegral" |++| text (show i)
   renderTerm (HsInt i) = text (show i)
-  renderTerm (HsConcat xs) = text "mconcat" |++| (list . toList . map (assert_total guardParenTerm) $ xs)
+  renderTerm (HsConcat xs) = text "mconcat" |++| (list . map (assert_total guardParenTerm) $ xs)
 
   ||| As `renderTerm`, but with enclosing top-level parentheses
   ||| if it can possibly make a semantic difference.
   guardParenTerm : HsTerm -> Doc
   guardParenTerm t@(HsInn _ (a::as)) = parens (assert_total $ renderTerm t)
   guardParenTerm t@(HsCase _ _) = parens (assert_total $ renderTerm t)
+  guardParenTerm t@(HsApp _ []) = assert_total $ renderTerm t
   guardParenTerm t@(HsApp _ _) = parens (assert_total $ renderTerm t)
   guardParenTerm t@(HsWord8 _) = parens (assert_total $ renderTerm t)
   guardParenTerm t@(HsConcat _) = parens (assert_total $ renderTerm t)
@@ -182,6 +189,7 @@ renderDef (FunDef name type clauses) = vsep $ (text name |++| text "::" |++| ren
                                                 ::(toList $ map renderClause clauses)
   where
   renderClause : (List HsTerm, HsTerm) -> Doc
+  renderClause ([], rhs) = text name |++| equals |++| renderTerm rhs
   renderClause (args, rhs) = text name |++| (hsep (map guardParenTerm args)) |++| equals |++| renderTerm rhs
 
 private
@@ -257,25 +265,38 @@ simplify (HsDo xs) = let xs' = simpDo xs in
       _ => (p, e')::(simpDo xs)
 simplify (HsCase t cases) = HsCase (simplify t) (map (\ (p,e) => (p, assert_total $ simplify e)) cases)
 simplify (HsApp f xs) = HsApp (simplify f) (map (assert_total simplify) xs)
-simplify t = t
+simplify HsUnitTT = HsUnitTT
+simplify (HsTupC xs) = HsTupC (map (assert_total simplify) xs)
+simplify (HsTermVar i) = HsTermVar i
+simplify HsWildcard = HsWildcard
+simplify (HsInn c xs) = HsInn c (map (assert_total simplify) xs)
+simplify (HsFun f) = HsFun f
+simplify (HsWord8 i) = HsWord8 i
+simplify (HsInt i) = HsInt i
+simplify (HsConcat xs) = let xs' = filter notMempty (map (assert_total simplify) xs) in
+  case xs' of
+    []  => HsFun "mempty"
+    [a] => a
+    _   => HsConcat xs'
+  where notMempty : HsTerm -> Bool
+        notMempty (HsFun "mempty") = False
+        notMempty _                = True
 
-private
-hsParam : Decl -> HsType
-hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 
 ||| Generate a Haskell type from a `TDef`.
-makeType : Env n -> TDef n -> HsType
+makeType : Vect n HsType -> TDef n -> HsType
 makeType _    T0          = HsVoid
 makeType _    T1          = HsUnit
 makeType e    (TSum xs)   = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
 makeType e    (TProd xs)  = HsTuple $ map (assert_total $ makeType e) xs
-makeType e    (TVar v)    = either HsVar hsParam $ Vect.index v e
-makeType e td@(TMu cases) = HsParam (nameMu cases) . map (either HsVar hsParam) $ getUsedVars e td
+makeType e    (TVar v)    = Vect.index v e
+makeType e td@(TMu cases) = HsParam (nameMu cases) $ getUsedVars e td
 makeType e    (TApp f xs) = HsParam (name f) (map (assert_total $ makeType e) xs)
 
 ||| Generate a Haskell type from a `TNamed`.
-makeType' : Env n -> TNamed n -> HsType
-makeType' e (TName name body) = HsParam name . map (either HsVar hsParam) $ getUsedVars e body
+makeType' : Vect n HsType -> TNamed n -> HsType
+makeType' e (TName "" body) = makeType e body --escape hatch
+makeType' e (TName name body) = HsParam name $ getUsedVars e body
 
 mutual
   ||| Generate all the Haskell type definitions that a `TDef` depends on.
@@ -294,10 +315,11 @@ mutual
   ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
   makeDefs' : TNamed n -> State (List Name) (List Haskell)
   makeDefs' (TName name body) = ifNotPresent name $
-      let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
+      let freshEnvString = map (\ x => case x of HsVar v => v; _ => "") freshEnv
+          decl = MkDecl name (getUsedVars freshEnvString body) in
       case body of
         TMu cases => do -- Named `TMu`s are treated as ADTs.
-          let newEnv = Right decl :: freshEnv
+          let newEnv = hsParam decl :: freshEnv
           let args = map (map (makeType newEnv)) cases
           res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
           pure $ ADT decl args :: res
@@ -321,11 +343,15 @@ hsByteString : HsType
 hsByteString = HsParam "ByteString" []
 
 hsDeserializer : HsType -> HsType
-hsDeserializer a = HsParam "Deserializer" [a]
+hsDeserializer a = HsParam "Deserialiser" [a]
+
+hsSerializer : HsType -> HsType
+hsSerializer a = HsParam "Serialiser" [a]
+
 
 ||| `runDeserializer :: Deserializer a -> ByteString -> Maybe (a, ByteString)`
 hsrunDeserializer : HsTerm -> HsTerm
-hsrunDeserializer d = HsApp (HsFun "runDeserializer") [d]
+hsrunDeserializer d = HsApp (HsFun "runDeserialiser") [d]
 
 
 ||| `deserializeInt :: Deserializer Integer`; the argument
@@ -359,36 +385,33 @@ private
 word : Int -> HsTerm
 word i = HsApp (HsFun "word8") [HsWord8 i] -- `word8 :: Word8 -> Builder` from Data.ByteString.Builder
 
+{-
 derivedName : TDef n -> Name
 derivedName T0 = "Void"
 derivedName T1 = "Unit"
 derivedName (TSum xs) = "Sum" ++ (concatMap (assert_total derivedName) xs)
 derivedName (TProd xs) = "Prod" ++ (concatMap (assert_total derivedName) xs)
 derivedName (TVar v)    = "error: deriving name of type variable" -- should never happen
-derivedName (TMu tds) = "Mu" ++ (nameMu tds)
-derivedName (TApp f xs) = assert_total $ derivedName (ap (def f) xs)
-
-
-
-encodeName : TDef n -> Name
-encodeName td = "encode" ++ derivedName td
-
-decodeName : TDef n -> Name
-decodeName td = "decode" ++ derivedName td
+derivedName (TMu tds) = nameMu tds
+derivedName (TApp f xs) = name f -- assert_total $ derivedName (ap (def f) xs)
+-}
 
 mapWithIndexA : Applicative m => {n : Nat} -> (Fin n -> a -> m b) -> Vect n a -> m (Vect n b)
 mapWithIndexA f [] = pure []
 mapWithIndexA f (a::as) = pure (::) <*> f FZ a <*> mapWithIndexA (f . FS) as
 
 -- ||| Monad for term encoding generator, keeping track of a name
--- ||| supply and a function to apply for each type variable
+-- ||| supply and a "semantic" environment
 TermEncode : Nat -> Type -> Type
-TermEncode n = State (List String, Vect n String)
+TermEncode n = State (List String, Vect n HsType)
 
-runTermEncode : Vect n String -> TermEncode n a -> a
+runTermEncode : Vect n HsType -> TermEncode n a -> a
 runTermEncode fs mx = evalState mx ([], fs)
 
-encoderList : TermEncode n (Vect n String)
+runTermEncodeHS : Vect n HsType -> TermEncode n HsTerm -> HsTerm
+runTermEncodeHS fs = simplify . runTermEncode fs
+
+encoderList : TermEncode n (Vect n HsType)
 encoderList = do
   (_, fs) <- get
   pure fs
@@ -403,21 +426,72 @@ freshVars (S n) suggestion = do
   rest <- freshVars n suggestion
   pure $ (HsTermVar fresh) :: rest
 
-locallyExtend : String -> TermEncode (S n) a -> TermEncode n a
+locallyExtend : HsType -> TermEncode (S n) a -> TermEncode n a
 locallyExtend s x = do
   (i, fs) <- get
   pure $ evalState x (i, (s::fs))
 
-allMuInside : ({l : Nat} -> (TDef l -> Name)) -> TDef 0 -> List (m ** k ** (Vect k (String, TDef (S m)), Vect m String))
-allMuInside namer t = nubBy (\ (m ** k ** (td, fs)), (m' ** k' ** (td', fs')) => heteroEq (TMu td) (TMu td')) (go [] t) where
-  go : Vect n String -> TDef n -> List (m ** k ** (Vect k (String, TDef (S m)), Vect m String))
-  go fs T0 = []
-  go fs T1 = []
-  go fs (TSum xs) = concatMap (assert_total $ go fs) xs
-  go fs (TProd xs) = concatMap (assert_total $ go fs) xs
-  go fs (TVar v)    = []
-  go {n = n} fs (TMu {k = k} tds) = (n ** k ** (tds, fs)) ::  (concatMap (assert_total $ go ((namer (TMu tds)) :: fs) . snd) tds)
-  go fs (TApp f xs) = assert_total $ go fs (ap (def f) xs)
+hsTypeName : HsType -> Name
+hsTypeName HsVoid = "Void"
+hsTypeName HsUnit = "Unit"
+hsTypeName (HsTuple xs) = "Prod" ++ (concatMap (assert_total hsTypeName) xs)
+hsTypeName (HsVar v) = v
+hsTypeName (HsParam n xs) = n ++ (concatMap (assert_total hsTypeName) xs)
+hsTypeName (HsArrow a b) = "Arrow" ++ hsTypeName a ++ hsTypeName b
+
+encodeName : HsType -> Name
+encodeName ty = "encode" ++ (uppercase (hsTypeName ty))
+
+encoderTerm : TDef n -> TermEncode n HsTerm
+encoderTerm (TApp f xs) = do
+  xs' <- traverse (assert_total $ encoderTerm) xs
+  pure (HsApp (HsFun ("encode" ++ (uppercase $ name f))) xs')
+encoderTerm td = do
+  env <- encoderList
+  let varEncoders = map (\ x => HsTermVar (encodeName x))
+                        (getUsedVars env td)
+  pure $ HsApp (HsFun (encodeName (makeType freshEnv td))) varEncoders
+
+decodeName : HsType -> Name
+decodeName td = "decode" ++ (uppercase (hsTypeName td))
+
+decoderTerm : TDef n -> TermEncode n HsTerm
+decoderTerm (TApp f xs) = do
+  xs' <- traverse (assert_total $ decoderTerm) xs
+  pure (HsApp (HsFun ("decode" ++ (uppercase $ name f))) xs')
+decoderTerm td = do
+  env <- encoderList
+  let varEncoders = map (\ x => HsTermVar (decodeName x))
+                        (getUsedVars env td)
+  pure $ HsApp (HsFun (decodeName (makeType freshEnv td))) varEncoders
+
+
+
+dependencies : Vect n HsType -> TDef n -> List (m ** TNamed m)
+dependencies fs td =
+  nubBy (\ (m ** t), (m' ** t') => heteroEqNamed t t')
+       (go fs td)
+  where
+  mutual
+    goMu : Vect n HsType -> Vect k (String, TDef (S n)) -> List (m ** TNamed m)
+    goMu fs tds = concatMap (assert_total $ go ((makeType fs (TMu tds))::fs) . snd) tds
+
+    go : Vect n HsType -> TDef n -> List (m ** TNamed m)
+    go fs T0 = []
+    go fs T1 = []
+    go fs (TSum xs) = concatMap (assert_total $ go fs) xs
+    go fs (TProd xs) = concatMap (assert_total $ go fs) xs
+    go fs (TVar v)    = []
+    go {n = n} fs t@(TMu tds) = (n ** TName (nameMu tds) t) :: goMu fs tds
+    go {n = n} fs (TApp {k = k} t@(TName name td) xs) =
+        let env = map (makeType fs) xs
+            depTd = case td of -- skip the TMu itself
+                     TMu tds => goMu env tds
+                     _       => go env td
+            fixup = (\ x => case x of
+                              TApp f xs' => [] -- will be counted later
+                              _          => [(n ** TName "" x)]) in
+        [(k**t)] ++ depTd ++ (concatMap fixup xs) ++ (concatMap (assert_total $ go fs) xs)
 
 -- ||| Given a TDef and a Haskell term variable, gives a Haskell term
 -- ||| of type Builder
@@ -444,26 +518,34 @@ encode (TSum td) t = do
 encode (TProd {k} td) t = do
    freshPVs <- freshVars (2 + k) "y"
    factors <- mapWithIndexA (\ i, t' => assert_total $ encode (index i td) t') freshPVs
-   pure $ HsCase t [(HsTupC freshPVs, HsConcat factors)]
+   pure $ HsCase t [(HsTupC freshPVs, HsConcat (toList factors))]
 encode (TVar i) t = do
   encoders <- encoderList
-  pure $ HsApp (HsFun (index i encoders)) [t]
-encode {n = n} (TMu {k} td) t = pure $ HsApp (HsFun (encodeName (TMu td))) [t] -- assumes this is generated elsewhere
-encode (TApp f xs) t = assert_total $ encode (ap (def f) xs) t
+  pure $ HsApp (HsFun (encodeName (index i encoders))) [t]
+encode t@(TMu tds) y = do
+  eTerm <- encoderTerm t
+  pure $ HsApp eTerm [y] -- assumes the def of eTerm is generated elsewhere
+encode t@(TApp f xs) y = do
+  eTerm <- encoderTerm t
+  pure $ HsApp eTerm [y] -- assumes the def of eTerm is generated elsewhere
 
-encodeTMu : Vect k (String, TDef (S n)) -> TermEncode n Haskell
-encodeTMu {k = k} tds = locallyExtend (encodeName (TMu tds)) $ do
-  let funType = HsArrow (HsParam (nameMu tds) []) hsByteString
-  args <- mapWithIndexA f tds
-  pure $ FunDef (encodeName (TMu tds)) funType args
+{-
+||| Generate code for a TMu with name `encoderName` and body `tds`
+encodeTMu : String -> Vect k (String, TDef (S n)) -> TermEncode n Haskell
+encodeTMu {k = k} tname tds = do
+  encoderVars <- encoderList
+  let eName = HsParam tname [] -- TODO freshEnv
+  locallyExtend eName $ do
+    let funType = HsArrow eName hsByteString
+    args <- mapWithIndexA f tds
+    pure $ FunDef (encodeName eName) funType (toList args)
  where f : Fin k -> (String, TDef (S n)) -> TermEncode (S n) (List HsTerm, HsTerm)
        f i (name, T1) = pure ([HsInn name []], hstoBS $ word (fromInteger (finToInteger i)))
        f i (name, args) = do
          [freshPV] <- freshVars 1 "x"
          rhs <- assert_total $ encode args freshPV
-         pure ([HsInn name [freshPV]], hstoBS $ word (fromInteger (finToInteger i)) <> rhs)
-
--- TODO: need to carry environment?
+         pure ([HsInn name [freshPV]], simplify $ hstoBS $ word (fromInteger (finToInteger i)) <> rhs)
+-}
 
 ||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
@@ -477,6 +559,7 @@ decode (TSum {k = k} tds) = do
               , (Nothing, hsCaseDef i cases hsFailDecode)]
  where injection : Fin l -> HsTerm -> HsTerm
        injection FZ x = left x
+       injection {l = S (S Z)} (FS FZ) x = right x
        injection (FS i) x = right (injection i x)
        f : Fin (2 + k) -> TDef n -> TermEncode n (HsTerm, HsTerm)
        f i t = do
@@ -489,68 +572,146 @@ decode (TProd {k = k} xs) = do
   pure (HsDo $ (toList xs') ++ [(Nothing, hsReturn (HsTupC vs))])
 decode (TVar i) = do
   decoders <- encoderList
-  pure $ HsFun (index i decoders)
-decode {n = n} (TMu {k} td) = pure $ (HsFun (decodeName (TMu td))) -- assumes this is generated elsewhere
-decode (TApp f xs) = assert_total $ decode (ap (def f) xs)
+  pure $ HsFun (decodeName (index i decoders))
+decode t@(TMu tds)   = decoderTerm t -- assumes the def of this is generated elsewhere
+decode t@(TApp f xs) = decoderTerm t -- assumes the def of this is generated elsewhere
 
-decodeTMu : Vect k (String, TDef (S n)) -> TermEncode n Haskell -- TODO!!!
-decodeTMu {k = k} tds = locallyExtend (decodeName (TMu tds)) $ do
-  let funType = hsDeserializer (HsParam (nameMu tds) [])
-  cases <- mapWithIndexA f tds
-  [i] <- freshVars 1 "i"
-  let rhs = HsDo [(Just i, hsReadInt (fromNat k))
-                 ,(Nothing, hsCaseDef i cases hsFailDecode)]
-  pure $ FunDef (decodeName (TMu tds)) funType [([], rhs)]
- where f : Fin k -> (String, TDef (S n)) -> TermEncode (S n) (HsTerm, HsTerm)
-       f i (name, T1) = pure (HsInt (finToInteger i), hsReturn (HsInn name []))
-       f i (name, args) = do
+encodeDef : TNamed n -> Haskell
+encodeDef t@(TName tname td) =
+  let env = freshEnv
+      funName = if tname == ""
+                then encodeName (makeType env td)
+                else "encode" ++ uppercase tname
+      currType = if tname == ""  -- makeType' env t
+                 then makeType env td
+                 else HsParam tname []
+      funType = foldr HsArrow (hsSerializer currType) (map hsSerializer env)
+      varEncs = toList $ map (\ x => HsTermVar $ "encode" ++ uppercase (hsTypeName x)) env
+      clauses =
+         case td of
+           TMu tds => toList $ runTermEncode (currType::env) (mapWithIndexA (genClause varEncs) tds)
+           td'     => let v = HsTermVar "x" in
+                          [( varEncs ++ [v]
+                           , runTermEncodeHS env (encode td' v))] in
+      FunDef funName funType clauses
+  where genClause : List HsTerm -> Fin k -> (String, TDef (S n)) -> TermEncode (S n) (List HsTerm, HsTerm)
+        genClause varEncs i (name, T1) = pure (varEncs ++ [HsInn name []], hstoBS $ word (fromInteger (finToInteger i)))
+        genClause varEncs i (name, args) = do
+          [freshPV] <- freshVars 1 "x"
+          rhs <- assert_total $ encode args freshPV
+          pure (varEncs ++ [HsInn name [freshPV]], simplify $ hstoBS $ word (fromInteger (finToInteger i)) <> rhs)
+
+decodeDef : TNamed n -> Haskell
+decodeDef t@(TName tname td) =
+  let env = freshEnv
+      funName = if tname == ""
+                then decodeName (makeType env td)
+                else "decode" ++ uppercase tname
+      currType = if tname == ""  -- makeType' env t
+                 then makeType env td
+                 else HsParam tname []
+      funType = foldr HsArrow (hsDeserializer currType) (map hsDeserializer env)
+      varEncs = toList $ map (\ x => HsTermVar $ "decode" ++ uppercase (hsTypeName x)) env
+      rhs =
+         case td of
+           TMu {k = k} tds => runTermEncode (currType::env) $ do
+             cases <- mapWithIndexA genCases tds
+             [i] <- freshVars 1 "i"
+             pure $ HsDo [(Just i, hsReadInt (fromNat k))
+                         ,(Nothing, simplify $ hsCaseDef i cases hsFailDecode)]
+           td'     => runTermEncodeHS env (decode td) in
+      FunDef funName funType [(varEncs, rhs)]
+ where genCases : Fin k -> (String, TDef (S n)) -> TermEncode (S n) (HsTerm, HsTerm)
+       genCases i (name, T1) = pure (HsInt (finToInteger i), hsReturn (HsInn name []))
+       genCases i (name, args) = do
          rest <- assert_total $ decode args
          [x] <- freshVars 1 "x"
          pure (HsInt (finToInteger i), HsDo [(Just x, rest)
                                             ,(Nothing, hsReturn (HsInn name [x]))])
 
-
 ASTGen Haskell HsType n where
   msgType           = makeType' freshEnv
   generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
-  generateTermDefs {n = Z} tn = termdefEncode tn ++ termdefDecode tn
-    where
-     termdefEncode : TNamed 0 -> List Haskell
-     -- termdefEncode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName td)
-     termdefEncode td =
-       let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName (def td))
-           funName = encodeName (def td)
-           funType = HsArrow (msgType {def=Haskell} td) hsByteString
-           v = HsTermVar "x"
-           rhs = hstoBS (runTermEncode [] (encode (def td) v))
-       in deps ++ [FunDef funName funType [([v], rhs)]]
-
-     termdefDecode : TNamed 0 -> List Haskell
-     -- termdefDecode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName td)
-     termdefDecode td =
-       let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName (def td))
-           funName = decodeName (def td)
-           funType = HsArrow hsByteString (HsParam "Maybe" [HsTuple [(msgType {def=Haskell} td), hsByteString]])
-           rhs = hsrunDeserializer (simplify $ runTermEncode [] (decode (def td)))
-       in deps ++ [FunDef funName funType [([], rhs)]]
-  generateTermDefs {n = S m} tn = [] -- TODO
+  generateTermDefs tn =
+    let deps = concatMap (\ (m**t) => [encodeDef t, decodeDef t]) (dependencies freshEnv (def tn)) in
+        deps ++ [encodeDef tn, decodeDef tn]
 
 CodegenIndep Haskell HsType where
   typeSource = renderType
   defSource  = renderDef
+  preamble    = text """import Data.Word
+import Data.ByteString
+import Data.ByteString.Builder
 
+type Serialiser a = a -> Builder
+
+runSerialiser :: Serialiser a -> a -> ByteString
+runSerialiser f = toLazyByteString . f
+
+newtype Deserialiser a  = MkDeserialiser (ByteString -> Maybe (a, ByteString))
+
+runDeserialiser :: Deserialiser a -> ByteString -> Maybe (a, ByteString)
+runDeserialiser (MkDeserialiser f) = f
+
+instance Functor Deserialiser where
+  fmap f da = MkDeserialiser (\ bs -> do
+    (a', bs') <- runDeserialiser da bs
+    Just (f a', bs'))
+
+
+instance Applicative Deserialiser where
+  pure x = MkDeserialiser (\ bs -> Just (x, bs))
+  df <*> da =  MkDeserialiser (\ bs -> do
+    (f', bs') <- runDeserialiser df bs
+    (a', bs'') <- runDeserialiser da bs'
+    Just (f' a', bs''))
+
+
+instance Monad Deserialiser where
+  (MkDeserialiser a) >>= g = MkDeserialiser (\ bs -> do
+    (a', bs') <- a bs
+    let (MkDeserialiser ga') = g a'
+    ga' bs')
+
+failDecode :: Deserialiser a
+failDecode = MkDeserialiser (\ bs -> Nothing)
+
+deserializeInt :: Deserialiser Integer
+deserializeInt = MkDeserialiser (\ bs -> fmap go (uncons bs))
+  where go :: (Word8, ByteString) -> (Integer, ByteString)
+        go (b, bs') = (toInteger b, bs')"""
+
+
+g : TNamed 0
+g = TName "ListNat" (TMu [("Nil", T1), ("Cons", TProd [(TMu [("Zero", T1), ("Suc", TVar 0)]), TVar 0])])
+
+bit : TNamed 0
+bit = TName "Bit" $ TSum [T1, T1]
+
+byte : TNamed 0
+byte = TName "Byte" $ powN 8 bit
+
+list : TNamed 1
+list = TName "List" $ TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
+
+listAlphaOrBeta : TNamed 2
+listAlphaOrBeta = TName "listAlphaOrBeta" $ TApp list [TSum [TVar 0, TVar 1]]
+
+listBitOrByte : TNamed 0
+listBitOrByte = TName "listBitOrByte" $ TApp listAlphaOrBeta [wrap bit, wrap byte]
+
+
+test : TNamed n -> IO ()
+test = putStrLn . toString . vsep2 . map renderDef . generateTermDefs
 
 {-
+
 -- TODO: move tests
 
-t : TDef 0 -> String
-t = toString . vsep2 . map renderDef . termdefEncode
 
 t' : TDef 0 -> String
 t' = toString . vsep2 . map renderDef . termdefDecode
 
-g : TDef 0
-g = TMu [("Nil", T1), ("Cons", TProd [(TMu [("Zero", T1), ("Suc", TVar 0)]), TVar 0])]
 
 nat : TDef 1 -- weakened to be used in `rose`
 nat = TMu [("Zero", T1), ("Suc", TVar 0)]
@@ -559,8 +720,9 @@ rose : TDef 0
 rose = TMu [("Leaf", nat), ("Branch", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])] )]
 -}
 
--- TODO: add backend preamble
-
--- TODO: align case blocks
-
+-- TODO: optimise Mu with one argument
 -- TODO: proper doc strings
+-- TODO: getUsedVars
+-- TODO: prettyprinting HsArrow
+-- TODO: too many toLazyByteString
+-- TODO: (related) check preamble (z vs s)

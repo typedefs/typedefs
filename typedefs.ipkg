@@ -11,13 +11,12 @@ modules = Names
         , Backend.JSON
         , Backend.ReasonML
         , Backend.Utils
-        
+
         , Test.Typedefs
         , Test.Haskell
         , Test.JSON
         , Test.ReasonML
-        , Test.TermParse
-        , Test.TermWrite
+        , Test.TermParseWrite
 
 tests = Test.Typedefs.testSuite
 

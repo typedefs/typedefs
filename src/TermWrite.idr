@@ -68,7 +68,7 @@ serializeBinary (TProd (a::b::c::tds)) ts (x, y) =
 serializeBinary (TMu tds) ts (Inn x) = assert_total $  serializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** serializeBinary (TMu tds) ts)::ts) x
 serializeBinary (TVar FZ) (t::ts) x = snd t x
 serializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
-  serializeBinary {n = (S n')} (TVar i) (ts) x
+  serializeBinary {n = (S n')} (TVar i) ts x
 serializeBinary (TApp f xs) ts x = assert_total $ serializeBinary (ap (def f) xs) ts x
 
 serializeBinaryClosed : (t : TDef 0) -> Serialiser (Ty [] t)

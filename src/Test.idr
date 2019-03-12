@@ -90,5 +90,24 @@ nestedMu5 = TName "nestedMu5" $ TMu [("Foobar", TMu [("Nil", T1), ("Cons", TProd
 nestedMu6 : TNamed 1
 nestedMu6 = TName "nestedMu6" $ TMu [("Foobar", TApp nestedMu4 [TApp maybe2 [TSum [TVar 1, weakenTDef (wrap nat) _ (lteAddRight 0)]]])]
 
+
+{-
+
+-- terms
+
+nil : Ty [] Tlnat
+nil = Inn (Left ())
+
+cons : Mu [Mu [] (TSum [T1, TProd [Tnat, TVar 0]])] (TSum [T1, TVar 0]) -> Ty [] Tlnat -> Ty [] Tlnat
+cons a xs = Inn (Right (a, xs))
+
+zer : Ty tvars Tnat
+zer = Inn (Left ())
+
+suc : Ty tvars Tnat -> Ty tvars Tnat
+suc x = Inn (Right x)
+
+-}
+
 shouldBe : Doc -> Doc -> SpecResult
 shouldBe actual expected = print actual `shouldBe` print expected
