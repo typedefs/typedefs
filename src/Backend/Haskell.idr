@@ -516,20 +516,18 @@ ASTGen Haskell HsType n where
   generateTermDefs {n = Z} tn = termdefEncode tn ++ termdefDecode tn
     where
      termdefEncode : TNamed 0 -> List Haskell
-     -- termdefEncode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName td)
      termdefEncode td =
        let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (encodeTMu tds)) (allMuInside encodeName (def td))
-           funName = encodeName (def td)
+           funName = "encode" ++ uppercase (name td)
            funType = HsArrow (msgType {def=Haskell} td) hsByteString
            v = HsTermVar "x"
            rhs = hstoBS (runTermEncode [] (encode (def td) v))
        in deps ++ [FunDef funName funType [([v], rhs)]]
 
      termdefDecode : TNamed 0 -> List Haskell
-     -- termdefDecode td@(TMu _) = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName td)
      termdefDecode td =
        let deps = map (\ (n ** k ** (tds, fs)) => runTermEncode fs (decodeTMu tds)) (allMuInside decodeName (def td))
-           funName = decodeName (def td)
+           funName = "decode" ++ uppercase (name td)
            funType = HsArrow hsByteString (HsParam "Maybe" [HsTuple [(msgType {def=Haskell} td), hsByteString]])
            rhs = hsrunDeserializer (simplify $ runTermEncode [] (decode (def td)))
        in deps ++ [FunDef funName funType [([], rhs)]]
@@ -538,19 +536,54 @@ ASTGen Haskell HsType n where
 CodegenIndep Haskell HsType where
   typeSource = renderType
   defSource  = renderDef
+  preamble    = text """import Data.Word
+import Data.ByteString
+
+newtype Deserialiser a  = MkDeserialiser (ByteString -> Maybe (a, ByteString))
+
+instance Functor Deserialiser where
+  fmap f (MkDeserialiser a) = MkDeserialiser (\ bs -> do
+    (a', bs') <- a bs
+    Just (f a', bs'))
+
+
+instance Applicative Deserialiser where
+  pure x = MkDeserialiser (\ bs -> Just (x, bs))
+  (MkDeserialiser f) <*> (MkDeserialiser a) =  MkDeserialiser (\ bs -> do
+    (f', bs') <- f bs
+    (a', bs'') <- a bs'
+    Just (f' a', bs''))
+
+
+instance Monad Deserialiser where
+  (MkDeserialiser a) >>= g = MkDeserialiser (\ bs -> do
+    (a', bs') <- a bs
+    let (MkDeserialiser ga') = g a'
+    ga' bs')
+
+failDecode :: Deserialiser a
+failDecode = MkDeserialiser (\ bs -> Nothing)
+
+deserializeInt :: Deserialiser Integer
+deserializeInt = MkDeserialiser (\ bs -> fmap go (uncons bs))
+  where go :: (Word8, ByteString) -> (Integer, ByteString)
+        go (b, bs') = (toInteger b, bs')"""
+
+
+g : TNamed 0
+g = TName "ListNat" (TMu [("Nil", T1), ("Cons", TProd [(TMu [("Zero", T1), ("Suc", TVar 0)]), TVar 0])])
+
+t : TNamed n -> IO ()
+t = putStrLn . toString . vsep2 . map renderDef . generateTermDefs
 
 
 {-
 -- TODO: move tests
 
-t : TDef 0 -> String
-t = toString . vsep2 . map renderDef . termdefEncode
 
 t' : TDef 0 -> String
 t' = toString . vsep2 . map renderDef . termdefDecode
 
-g : TDef 0
-g = TMu [("Nil", T1), ("Cons", TProd [(TMu [("Zero", T1), ("Suc", TVar 0)]), TVar 0])]
 
 nat : TDef 1 -- weakened to be used in `rose`
 nat = TMu [("Zero", T1), ("Suc", TVar 0)]
@@ -558,9 +591,5 @@ nat = TMu [("Zero", T1), ("Suc", TVar 0)]
 rose : TDef 0
 rose = TMu [("Leaf", nat), ("Branch", TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])] )]
 -}
-
--- TODO: add backend preamble
-
--- TODO: align case blocks
 
 -- TODO: proper doc strings

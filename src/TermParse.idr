@@ -65,6 +65,9 @@ deserialize ts ps td s  =
 data Deserialiser : Type -> Type where
   MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
 
+runDeserializer : Deserialiser a -> Bytes -> Maybe (a, Bytes)
+runDeserializer (MkDeserialiser d) = d
+
 Functor Deserialiser where
   map f (MkDeserialiser a) = MkDeserialiser (\ bs => do
     (a', bs') <- a bs
@@ -96,7 +99,7 @@ deserializeInt : (n : Nat) -> Deserialiser (Fin n)
 deserializeInt n = MkDeserialiser (\ bs => case (consView bs) of
     Nil => Nothing
     Cons b bs' => do
-      k <- integerToFin (prim__zextB8_BigInt b) n
+      k <- integerToFin ((prim__zextB8_BigInt b) - 1) n  -- pack [0] == empty...
       pure (k, bs'))
 
 injection : (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDef n)) -> Ty tvars (index i ts) -> Tnary tvars ts Either
@@ -128,5 +131,4 @@ deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = 
 deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
 
 deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
-deserializeBinaryClosed t bs =
-  let MkDeserialiser d = deserializeBinary t [] in d bs
+deserializeBinaryClosed t bs = runDeserializer (deserializeBinary t []) bs

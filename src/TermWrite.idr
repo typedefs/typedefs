@@ -45,7 +45,7 @@ Serialiser : Type -> Type
 Serialiser a = a -> Bytes
 
 serializeInt : {n : Nat} -> Serialiser (Fin n)
-serializeInt x = pack [prim__truncBigInt_B8 (finToInteger x)]
+serializeInt x = pack [prim__truncBigInt_B8 (1 + (finToInteger x))] -- pack [0] == empty...
 
 injectionInv : (ts : Vect (2 + k) (TDef n)) -> Tnary tvars ts Either -> (i : Fin (2 + k) ** Ty tvars (index i ts))
 injectionInv [a,b] (Left x) = (0 ** x)
@@ -68,7 +68,7 @@ serializeBinary (TProd (a::b::c::tds)) ts (x, y) =
 serializeBinary (TMu tds) ts (Inn x) = assert_total $  serializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** serializeBinary (TMu tds) ts)::ts) x
 serializeBinary (TVar FZ) (t::ts) x = snd t x
 serializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
-  serializeBinary {n = (S n')} (TVar i) (ts) x
+  serializeBinary {n = (S n')} (TVar i) ts x
 serializeBinary (TApp f xs) ts x = assert_total $ serializeBinary (ap (def f) xs) ts x
 
 serializeBinaryClosed : (t : TDef 0) -> Serialiser (Ty [] t)

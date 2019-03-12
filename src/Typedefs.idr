@@ -59,6 +59,9 @@ parens : String -> String
 parens "" = ""
 parens s = "(" ++ s ++ ")"
 
+parens' : String -> String
+parens' s = if " " `isInfixOf` s then "(" ++ s ++ ")" else s
+
 curly : String -> String
 curly "" = ""
 curly s = "{" ++ s ++ "}"
@@ -147,6 +150,60 @@ mutual
   Ty     tvars (TMu m)     = Mu tvars (args m)
   Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
 
+
+-- Show and Eq instances
+
+mutual
+
+  showMu : (tvars : Vect n (a : Type ** a -> String)) -> (td : TDef (S n)) -> Mu (map DPair.fst tvars) td -> String
+  showMu tvars td (Inn x) = "Inn " ++ parens' (showTy ((Mu (map DPair.fst tvars) td ** assert_total $ showMu tvars td)::tvars) td x)
+
+  showTy : (tvars : Vect n (a : Type ** a -> String)) -> (td : TDef n) -> Ty (map DPair.fst tvars) td -> String
+  showTy tvars T0                    x         impossible
+  showTy tvars T1                    x         = show x
+  showTy tvars (TSum [a,b])          (Left x)  = "Left " ++ parens' (showTy tvars a x)
+  showTy tvars (TSum [a,b])          (Right x) = "Right " ++ parens' (showTy tvars b x)
+  showTy tvars (TSum (a::b::c::xs))  (Left x)  = "Left " ++ parens' (showTy tvars a x)
+  showTy tvars (TSum (a::b::c::xs))  (Right x) = "Right " ++ parens' (assert_total $ showTy tvars (TSum (b::c::xs))  x)
+  showTy {n = n} tvars (TProd xs)    x         = parens (concat (List.intersperse ", " (showProd xs x)))
+    where showProd : (ys : Vect (2 + k) (TDef n)) -> Tnary (map DPair.fst tvars) ys Pair -> List String
+          showProd [a, b]        (x, y) = (showTy tvars a x)::[showTy tvars b y]
+          showProd (a::b::c::ys) (x, y) = (showTy tvars a x)::showProd (b::c::ys) y
+  showTy ((a ** showA)::tvars)     (TVar FZ)     x = showA x
+  showTy {n = S (S n')} (_::tvars) (TVar (FS i)) x = showTy {n = S n'} tvars (TVar i) x
+  showTy tvars                     (TMu m)       x = showMu tvars (args m) x
+  showTy tvars                     (TApp f xs)   x = assert_total $ showTy tvars (def f `ap` xs) x
+
+Show (Mu [] td) where
+  show y = showMu [] td y
+
+mutual
+
+  eqMu : (tvars : Vect n (a : Type ** a -> a -> Bool)) -> (td : TDef (S n)) ->
+         Mu (map DPair.fst tvars) td -> Mu (map DPair.fst tvars) td  -> Bool
+  eqMu tvars td (Inn x) (Inn x') = eqTy ((Mu (map DPair.fst tvars) td ** assert_total $ eqMu tvars td)::tvars) td x x'
+
+  eqTy : (tvars : Vect n (a : Type ** a -> a -> Bool)) -> (td : TDef n) ->
+         Ty (map DPair.fst tvars) td -> Ty (map DPair.fst tvars) td -> Bool
+  eqTy tvars T0                    x x'        impossible
+  eqTy tvars T1                    x x'      = x == x'
+  eqTy tvars (TSum [a,b])          (Left x)  (Left x') = eqTy tvars a x x'
+  eqTy tvars (TSum [a,b])          (Right x) (Right x') = eqTy tvars b x x'
+  eqTy tvars (TSum (a::b::c::xs))  (Left x)  (Left x') = eqTy tvars a x x'
+  eqTy tvars (TSum (a::b::c::xs))  (Right x) (Right x') = assert_total $ eqTy tvars (TSum (b::c::xs))  x x'
+  eqTy {n = n} tvars (TProd xs)    x x' = eqProd xs x x'
+    where eqProd : (ys : Vect (2 + k) (TDef n)) ->
+                   Tnary (map DPair.fst tvars) ys Pair -> Tnary (map DPair.fst tvars) ys Pair -> Bool
+          eqProd [a, b]        (x, y) (x', y') = (eqTy tvars a x x') && (eqTy tvars b y y')
+          eqProd (a::b::c::ys) (x, y) (x', y') = (eqTy tvars a x x') && (eqProd (b::c::ys) y y')
+  eqTy ((a ** eqA)::tvars)     (TVar FZ)       x x' = eqA x x'
+  eqTy {n = S (S n')} (_::tvars) (TVar (FS i)) x x' = eqTy {n = S n'} tvars (TVar i) x x'
+  eqTy tvars                     (TMu m)       x x' = eqMu tvars (args m) x x'
+  eqTy tvars                     (TApp f xs)   x x' = assert_total $ eqTy tvars (def f `ap` xs) x x'
+  eqTy tvars _ _ _ = False
+
+Eq (Mu [] td) where
+  y == y' = eqMu [] td y y'
 
 ------ meta ----------
 

@@ -132,8 +132,9 @@ mutual
 ASTGen ReasonML RMLType n where
   msgType           = makeType' freshEnv
   generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
-  generateTermDefs tn = ?termdefs
+  generateTermDefs tn = [] -- TODO
 
 CodegenIndep ReasonML RMLType where
   typeSource = renderType
   defSource  = renderDef
+  preamble   = empty -- TODO
