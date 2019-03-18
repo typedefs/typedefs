@@ -12,6 +12,8 @@ import Names
 
 import Data.Vect
 
+import ParserUtils
+
 %default total
 %access public export
 
@@ -54,10 +56,26 @@ sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState (sizedtok' Char)
 
+neComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
+             All (Parser mn p ())
+neComments = between (char ';') (char '\n') (cmap () $ nelist $ notChar '\n')
+
+emptyComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
+                All (Parser mn p ())
+emptyComments = cmap () $ string ";\n"
+
+comments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
+           All (Parser mn p ())
+comments = emptyComments `alt` neComments
+
+ignoreSpaces : (Alternative mn, Monad mn,  Subset Char (Tok p),  Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+               All (Parser mn p a :-> Parser mn p a)
+ignoreSpaces parser = withSpaces $ betweenopt comments comments $ parser
+
 tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
-   withSpaces $
+   ignoreSpaces $
    alts [ guardM
               (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
               (mand (lift get) alphas)
@@ -68,13 +86,13 @@ tdef =
                    in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
               )
               (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
-                           (map {a=Parser' _} (nelist . withSpaces) rec)))
+                           (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
         , cmap (Z ** T0) $ string "0"
         , cmap (Z ** T1) $ string "1"
         , nary rec '*' TProd
         , nary rec '+' TSum
         , map (\n => (S n ** TVar $ last {n})) $
-            parens (rand (withSpaces (string "var")) (withSpaces decimalNat))
+            parens (rand (ignoreSpaces (string "var")) (ignoreSpaces decimalNat))
         , map {a=NEList (String, (n : Nat ** TDef n))}
               (\nel =>
                let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
@@ -86,8 +104,8 @@ tdef =
                  Z => (Z ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S Z) (lteSuccRight lte))) (fromVMax vx))
                  S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
               )
-              (parens (rand (withSpaces (string "mu"))
-                            (map {a=Parser' _} (\t => nelist $ withSpaces $ parens $ and (withSpaces alphas) t) rec)))
+              (parens (rand (ignoreSpaces (string "mu"))
+                            (map {a=Parser' _} (\t => nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
         ]
   where
   nary : All (Box (Parser' (n ** TDef n))
@@ -101,11 +119,11 @@ tdef =
           (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
                            (fromVMax vx))
         ) $
-        parens (rand (withSpaces (char sym))
+        parens (rand (ignoreSpaces (char sym))
            (map2 {a=Parser' _} {b=Parser' _}
                  (\p, q => and p q)
-                 (map {a=Parser' _} withSpaces rec)
-                 (map {a=Parser' _} (nelist . withSpaces) rec)))
+                 (map {a=Parser' _} ignoreSpaces rec)
+                 (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
  
   tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
   tApp {m} {k} f xs with (decEq k m)
@@ -117,9 +135,9 @@ tdef =
 
 tnamed : All (Parser' (n ** TNamed n))
 tnamed =
-  withSpaces $
+  ignoreSpaces $
   randbindm
-    (parens (rand (withSpaces (string "name")) (and (withSpaces alphas) (withSpaces tdef))))
+    (parens (rand (ignoreSpaces (string "name")) (and (ignoreSpaces alphas) (ignoreSpaces tdef))))
     (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
 
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
