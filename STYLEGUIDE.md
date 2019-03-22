@@ -231,3 +231,26 @@ This is to avoid spending review time on aesthetics rather than functionality.
 
 If aethetics disagreement persists, an issue should be opened to address it.
 
+### Alignment: Vertical symbols
+
+It is generally encouraged to vertically align symbols in declarations of functions, `case`-blocks,
+and `with`-blocks.
+
+```idris
+case bool of
+  True  = …
+  False = …
+```
+
+```idris
+fn : Type -> Type
+fn a with (view a)
+  fn (S x) | view = …
+  fn Z     | view = …
+```
+
+```idris
+boolFunc : Bool -> Bool
+boolFunc False = …
+boolFunc True  = …
+```
