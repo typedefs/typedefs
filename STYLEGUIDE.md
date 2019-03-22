@@ -67,7 +67,7 @@ fn = case True of
 
 Case analysis is indented with 5 spaces
 
-## ASCII-art
+## Alignment ASCII-art
 
 Sometimes, syntax in idris can become very verbose in places where 
 understanding the structure of the program is key.
@@ -76,7 +76,7 @@ understanding the structure of the program is key.
 postulate hardToRead : (N (N a b) c) = (N a (N b c))
 ```
 
-In this case it might be relevant to indent the file as follows
+In this case it might be relevant to align the code as follows
 
 ```
 easierToRead: (N (N a b) (  c  )) =
@@ -84,8 +84,8 @@ easierToRead: (N (N a b) (  c  )) =
 ```
 
 As we can see, the _structure_ of the equality is much easier to see (a form of
-associativity here). Since this is ascii art, there can be a lot of equaly
-valid ways of indenting this expression. Here are some examples
+associativity here). Since this is ascii art, there are multiple equally
+valid ways of aligning this expression. Here are some examples:
 
 1.
 
@@ -104,7 +104,7 @@ easierToRead: (N (N a    b) c) =
               (N    a (N b  c))
 ```
 
-Using operators one could write:
+Using operators, one could write:
 
 4.
 ```
