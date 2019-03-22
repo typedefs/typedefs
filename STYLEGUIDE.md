@@ -1,16 +1,16 @@
 
 # Typedefs styleguide
 
-This styleguide aims to answer questions relevants to the cosmetics related to 
+This styleguide aims to answer questions relevants to the cosmetics related to
 writing Idris programs.
 
-Since idris is a relatively young language, there is no general convention 
-about its style. This document should serve as reference for current and future 
+Since idris is a relatively young language, there is no general convention
+about its style. This document should serve as reference for current and future
 users of the typedefs codebase.
 
 ## Line length: 120
 
-The maximum line length is 120 characters. In today's wide screen monitors 
+The maximum line length is 120 characters. In today's wide screen monitors
 there is no reason to limit ourselves to 80 characters, yet, having a maximum
 limit helps avoiding degenerate situations.
 
@@ -22,7 +22,7 @@ Haskell. In order to allow this level of visual customisation and ensure
 consistency across editors, spaces are used.
 
 The language does not benefit from more than 2 space of indentation in most
-cases. Thought special constructions lend themselve to more spaces for 
+cases. Thought special constructions lend themselve to more spaces for
 indentation.
 
 ### Indentation: where clauses
@@ -30,46 +30,146 @@ indentation.
 ``` idris
 fn : String
 fn = g
-  where g : String
-        g = "hello"
+  where
+    g : String
+    g = "hello"
 ```
 
-Where clauses are aligned with 6 spaces
+Where clauses are aligned with 2 spaces
 
 ### Indentation: Let declarations
 
 ```idris
 fn : String
 fn = let greeting = "hello" in
-         greeting
+       greeting
 ```
 
-Let declarations are indented with 4 spaces
+Let declarations are indented with 2 spaces.
+
+Additional declarations are indented with 4 spaces while the expression is indented with 2 spaces
+
+```idris
+fn : String
+fn = let greeting = "hello"
+         whom = "world" in
+       greeting
+```
 
 ### Indentation: rewrites
 
 ```idris
 fn : String
 fn = rewrite proof in
-             1234
+       1234
 ```
 
-Rewrite rules are indented with 8 spaces
+Rewrite rules are indented with 2 spaces. Multiple rewrite rules in a row are not indented.
+
+```idris
+fn : String
+fn = rewrite proof in
+     rewrite prrof2 in
+       1234
+```
+
+This because, even though they syntactically look like `let` declarations, unlike them, it is not
+allowed to bundle multiple rewrites in the same block.
 
 ### Indentation: Case
 
 ```idris
 fn : String
 fn = case True of
-          True => "Hello"
-          False => "Goodbye"
+       True => "Hello"
+       False => "Goodbye"
 ```
 
-Case analysis is indented with 5 spaces
+Case analysis is indented with 2 spaces
+
+## Type signatures
+
+Idris can be quite verbose when declaring type signature, indeed type signatures can carry:
+
+- Interface constraints
+- Programs and function calls
+- Named parameters
+- All of the above
+
+
+### Type signatures: Argument grouping
+
+In the case where multiple named arguments with the same type appear in a row, they should be
+grouped in a single declaration. This helps comunicate the fact that all those arguments
+share the same type and are only different in name.
+
+```idris
+fn : (a, b, c : Type) -> Type
+fn = …
+```
+
+### Type signatures: many arguments
+
+In case a type signature is too long to fit in the 120-character limit, or if breaking it up would
+significantly improve its readability, it is expected to follow the following pattern.
+
+```idris
+veryLongTypeSignature :
+     firstArgument : Type
+  -> secondArgument : Type
+  -> (ThisFunctionIsVerylongArgument -> secondArgument)
+  -> Type
+```
+
+This allows the  reader to scan the signature vertically in order to read the entirety of the type signature.
+
+Additionnally, this pattern allows to declare short interfaces on the first line:
+
+```idris
+veryLongTypeSignature : (Interface firstArgument)
+  => firstArgument : Type
+  -> secondArgument : Type
+  -> (ThisFunctionIsVerylongArgument -> secondArgument)
+  -> Type
+```
+
+### Type signatures: many interfaces
+
+In case a type signature is too long to fit in the 120-character limit because of interfaces
+definitions, it is expected to break it up as follows:
+
+```idris
+veryLongFunctionBecauseOfInterfaces :
+   ( Interface1 a
+   , Interface2 b
+   , Interface3 c )
+  => (a, b, c : Type)
+  -> Type
+```
+
+Again this allows the reader to scan the function verticaly and get all the information regarding
+interfaces. The extra leading whitespaces helps indicating that those are interfaces constraints
+and not arguments.
+
+### Type signatures: dependent signatures
+
+
+In cases where a dependent type needs to execute some sort of computation, it is expected to
+write the computation in an auxiliary function rather than inside the type signature.
+
+```idris
+Select : Bool -> Type
+Select True = String
+Select False = Int
+
+dependent : (a : Bool) -> Select a
+dependent True = ""
+dependent False = 0
+```
 
 ## Alignment ASCII-art
 
-Sometimes, syntax in idris can become very verbose in places where 
+Sometimes, idris syntax can be very verbose in places where
 understanding the structure of the program is key.
 
 ```
@@ -97,7 +197,7 @@ easierToRead: (N (N a b) c      ) =
 ```
 easierToRead: (N (N a b)       c) =
               (N       a (N b c))
-```      
+```
 3.
 ```
 easierToRead: (N (N a    b) c) =
