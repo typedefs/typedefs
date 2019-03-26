@@ -1,3 +1,4 @@
+import Text.PrettyPrint.WL
 import public Typedefs
 import Parse
 import public TermParse
@@ -14,15 +15,20 @@ getSource = foreign FFI_JS "getSource()" _
 setResult : String -> JS_IO ()
 setResult = foreign FFI_JS "setResult(%0)" _
 
+generateCode : String -> (n ** TNamed n) -> String
+generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
+generateCode "reasonml" (n  **tn) = toString $ generateDefs ReasonML tn
+generateCode "json"     (Z  **tn) = toString $ generate JSONDef tn
+generateCode "json"     (S _**tn) = "<error : can't generate JSON schema for open typedef>"
+generateCode _          _         = "<error : unknown backend>"
+
 -- re-exports
 parseType : String -> Maybe (n : Nat ** TNamed n)
 parseType = parseTNamed
 
-generateHaskell : TNamed n -> Doc
-generateHaskell = generateDefs Haskell
-
-generateReason : TNamed n -> Doc
-generateReason = generateDefs ReasonML
-
-generateJSON : TNamed 0 -> Doc
-generateJSON = generate JSONDef
+lib : FFI_Export FFI_JS "" []
+lib = Data (n ** TNamed n) "TNamedN" $
+      Data (Maybe (n ** TNamed n)) "MaybeTNamedN" $
+      Fun parseType "parseType" $
+      Fun generateCode "generateCode" $
+      End
