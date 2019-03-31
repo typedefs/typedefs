@@ -8,4 +8,4 @@ sourcedir = parser.js
 
 pkgs = contrib, typedefs, js
 
-opts = "--codegen node"
+opts = "--codegen node --interface"

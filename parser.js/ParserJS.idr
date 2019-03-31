@@ -24,7 +24,7 @@ generateCode _          _         = "<error : unknown backend>"
 
 -- re-exports
 parseType : String -> Maybe (n : Nat ** TNamed n)
-parseType = parseTNamed
+parseType = parseTNamed 
 
 lib : FFI_Export FFI_JS "" []
 lib = Data (n ** TNamed n) "TNamedN" $
