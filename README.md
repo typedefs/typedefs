@@ -88,17 +88,17 @@ See [Examples.idr](examples/Examples.idr).
 There is also a [work-in-progress document](https://hackmd.io/22MJzoZFRBycNiDgN1nKKg) describing the work in progress,
 and [Jelle's musings on Typedefs and regular languages](https://hackmd.io/4htwL7Z6QlCyimKc98exJA).
 
-## Building
+## Build and run
 
-Nix package descriptions and a Makefile is provided with build instructions.
+Nix package descriptions, an [Elba manifest](elba.toml) and a [Makefile](Makefile) are provided.
 
 ### Nix packages
 
-Build everything:
+If you want to build everything, do:
 
 `nix-build`
 
-Build a specific package:
+If you only want to build a specific package:
 
 `nix-build -A typedefs.nix`
 
@@ -131,3 +131,10 @@ Install:
 Clean up:
 
 `make clean-all`
+
+### Elba
+
+Build:
+```
+elba build
+```
