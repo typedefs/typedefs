@@ -1,4 +1,16 @@
 language: nix
 os:
   - linux
-  - osx
+#  - osx
+deploy:
+  provider: pages
+  skip-cleanup: true
+  verbose: true
+  keep-history: true
+  target-branch: master
+  repo: typedefs/typedefs-docs
+#  fqdn: docs.typedefs.com
+  github-token: $GITHUB_TOKEN
+  local-dir: $TRAVIS_BUILD_DIR/result/share/doc/typedefs/
+  on:
+    branch: publish-docs
