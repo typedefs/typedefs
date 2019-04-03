@@ -6,7 +6,7 @@ Programming language agnostic type construction language based on polynomials.
 
 ## About
 
-See http://typedefs.com.
+See http://typedefs.com, or play around with examples at [Try Typedefs!](https://try.typedefs.com)
 
 ## Building
 
