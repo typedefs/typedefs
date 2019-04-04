@@ -9,12 +9,6 @@ import Backend.Haskell
 import Backend.JSON
 import Backend.ReasonML
 
-getSource : JS_IO String
-getSource = foreign FFI_JS "getSource()" _
-
-setResult : String -> JS_IO ()
-setResult = foreign FFI_JS "setResult(%0)" _
-
 generateCode : String -> (n ** TNamed n) -> String
 generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
 generateCode "reasonml" (n  **tn) = toString $ generateDefs ReasonML tn

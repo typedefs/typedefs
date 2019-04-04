@@ -16,7 +16,6 @@ idrisPackages.build-idris-package {
 
   postInstall = ''
     install -D typedefs_parser.js $out/share/typedefs/js/typedefs-parser.js
-    install -D parser.js/typedefs-parser.html $out/share/typedefs/js/typedefs-parser.html
   '';
 
   meta = {
