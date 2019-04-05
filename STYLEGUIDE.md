@@ -47,13 +47,13 @@ fn = let greeting = "hello" in
 
 Let declarations are indented with 2 spaces.
 
-Additional declarations are indented with 4 spaces while the expression is indented with 2 spaces
+Additional declarations are indented with 4 spaces while the expression is lined up with declarations.
 
 ```idris
 fn : String
 fn = let greeting = "hello"
-         whom = "world" in
-       greeting
+         whom = "world"
+      in greeting
 ```
 
 ### Indentation: rewrites
@@ -69,7 +69,7 @@ Rewrite rules are indented with 2 spaces. Multiple rewrite rules in a row are no
 ```idris
 fn : String
 fn = rewrite proof in
-     rewrite prrof2 in
+     rewrite proof2 in
        1234
 ```
 
