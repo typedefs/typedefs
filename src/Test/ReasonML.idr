@@ -39,7 +39,7 @@ testSuite = spec $ do
 
   describe "ReasonML code generation tests:" $ do
     let bitDoc = vsep2
-                  [ eitherDoc
+                  [ preamble {def = ReasonML}, eitherDoc
                   , text "type" |++| text "bit"
                     |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
                   ]
@@ -64,7 +64,7 @@ testSuite = spec $ do
                      ]
 
     it "maybe" $
-      generate maybe `shouldBe` maybeDoc
+      generate maybe `shouldBe` vsep2 [preamble {def = ReasonML}, maybeDoc]
 
     let listDoc = text "type" |++| text "list" |+| parens x0
                   |++| equals |++| text "Nil"
@@ -72,7 +72,7 @@ testSuite = spec $ do
                   |+| semi
 
     it "list" $
-      generate list `shouldBe` listDoc
+      generate list `shouldBe` vsep2 [preamble {def = ReasonML}, listDoc]
 
     let muMaybeDoc = text "type" |++| text "maybe2" |+| parens x0
                      |++| equals |++| text "Nothing"
@@ -80,7 +80,7 @@ testSuite = spec $ do
                      |+| semi
 
     it "maybe2" $
-      generate maybe2 `shouldBe` muMaybeDoc
+      generate maybe2 `shouldBe` vsep2 [preamble {def = ReasonML}, muMaybeDoc]
 
     let natDoc = text "type" |++| text "nat"
                  |++| equals |++| text "Z"
@@ -88,12 +88,12 @@ testSuite = spec $ do
                  |+| semi
 
     it "nat" $
-      generate nat `shouldBe` natDoc
+      generate nat `shouldBe` vsep2 [preamble {def = ReasonML}, natDoc]
 
     it "listNat" $
       generate listNat
         `shouldBe` vsep2
-                    [ natDoc
+                    [ preamble {def = ReasonML}, natDoc
                     , text "type" |++| text "listNat"
                       |++| equals |++| text "NilN"
                       |++| pipe   |++| text "ConsN" |+| tupled [ text "nat", text "listNat" ]
@@ -103,7 +103,7 @@ testSuite = spec $ do
     it "parametricSynonym" $
       generate parametricSynonym
         `shouldBe` vsep2
-                    [ maybeDoc
+                    [ preamble {def = ReasonML}, maybeDoc
                     , text "type" |++| text "parSyn" |+| parens x0
                       |++| equals |++| text "maybe" |+| parens x0
                       |+| semi
@@ -112,7 +112,7 @@ testSuite = spec $ do
     it "parametricSynonym2" $
       generate parametricSynonym2
         `shouldBe` vsep2
-                    [ muMaybeDoc
+                    [ preamble {def = ReasonML}, muMaybeDoc
                     , text "type" |++| text "parSyn2" |+| parens x0
                       |++| equals |++| text "maybe2" |+| parens x0
                       |+| semi
@@ -121,7 +121,7 @@ testSuite = spec $ do
     it "aplusbpluscplusd" $
       generate aplusbpluscplusd
         `shouldBe` vsep2
-                    [ eitherDoc
+                    [ preamble {def = ReasonML}, eitherDoc
                     , text "type" |++| text "aplusbpluscplusd" |+| tupled [x0,x1,x2,x3]
                       |++| equals |++| text "either" |+| tupled [x0,
                                           text "either" |+| tupled [x1,
@@ -132,7 +132,7 @@ testSuite = spec $ do
     it "oneoneoneone" $
       generate oneoneoneone
         `shouldBe` vsep2
-                    [ eitherDoc
+                    [ preamble {def = ReasonML}, eitherDoc
                     , text "type" |++| text "oneoneoneone"
                       |++| equals |++| text "either" |+| tupled [text "unit",
                                           text "either" |+| tupled [text "unit",
@@ -142,14 +142,14 @@ testSuite = spec $ do
 
     it "unusedFreeVars" $
       generate unusedFreeVars
-        `shouldBe` text "type" |++| text "id" |+| parens x0
+        `shouldBe` vsep2 [ preamble {def = ReasonML}, text "type" |++| text "id" |+| parens x0
                       |++| equals |++| x0
-                      |+| semi -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
+                      |+| semi] -- not "\ntype id('x0, 'x1, ..., 'x41) = 'x0\n"
 
     it "void or unit" $
       generate voidOrUnit
         `shouldBe` vsep2
-                    [ text "type" |++| text "void" |+| semi
+                    [ preamble {def = ReasonML}, text "type" |++| text "void" |+| semi
                     , eitherDoc
                     , text "type" |++| text "voidOrUnit"
                       |++| equals |++| text "either" |+| tupled [text "void", text "unit"]
@@ -158,14 +158,14 @@ testSuite = spec $ do
 
     it "nonlinear variable usage" $
       generate nonlinear
-        `shouldBe` text "type" |++| text "nonlinear" |+| parens x0
+        `shouldBe` vsep2 [preamble {def = ReasonML}, text "type" |++| text "nonlinear" |+| parens x0
                    |++| equals |++| tupled [x0, x0]
-                   |+| semi
+                   |+| semi]
 
     it "nested Mu 1: List(Either(Alpha, Beta))" $
       generate nestedMu1
         `shouldBe` vsep2
-                    [ eitherDoc
+                    [ preamble {def = ReasonML}, eitherDoc
                     , listDoc
                     , text "type" |++| text "nestedMu1" |+| tupled [x0,x1]
                       |++| equals |++| text "Foobar"
@@ -176,7 +176,7 @@ testSuite = spec $ do
     it "nested Mu 2: Maybe2(Alpha)" $
       generate nestedMu2
         `shouldBe` vsep2
-                    [ muMaybeDoc
+                    [ preamble {def = ReasonML}, muMaybeDoc
                     , text "type" |++| text "nestedMu2" |+| parens x0
                       |++| equals |++| text "Foobar"
                                        |+| parens (text "maybe2" |+| parens x0)
@@ -186,7 +186,7 @@ testSuite = spec $ do
     it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
         `shouldBe` vsep2
-                    [ muMaybeDoc
+                    [ preamble {def = ReasonML}, muMaybeDoc
                     , text "type" |++| text "nestedMu3"
                       |++| equals |++| text "Foobar"
                                        |+| parens (text "maybe2" |+| parens (text "nestedMu3"))
@@ -207,12 +207,12 @@ testSuite = spec $ do
         ]
 
     it "nested Mu 4: List(Either (Mu, Alpha))" $
-      generate nestedMu4 `shouldBe` nestedMu4Doc
+      generate nestedMu4 `shouldBe` vsep2 [preamble {def = ReasonML}, nestedMu4Doc]
 
     it "Nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
         `shouldBe` vsep2
-                    [ text "type" |++| text "nilCons" |+| parens x0
+                    [ preamble {def = ReasonML}, text "type" |++| text "nilCons" |+| parens x0
                       |++| equals |++| text "Nil" 
                       |++| pipe   |++| text "Cons"
                                        |+| tupled [ x0
@@ -227,7 +227,7 @@ testSuite = spec $ do
     it "nested Mu 6: NestedMu4(Maybe2(Either(Alpha, Nat)))" $
       generate nestedMu6
         `shouldBe` vsep2
-                    [ natDoc
+                    [ preamble {def = ReasonML}, natDoc
                     , muMaybeDoc
                     , nestedMu4Doc
                     , text "type" |++| text "nestedMu6" |+| parens x0

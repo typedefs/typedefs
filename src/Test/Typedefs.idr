@@ -9,8 +9,8 @@ import Test.TermParseWrite
 export
 testSuite : IO ()
 testSuite =
-  do -- Parse.testSuite
+  do Parse.testSuite
      Haskell.testSuite
-     -- ReasonML.testSuite
-     -- JSON.testSuite
+     ReasonML.testSuite
+     JSON.testSuite
      -- TermParseWrite.testSuite
