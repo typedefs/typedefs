@@ -11,14 +11,18 @@ authors = []
 
 [targets.lib]
 path = "src"
-mods = ["Types"
-       ,"Parse"
-       ,"Typedefs"
-       ,"TermParse"
-       ,"TermWrite"
-       ,"Provider"
-       ,"Backend.Haskell"
-       ,"Backend.ReasonML"
+mods = [ "Names"
+       , "ParserUtils"
+       , "Parse"
+       , "Typedefs"
+       , "TermParse"
+       , "TermWrite"
+       , "Provider"
+       , "Backend"
+       , "Backend.Haskell"
+       , "Backend.JSON"
+       , "Backend.ReasonML"
+       , "Backend.Utils"
        ]
 idris_opts = ["-p","contrib"]
 
