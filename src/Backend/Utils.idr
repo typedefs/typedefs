@@ -75,3 +75,8 @@ flattenMus muName = flattenMu [muName]
   flattenMu names (TProd ts)  = assert_total $ TProd $ map (flattenMu names) ts
   flattenMu names (TMu cs)    = assert_total $ TMu $ map (map (flattenMu ((nameMu cs) :: names))) cs
   flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
+
+-- TODO: is this in a library somewhere?
+mapWithIndexA : Applicative m => {n : Nat} -> (Fin n -> a -> m b) -> Vect n a -> m (Vect n b)
+mapWithIndexA f [] = pure []
+mapWithIndexA f (a::as) = pure (::) <*> f FZ a <*> mapWithIndexA (f . FS) as
