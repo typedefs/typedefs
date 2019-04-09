@@ -22,6 +22,14 @@ tnamedShouldParseAs input exp = it (quote input) $ (parseThenShowTNamed input) `
 testSuite : IO ()
 testSuite = spec $ do
 
+  describe "Parser tests: comments" $ do
+
+    "0;comment\n" `tdefShouldParseAs` "Just (0 ** 0)"
+
+    "0;\n" `tdefShouldParseAs` "Just (0 ** 0)"
+
+    "(var ;comment\n123)" `tdefShouldParseAs` "Just (124 ** {123})"
+
   describe "Parser tests: well-formed terms" $ do
     "0" `tdefShouldParseAs` "Just (0 ** 0)"
 
