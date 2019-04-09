@@ -600,17 +600,12 @@ decodeSumx1x2 decodeX1 decodeX2 = do
                                       _ -> failDecode
 
 encodeNestedMu1 :: Serialiser x0 -> Serialiser x1 -> Serialiser (NestedMu1 x0 x1)
-encodeNestedMu1 encodeX0 encodeX1 (Foobar x) = mconcat [(word8 (fromIntegral 0))
-                                                       ,(encodeList (encodeSumx1x2 encodeX0 encodeX1) x)]
+encodeNestedMu1 encodeX0 encodeX1 (Foobar x) = encodeList (encodeSumx1x2 encodeX0 encodeX1) x
 
 decodeNestedMu1 :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (NestedMu1 x0 x1)
 decodeNestedMu1 decodeX0 decodeX1 = do
-                                      i <- deserialiseInt
-                                      case i of
-                                        0 -> do
-                                               x <- decodeList (decodeSumx1x2 decodeX0 decodeX1)
-                                               return (Foobar x)
-                                        _ -> failDecode"""
+                                      x <- decodeList (decodeSumx1x2 decodeX0 decodeX1)
+                                      return (Foobar x)"""
 
     it "nested Mu 1: List(Either(Alpha, Beta))" $
       generate nestedMu1
@@ -636,17 +631,12 @@ decodeMaybe2 decodeX0 = do
                             _ -> failDecode
 
 encodeNestedMu2 :: Serialiser x0 -> Serialiser (NestedMu2 x0)
-encodeNestedMu2 encodeX0 (Foobar x) = mconcat [(word8 (fromIntegral 0))
-                                              ,(encodeMaybe2 encodeX0 x)]
+encodeNestedMu2 encodeX0 (Foobar x) = encodeMaybe2 encodeX0 x
 
 decodeNestedMu2 :: Deserialiser x0 -> Deserialiser (NestedMu2 x0)
 decodeNestedMu2 decodeX0 = do
-                             i <- deserialiseInt
-                             case i of
-                               0 -> do
-                                      x <- decodeMaybe2 decodeX0
-                                      return (Foobar x)
-                               _ -> failDecode"""
+                             x <- decodeMaybe2 decodeX0
+                             return (Foobar x)"""
 
     it "nested Mu 2: Maybe2(Alpha)" $
       generate nestedMu2
@@ -672,17 +662,12 @@ decodeMaybe2 decodeX0 = do
                             _ -> failDecode
 
 encodeNestedMu3 :: Serialiser NestedMu3
-encodeNestedMu3 (Foobar x) = mconcat [(word8 (fromIntegral 0))
-                                     ,(encodeMaybe2 encodeNestedMu3 x)]
+encodeNestedMu3 (Foobar x) = encodeMaybe2 encodeNestedMu3 x
 
 decodeNestedMu3 :: Deserialiser NestedMu3
 decodeNestedMu3 = do
-                    i <- deserialiseInt
-                    case i of
-                      0 -> do
-                             x <- decodeMaybe2 decodeNestedMu3
-                             return (Foobar x)
-                      _ -> failDecode"""
+                    x <- decodeMaybe2 decodeNestedMu3
+                    return (Foobar x)"""
 
     it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
@@ -730,17 +715,12 @@ decodeSumx0x1 decodeX0 decodeX1 = do
                                       _ -> failDecode
 
 encodeNestedMu4 :: Serialiser x0 -> Serialiser (NestedMu4 x0)
-encodeNestedMu4 encodeX0 (Foobar x) = mconcat [(word8 (fromIntegral 0))
-                                              ,(encodeList (encodeSumx0x1 (encodeNestedMu4 encodeX0) encodeX0) x)]
+encodeNestedMu4 encodeX0 (Foobar x) = encodeList (encodeSumx0x1 (encodeNestedMu4 encodeX0) encodeX0) x
 
 decodeNestedMu4 :: Deserialiser x0 -> Deserialiser (NestedMu4 x0)
 decodeNestedMu4 decodeX0 = do
-                             i <- deserialiseInt
-                             case i of
-                               0 -> do
-                                      x <- decodeList (decodeSumx0x1 (decodeNestedMu4 decodeX0) decodeX0)
-                                      return (Foobar x)
-                               _ -> failDecode"""
+                             x <- decodeList (decodeSumx0x1 (decodeNestedMu4 decodeX0) decodeX0)
+                             return (Foobar x)"""
 
     it "nested mu 4: List(Either (Mu, Alpha))" $
       generate nestedMu4
@@ -769,22 +749,63 @@ decodeNilCons decodeX0 = do
                              _ -> failDecode
 
 encodeNestedMu5 :: Serialiser NestedMu5
-encodeNestedMu5 (Foobar x) = mconcat [(word8 (fromIntegral 0))
-                                     ,(encodeNilCons encodeNestedMu5 x)]
+encodeNestedMu5 (Foobar x) = encodeNilCons encodeNestedMu5 x
 
 decodeNestedMu5 :: Deserialiser NestedMu5
 decodeNestedMu5 = do
-                    i <- deserialiseInt
-                    case i of
-                      0 -> do
-                             x <- decodeNilCons decodeNestedMu5
-                             return (Foobar x)
-                      _ -> failDecode"""
+                    x <- decodeNilCons decodeNestedMu5
+                    return (Foobar x)"""
 
     it "nested mu 5: AnonList(Mu)" $
       generate nestedMu5
         `shouldBe` vsep2
                     [ preamble {def = Haskell}, nestedMu5Doc ]
+
+    let singleConstructorMuDoc = text """data List x0 = Nil | Cons x0 (List x0)
+
+data Foo = Bar (List Foo) (Either () Foo)
+
+encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList encodeX0 Nil = word8 (fromIntegral 0)
+encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
+                                          ,(encodeX0 x)
+                                          ,(encodeList encodeX0 x0)]
+
+decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList decodeX0 = do
+                        i <- deserialiseInt
+                        case i of
+                          0 -> return Nil
+                          1 -> do
+                                 x <- decodeX0
+                                 x0 <- decodeList decodeX0
+                                 return (Cons x x0)
+                          _ -> failDecode
+
+encodeFoo :: Serialiser Foo
+encodeFoo (Bar x x0) = mconcat [(encodeList encodeFoo x)
+                               ,(case x0 of
+                                   Left z -> word8 (fromIntegral 0)
+                                   Right z -> mconcat [(word8 (fromIntegral 1))
+                                                      ,(encodeFoo z)])]
+
+decodeFoo :: Deserialiser Foo
+decodeFoo = do
+              x <- decodeList decodeFoo
+              x0 <- do
+                      i <- deserialiseInt
+                      case i of
+                        0 -> return (Left ())
+                        1 -> do
+                               y0 <- decodeFoo
+                               return (Right y0)
+                        _ -> failDecode
+              return (Bar x x0)"""
+
+    it "single constructor mu" $
+      generate singleConstructorMu
+        `shouldBe` vsep2
+                    [ preamble {def = Haskell}, singleConstructorMuDoc ]
 
 {-
   describe "Haskell specialised types tests:" $ do

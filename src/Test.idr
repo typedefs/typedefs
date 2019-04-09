@@ -90,6 +90,8 @@ nestedMu5 = TName "nestedMu5" $ TMu [("Foobar", TMu [("Nil", T1), ("Cons", TProd
 nestedMu6 : TNamed 1
 nestedMu6 = TName "nestedMu6" $ TMu [("Foobar", TApp nestedMu4 [TApp maybe2 [TSum [TVar 1, weakenTDef (wrap nat) _ (lteAddRight 0)]]])]
 
+singleConstructorMu : TNamed 0
+singleConstructorMu = TName "Foo" $ TMu [("Bar", TProd [wrap list, def maybe])]
 
 {-
 

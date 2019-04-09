@@ -629,6 +629,9 @@ encodeDef {n} t@(TName tname td) =
 
         -- Idris is not clever enough to figure out the following type if written as a case expression
         genClauses : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> List HsTerm -> TDef n -> List (List HsTerm, HsTerm)
+        genClauses n currType currTerm env varEncs (TMu [(name, td)]) = runTermGen ((currType, currTerm)::env) $ do
+          (con, rhs) <- genConstructor (S n) name td
+          pure [(varEncs ++ [con], simplify $ HsConcat rhs)]
         genClauses n currType currTerm env varEncs (TMu tds) = toList $ runTermGen ((currType, currTerm)::env) (mapWithIndexA (genClause (S n) varEncs) tds)
         genClauses n currType currTerm env varEncs td        = let v = HsTermVar "x" in [( varEncs ++ [v] , simplify $ runTermGen env (encode td v))]
 
@@ -667,6 +670,7 @@ decodeDef {n = n} t@(TName tname td) =
 
         -- Idris is not clever enough to figure out the following type if written as a case expression
         genCase : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> TDef n -> HsTerm
+        genCase n currType currTerm env (TMu [(name, td)]) = simplify $ snd $ runTermGen ((currType, currTerm)::env) (genCases {k = S Z} (S n) FZ (name, td))
         genCase n currType currTerm env (TMu {k = k} tds) = runTermGen ((currType, currTerm)::env) $ do
               cases <- mapWithIndexA (genCases (S n)) tds
               [i] <- freshVars 1 "i"
@@ -726,6 +730,3 @@ deserialiseInt :: Deserialiser Integer
 deserialiseInt = MkDeserialiser (\ bs -> fmap go (uncons bs))
   where go :: (Word8, ByteString) -> (Integer, ByteString)
         go (b, bs') = (toInteger b, bs')"""
-
-
--- TODO: optimise Mu with one argument
