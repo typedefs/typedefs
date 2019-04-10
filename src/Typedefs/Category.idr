@@ -13,6 +13,14 @@ import Interfaces.Verified
 
 %default total
 
+
+functionExtensionality : {f, g : a -> b} -> ((x : a) -> f x = g x) -> f = g
+functionExtensionality fxgx = really_believe_me fxgx
+
+cong2 : {f : a -> b -> c} -> (a1 = a2) -> (b1 = b2) -> f a1 b1 = f a2 b2
+cong2 Refl Refl = Refl
+
+
 TypeCat : Category
 TypeCat = typesAsCategory
 
@@ -23,18 +31,12 @@ data TypeVect : (n : Nat) -> Vect n Type -> Vect n Type -> Type where
   NilTypeVect : TypeVect Z [] []
   ConsTypeVect : (a -> b) -> TypeVect m c d -> TypeVect (S m) (a :: c) (b :: d)
 
-getVect : TypeVect n v1 v2 -> Vect n Type
-getVect xs {v2} = v2
-
-getVectProof : (xs : TypeVect n v1 v2) -> getVect xs = v2
-getVectProof xs = Refl
-
 TypeMorVect : (a, b : Vect n Type) -> Type
 TypeMorVect a b {n} = TypeVect n a b
 
 idVect : (v : Vect n Type) -> TypeMorVect v v
 idVect [] = NilTypeVect
-idVect (x :: xs) = ConsTypeVect id (idVect xs)
+idVect (x :: xs) = ConsTypeVect (\ y => y) (idVect xs)
 
 infixr 7 |*|
 
@@ -51,11 +53,14 @@ rightIdVect [] [] NilTypeVect = Refl
 rightIdVect (x :: c) (y :: d) (ConsTypeVect f z) = cong $ rightIdVect c d z
 
 assocVect :
-     (a, b, c, d : Vect n Type) 
-  -> (f : TypeMorVect a b) 
-  -> (g : TypeMorVect b c) 
-  -> (h : TypeMorVect c d) 
+     {a, b, c, d : Vect n Type}
+  -> (f : TypeMorVect a b)
+  -> (g : TypeMorVect b c)
+  -> (h : TypeMorVect c d)
   -> f |*| (g |*| h) = (f |*| g) |*| h
+assocVect NilTypeVect NilTypeVect NilTypeVect = Refl
+assocVect (ConsTypeVect f fs) (ConsTypeVect g gs) (ConsTypeVect h hs) =
+  rewrite assocVect fs gs hs in Refl
 
 TypeCatN : Nat -> Category
 TypeCatN n = MkCategory
@@ -65,45 +70,89 @@ TypeCatN n = MkCategory
   (\a, b, c => (|*|) {a} {b} {c})
   leftIdVect
   rightIdVect
-  assocVect
+  (\a, b, c, d => assocVect)
 
 mapObjsN : TDef n -> Vect n Type -> Type
 mapObjsN = flip Ty
 
-remapEithers : TypeVect n v1 v2 -> (xs : Vect (S (S k)) (TDef n)) -> Tnary v1 xs Either -> Tnary v2 xs Either
-remapEithers x (z :: (w :: [])) y = either ?remapLeft ?remapRight y
-remapEithers x (z :: (w :: (s :: xs))) y = either ?remapLeft2 ?remapRight2 y
 
-remapPair : TypeVect n v1 v2 -> (xs : Vect (S (S k)) (TDef n)) -> Tnary v1 xs Pair -> Tnary v2 xs Pair
-remapPair x (z :: (w :: [])) y = (?remapPairLeft, ?remapPairRight)
-remapPair x (z :: (w :: (s :: xs))) y = (?remapPairLeft2, ?remapPairRight2)
+mutual
 
-remapTypes : {n : Nat} -> {v1, v2 : Vect n Type} -> (tdef : TDef n) 
-  -> TypeMorVect v1 v2 -> Ty v1 tdef -> Ty v2 tdef
-remapTypes T0 x y = y
-remapTypes T1 x y = y
-remapTypes (TSum xs) x y = remapEithers x xs y
-remapTypes (TProd xs) x y = remapPair x xs y
-remapTypes (TVar FZ) (ConsTypeVect f x) y = f y
-remapTypes (TVar (FS FZ)) (ConsTypeVect f (ConsTypeVect g x)) y = g y
-remapTypes (TVar (FS (FS z))) (ConsTypeVect f x) y = remapTypes (TVar (FS z)) (?tvect) ?remapVarbbb
-remapTypes (TMu xs) mor y = ?remapTypes_rhs_6
-remapTypes (TApp z xs) mor y = ?remapTypes_rhs_7
+  remapEithers : TypeVect n v1 v2 -> (xs : Vect (S (S k)) (TDef n)) -> Tnary v1 xs Either -> Tnary v2 xs Either
+  remapEithers fs (z::w::[])    (Left y)  = Left  (remapTypes z fs y)
+  remapEithers fs (z::w::[])    (Right y) = Right (remapTypes w fs y)
+  remapEithers fs (z::w::s::xs) (Left y)  = Left  (remapTypes z fs y)
+  remapEithers fs (z::w::s::xs) (Right y) = Right (remapEithers fs (w::s::xs) y)
+
+  remapPair : TypeVect n v1 v2 -> (xs : Vect (S (S k)) (TDef n)) -> Tnary v1 xs Pair -> Tnary v2 xs Pair
+  remapPair fs (z::w::[])    (a, b) = (remapTypes z fs a, remapTypes w fs b)
+  remapPair fs (z::w::s::xs) (a, b) = (remapTypes z fs a, remapPair fs (w::s::xs) b)
+
+  remapTVar : (i : Fin n) -> TypeVect n v1 v2 -> index i v1 -> index i v2
+  remapTVar FZ     (ConsTypeVect f fs) y = f y
+  remapTVar (FS i) (ConsTypeVect f fs) y = remapTVar i fs y
+
+  remapMu : (td : TDef (S n)) -> TypeVect n v1 v2 -> Mu v1 td -> Mu v2 td
+  remapMu td fs (Inn y) = Inn (remapTypes td (ConsTypeVect (assert_total $ remapMu td fs) fs) y)
+
+  remapTypes : {n : Nat} -> {v1, v2 : Vect n Type} -> (tdef : TDef n) ->
+               TypeMorVect v1 v2 -> Ty v1 tdef -> Ty v2 tdef
+  remapTypes T0 x y = y
+  remapTypes T1 x y = y
+  remapTypes (TSum xs) x y = remapEithers x xs y
+  remapTypes (TProd xs) x y = remapPair x xs y
+  remapTypes (TVar i) fs y = remapTVar i fs y
+  remapTypes (TMu xs) fs y = remapMu (args xs) fs y
+  remapTypes (TApp z xs) fs y = assert_total $ remapTypes (ap (def z) xs) fs y
 
 mapMorphismsN : (tdef : TDef n) -> (a, b : Vect n Type) -> TypeMorVect a b -> TypeMorphism (mapObjsN tdef a) (mapObjsN tdef b)
 mapMorphismsN tdef a b mor = remapTypes {v1=a} {v2=b} tdef mor
 
-preserveIdN : (tdef : TDef n) -> (a : Vect n Type) -> remapTypes tdef (idVect a) = Prelude.Basics.id
-preserveIdN tdef a = ?preserveIdN_rhs
+mutual
 
-preserveComposeN : (tdef : TDef n) 
-  -> (a, b, c : Vect n Type) 
-  -> (f : TypeVect n a b) 
-  -> (g : TypeVect n b c) 
+  preserveIdEithers : (a : Vect n Type) -> (xs : Vect (S (S k)) (TDef n)) ->
+                      (y : Tnary a xs Either) -> remapEithers (idVect a) xs y = y
+  preserveIdEithers a (z::w::[])    (Left y)  = cong (preserveIdN z a y)
+  preserveIdEithers a (z::w::[])    (Right y) = cong (preserveIdN w a y)
+  preserveIdEithers a (z::w::s::xs) (Left y)  = cong (preserveIdN z a y)
+  preserveIdEithers a (z::w::s::xs) (Right y) = cong (preserveIdEithers a (w::s::xs) y)
+
+  preserveIdPair : (a : Vect n Type) -> (xs : Vect (S (S k)) (TDef n)) ->
+                   (y : Tnary a xs Pair) -> remapPair (idVect a) xs y = y
+  preserveIdPair fs (z::w::[])    (a, b) = cong2 (preserveIdN z fs a) (preserveIdN w fs b)
+  preserveIdPair fs (z::w::s::xs) (a, b) = cong2 (preserveIdN z fs a) (preserveIdPair fs (w::s::xs) b)
+
+
+  preserveIdTVar : (a : Vect n Type) -> (i : Fin n) ->
+                   (y : index i a) -> remapTVar i (idVect a) y = y
+  preserveIdTVar (_::_) FZ     y = Refl
+  preserveIdTVar (_::a) (FS i) y = preserveIdTVar a i y
+
+  preserveIdMu : (a : Vect n Type) -> (td : TDef (S n)) ->
+                 (y : Mu a td) -> remapMu td (idVect a) y = y
+  preserveIdMu a td (Inn y) = cong (trans (cong {f = \ z => remapTypes td (ConsTypeVect z (idVect a)) y} (functionExtensionality (assert_total $ preserveIdMu a td))) (preserveIdN td ((Mu a td)::a) y))
+  -- To do this properly: prove the property for any fs *extensionally
+  -- equal to* idVect a
+
+
+  preserveIdN : (tdef : TDef n) -> (a : Vect n Type) ->
+                (y : Ty a tdef) -> remapTypes tdef (idVect a) y = y
+  preserveIdN T0 a y = Refl
+  preserveIdN T1 a y = Refl
+  preserveIdN (TSum xs) a y = preserveIdEithers a xs y
+  preserveIdN (TProd xs) a y = preserveIdPair a xs y
+  preserveIdN (TVar i) a y = preserveIdTVar a i y
+  preserveIdN (TMu xs) a y = preserveIdMu a (args xs) y
+  preserveIdN (TApp z xs) a y = assert_total $ preserveIdN (ap (def z) xs) a y
+
+preserveComposeN : (tdef : TDef n)
+  -> (a, b, c : Vect n Type)
+  -> (f : TypeVect n a b)
+  -> (g : TypeVect n b c)
   -> remapTypes tdef (f |*| g) = (\x => remapTypes tdef g (remapTypes tdef f x))
 
 tdefCFunctor : (tdef : TDef n) -> CFunctor (TypeCatN n) Idris.TypesAsCategory.typesAsCategory
-tdefCFunctor tdef {n} = MkCFunctor (mapObjsN tdef) (mapMorphismsN tdef) (preserveIdN tdef) (preserveComposeN tdef)
+tdefCFunctor tdef {n} = MkCFunctor (mapObjsN tdef) (mapMorphismsN tdef) (\ a => functionExtensionality (preserveIdN tdef a)) (preserveComposeN tdef)
 
 infixr 0 -&>
 
@@ -128,8 +177,8 @@ tdefLeftId : (a, b : TDef n) -> (f : a -&> b) -> (tdefId a -*- f) = f
 
 tdefRightId : (a, b : TDef n) -> (f : a -&> b) -> (f -*- tdefId b) = f
 
-tdefAssoc : (a, b, c, d : TDef n) 
-  -> (f : a -&> b) -> (g : b -&> c) -> (h : c -&> d) 
+tdefAssoc : (a, b, c, d : TDef n)
+  -> (f : a -&> b) -> (g : b -&> c) -> (h : c -&> d)
   -> f -*- (g -*- h) = (f -*- g) -*- h
 
 ||| The category of typedefs with n free variables.
