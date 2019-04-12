@@ -1,18 +1,17 @@
 
 module Typedefs.Category
 
-import Category
+import Basic.Category
+import Basic.Functor
+import Basic.NaturalTransformation
 import Typedefs
-import Functor
 import Data.Vect
 import Names
-import NaturalTransformation
 import Idris.TypesAsCategory
 import Idris.TypesAsCategoryExtensional
 import Interfaces.Verified
 
 %default total
-
 
 functionExtensionality : {f, g : a -> b} -> ((x : a) -> f x = g x) -> f = g
 functionExtensionality fxgx = really_believe_me fxgx
@@ -20,17 +19,15 @@ functionExtensionality fxgx = really_believe_me fxgx
 cong2 : {f : a -> b -> c} -> (a1 = a2) -> (b1 = b2) -> f a1 b1 = f a2 b2
 cong2 Refl Refl = Refl
 
-
 TypeCat : Category
 TypeCat = typesAsCategory
-
-Arity : Nat -> Type
-Arity n = Vect n Type
 
 data TypeVect : (n : Nat) -> Vect n Type -> Vect n Type -> Type where
   NilTypeVect : TypeVect Z [] []
   ConsTypeVect : (a -> b) -> TypeVect m c d -> TypeVect (S m) (a :: c) (b :: d)
 
+||| Given a, a vector of types, and b another vector of types, contruct an
+||| indexed TypeVect using `a` and `b` as indexes.
 TypeMorVect : (a, b : Vect n Type) -> Type
 TypeMorVect a b {n} = TypeVect n a b
 
@@ -151,22 +148,31 @@ preserveComposeN : (tdef : TDef n)
   -> (g : TypeVect n b c)
   -> remapTypes tdef (f |*| g) = (\x => remapTypes tdef g (remapTypes tdef f x))
 
-tdefCFunctor : (tdef : TDef n) -> CFunctor (TypeCatN n) Idris.TypesAsCategory.typesAsCategory
-tdefCFunctor tdef {n} = MkCFunctor (mapObjsN tdef) (mapMorphismsN tdef) (\ a => functionExtensionality (preserveIdN tdef a)) (preserveComposeN tdef)
+||| The functor arising from a TDef between TypeCatN n and TypeCat
+tdefCFunctor : (tdef : TDef n) -> CFunctor (TypeCatN n) TypeCat
+tdefCFunctor tdef {n} = MkCFunctor (mapObjsN tdef) 
+                                   (mapMorphismsN tdef) 
+                                   (\a => functionExtensionality (preserveIdN tdef a)) 
+                                   (preserveComposeN tdef)
 
 infixr 0 -&>
 
-record TypedTDef (n : Nat) (tdef : TDef n) where
-  constructor MkTypedTDef
-  apply : (args : Vect n Type) -> Ty args tdef
-
-pureTDef : (tdef : TDef n) -> TypedTDef n tdef
-
-||| Morphism between two typedefs.
+||| Morphism between two typedefs is a natural transformation between a TypeCatN and TypeCat.
 (-&>) : TDef n -> TDef n -> Type
--- (-&>) {n} a b = NaturalTransformation _ _ [| a |] [| b|]
+(-&>) {n} t s = NaturalTransformation (TypeCatN n) TypeCat (tdefCFunctor t) (tdefCFunctor s)
 
-tdefId : {n : Nat} -> (t : TDef n) -> t -&> t
+idComponents : (tdef : TDef n) -> (a : Vect n Type) 
+  -> TypeMorphism (Ty a tdef) (Ty a tdef)
+idComponents _ _ ty = ty
+
+idCommutative : (tdef : TDef n) 
+  -> (a, b : Vect n Type)
+  -> (f : TypeVect n a b)
+  -> (mapMorphismsN tdef a b f) . (idComponents tdef a)
+   = (idComponents tdef b) . (mapMorphismsN tdef a b f)
+
+tdefId : (t : TDef n) -> (t -&> t)
+tdefId {n} tdef = MkNaturalTransformation (idComponents tdef) (idCommutative tdef)
 
 infixr 7 -*-
 
