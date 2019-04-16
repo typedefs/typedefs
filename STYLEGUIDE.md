@@ -148,7 +148,7 @@ veryLongFunctionBecauseOfInterfaces :
 ```
 
 Again this allows the reader to scan the function verticaly and get all the information regarding
-interfaces. The extra leading whitespaces helps indicating that those are interfaces constraints
+interfaces. The extra leading whitespaces help to indicate that those are interface constraints
 and not arguments.
 
 ### Type signatures: dependent signatures
