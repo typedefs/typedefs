@@ -28,6 +28,10 @@ testSuite = spec $ do
 
     "0;\n" `tdefShouldParseAs` "Just (0 ** 0)"
 
+    "; first line\n; second line\n(+ 1 1)" `tdefShouldParseAs` "Just (0 ** (1 + 1))"
+
+    "; comment followed by empty\n\n(+ 1 1)" `tdefShouldParseAs` "Just (0 ** (1 + 1))"
+
     "(var ;comment\n123)" `tdefShouldParseAs` "Just (124 ** {123})"
 
   describe "Parser tests: well-formed terms" $ do

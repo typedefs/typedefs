@@ -65,12 +65,16 @@ emptyComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p)
 emptyComments = cmap () $ string ";\n"
 
 comments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
-           All (Parser mn p ())
-comments = emptyComments `alt` neComments
+           All (Parser mn p (NEList ()))
+comments = nelist $ emptyComments `alt` neComments
+
+spacesOrComment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+                 All (Parser mn p ())
+spacesOrComment = (cmap () spaces) `alt` (cmap () comments)
 
 ignoreSpaces : (Alternative mn, Monad mn,  Subset Char (Tok p),  Eq (Tok p), Inspect (Toks p) (Tok p)) =>
                All (Parser mn p a :-> Parser mn p a)
-ignoreSpaces parser = withSpaces $ betweenopt comments comments $ parser
+ignoreSpaces parser = roptand (nelist spacesOrComment) (landopt parser (nelist spacesOrComment))
 
 tdef : All (Parser' (n ** TDef n))
 tdef =
