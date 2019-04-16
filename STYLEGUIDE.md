@@ -155,7 +155,7 @@ and not arguments.
 
 
 In cases where a dependent type needs to execute some sort of computation, it is expected to
-write the computation in an auxiliary function rather than inside the type signature.
+be written in an auxiliary function rather than inside the type signature.
 
 ```idris
 Select : Bool -> Type
