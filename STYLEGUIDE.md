@@ -154,7 +154,7 @@ and not arguments.
 ### Type signatures: dependent signatures
 
 
-In cases where a dependent type needs to execute some sort of computation, it is expected to
+In cases where a dependent type denotes some sort of computation, that computation is expected to
 be written in an auxiliary function rather than inside the type signature.
 
 ```idris
