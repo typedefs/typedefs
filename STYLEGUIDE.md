@@ -123,7 +123,7 @@ veryLongTypeSignature :
 
 This allows the  reader to scan the signature vertically in order to read the entirety of the type signature.
 
-Additionnally, this pattern allows to declare short interfaces on the first line:
+Additionally, this pattern allows us to declare short interfaces on the first line:
 
 ```idris
 veryLongTypeSignature : (Interface firstArgument)
