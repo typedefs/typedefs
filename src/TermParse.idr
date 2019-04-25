@@ -69,38 +69,34 @@ runDeserializer : Deserialiser a -> Bytes -> Maybe (a, Bytes)
 runDeserializer (MkDeserialiser d) = d
 
 Functor Deserialiser where
-  map f (MkDeserialiser a) = MkDeserialiser (\ bs => do
-    (a', bs') <- a bs
-    Just (f a', bs'))
+  map f ma = MkDeserialiser (\ bs => do
+    (a', bs') <- runDeserializer ma bs
+    pure (f a', bs'))
 
 Applicative Deserialiser where
-  pure x = MkDeserialiser (\ bs => Just (x, bs))
-  (MkDeserialiser f) <*> (MkDeserialiser a) =  MkDeserialiser (\ bs => do
-    (f', bs') <- f bs
-    (a', bs'') <- a bs'
-    Just (f' a', bs''))
+  pure x = MkDeserialiser (pure . MkPair x)
+  mf <*> ma =  MkDeserialiser (\ bs => do
+    (f', bs') <- runDeserializer mf bs
+    (a', bs'') <- runDeserializer ma bs'
+    pure (f' a', bs''))
 
 Monad Deserialiser where
-  (MkDeserialiser a) >>= g = MkDeserialiser (\ bs => do
-    (a', bs') <- a bs
-    let (MkDeserialiser ga') = g a'
-    ga' bs')
+  ma >>= g = MkDeserialiser (\ bs => do
+    (a', bs') <- runDeserializer ma bs
+    runDeserializer (g a') bs')
 
-  join (MkDeserialiser ma) = MkDeserialiser (\ bs => do
-    (ma', bs') <- ma bs
-    let (MkDeserialiser a) = ma'
-    a bs')
+  join ma = MkDeserialiser (\ bs => do
+    (ma', bs') <- runDeserializer ma bs
+    runDeserializer ma' bs')
 
 fail : Deserialiser a
-fail = MkDeserialiser (\ bs => Nothing)
+fail = MkDeserialiser (const Nothing)
 
 -- ||| Interprets the first byte as an Int, and returns the rest of the bytestring, if possible
 deserializeInt : (n : Nat) -> Deserialiser (Fin n)
 deserializeInt n = MkDeserialiser (\ bs => case (consView bs) of
     Nil => Nothing
-    Cons b bs' => do
-      k <- integerToFin (prim__zextB8_BigInt b) n
-      pure (k, bs'))
+    Cons b bs' => map (flip MkPair bs') $ integerToFin (prim__zextB8_BigInt b) n)
 
 injection : (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDef n)) -> Ty tvars (index i ts) -> Tnary tvars ts Either
 injection FZ      [a, b]             x = Left x
@@ -131,4 +127,4 @@ deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = 
 deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
 
 deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
-deserializeBinaryClosed t bs = runDeserializer (deserializeBinary t []) bs
+deserializeBinaryClosed t = runDeserializer (deserializeBinary t [])
