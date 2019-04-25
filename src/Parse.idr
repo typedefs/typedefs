@@ -56,25 +56,17 @@ sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState (sizedtok' Char)
 
-neComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
-             All (Parser mn p ())
-neComments = between (char ';') (char '\n') (cmap () $ nelist $ notChar '\n')
+comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+           All (Parser mn p ())
+comment = cmap () $ and (char ';') (roptand (nelist $ notChar '\n') (char '\n'))
 
-emptyComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
-                All (Parser mn p ())
-emptyComments = cmap () $ string ";\n"
+spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
+                   All (Parser mn p ())
+spacesOrComments {p} = cmap () $ nelist $ comment `alt` (cmap () $ spaces {p})
 
-comments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
-           All (Parser mn p (NEList ()))
-comments = nelist $ emptyComments `alt` neComments
-
-spacesOrComment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
-                 All (Parser mn p ())
-spacesOrComment = (cmap () spaces) `alt` (cmap () comments)
-
-ignoreSpaces : (Alternative mn, Monad mn,  Subset Char (Tok p),  Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+ignoreSpaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
                All (Parser mn p a :-> Parser mn p a)
-ignoreSpaces parser = roptand (nelist spacesOrComment) (landopt parser (nelist spacesOrComment))
+ignoreSpaces parser = spacesOrComments `roptand` (parser `landopt` spacesOrComments)
 
 tdef : All (Parser' (n ** TDef n))
 tdef =
