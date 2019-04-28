@@ -1,4 +1,4 @@
-module Test.TermWrite
+module Test.TermWriteTests
 
 import Data.Vect
 

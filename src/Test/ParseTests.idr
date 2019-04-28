@@ -1,4 +1,4 @@
-module Test.Parse
+module Test.ParseTests
 
 import TParsec
 import TParsec.Running

@@ -27,6 +27,6 @@ mods = [ "Names"
 idris_opts = ["-p","contrib"]
 
 [[targets.test]]
-path = "src/Test"
-main = "Typedefs.testSuite"
+path = "src"
+main = "Test.TypedefsSuite.testSuite"
 idris_opts = ["-p","contrib","--total"]
