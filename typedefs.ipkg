@@ -13,14 +13,14 @@ modules = Names
         , Backend.ReasonML
         , Backend.Utils
         
-        , Test.Typedefs
-        , Test.Haskell
-        , Test.JSON
-        , Test.ReasonML
-        , Test.TermParse
-        , Test.TermWrite
+        , Test.TypedefsSuite
+        , Test.HaskellTests
+        , Test.JSONTests
+        , Test.ReasonMLTests
+        , Test.TermParseTests
+        , Test.TermWriteTests
 
-tests = Test.Typedefs.testSuite
+tests = Test.TypedefsSuite.testSuite
 
 sourcedir = src
 

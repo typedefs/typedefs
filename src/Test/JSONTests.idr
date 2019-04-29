@@ -1,4 +1,4 @@
-module Test.JSON
+module Test.JSONTests
 
 import Names
 import Typedefs

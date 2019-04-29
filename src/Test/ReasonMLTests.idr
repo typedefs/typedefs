@@ -1,4 +1,4 @@
-module Test.ReasonML
+module Test.ReasonMLTests
 
 import Names
 import Typedefs

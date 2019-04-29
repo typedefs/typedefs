@@ -1,4 +1,4 @@
-module Test.TermParse
+module Test.TermParseTests
 
 import Data.Vect
 
