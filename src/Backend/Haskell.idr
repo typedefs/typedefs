@@ -534,7 +534,7 @@ dependencies env td =
             fixup : {l : Nat} -> TDef l -> List (m ** TNamed m)
             fixup (TApp f xs) = [] -- will be counted later
             fixup (TVar i)    = [] -- will be a parameter anyway
-            fixup {l} x   = [(l ** TName "" x)]
+            fixup {l} x       = [(l ** TName "" x)]
 
 ||| Given a TDef `td` and a Haskell term t of type [[ td ]] (where
 ||| [[ td ]] is the interpretation of td as a type), constructs a
