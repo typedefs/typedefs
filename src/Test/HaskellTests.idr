@@ -1,4 +1,4 @@
-module Test.Haskell
+module Test.HaskellTests
 
 import Names
 import Typedefs
