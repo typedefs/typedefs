@@ -16,8 +16,7 @@ modules = Names
         , Test.HaskellTests
         , Test.JSONTests
         , Test.ReasonMLTests
-        , Test.TermParseTests
-        , Test.TermWriteTests
+        , Test.TermParseWriteTests
 
 tests = Test.TypedefsSuite.testSuite
 

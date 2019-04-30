@@ -1,4 +1,4 @@
-module Test.TermParseWrite
+module Test.TermParseWriteTests
 
 import Data.Vect
 
