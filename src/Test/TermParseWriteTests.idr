@@ -55,7 +55,7 @@ testSuite = spec $ do
 --      (deserialize [Integer] [decimalInteger] (TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))")
 --      `shouldBe`
 --      (Just (Inn (Right (1, Inn (Right (2, Inn (Left ())))))))
-
+{-
   describe "Binary serialisation/deserialisation" $ do
 
     it "round1 unit" $ roundtrip1 T1 () `shouldBe` (Just ((), empty))
@@ -69,3 +69,4 @@ testSuite = spec $ do
 
     it "round1 mu step" $ roundtrip1 (TMu [("Nil", T1), ("Cons", TProd [(TMu [("Z", T1), ("S", TVar 0)]), TVar 0])]) (Inn (Right ((Inn (Left ()), Inn (Right ((Inn (Right (Inn (Left ()))), Inn (Right ((Inn (Right (Inn (Right (Inn (Left ()))))), Inn (Left ())))))))))))
       `shouldBe` (Just ((Inn (Right ((Inn (Left ()), Inn (Right ((Inn (Right (Inn (Left ()))), Inn (Right ((Inn (Right (Inn (Right (Inn (Left ()))))), Inn (Left ()))))))))))), empty))
+-}
