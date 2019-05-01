@@ -1,19 +1,27 @@
 import Data.Vect
---import Data.Vect.Quantifiers
-import TParsec
+import Data.Vect.Quantifiers
 
-import Typedefs
+import Text.PrettyPrint.WL
+import public Typedefs
 import Parse
-import TermParse
+import public TermParse
+import public TermWrite
 import Backend
 import Backend.Utils
 import Backend.Haskell
+import Backend.JSON
+import Backend.ReasonML
 
-getSource : JS_IO String
-getSource = foreign FFI_JS "getSource()" _
+generateCode : String -> (n ** TNamed n) -> String
+generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
+generateCode "reasonml" (n  **tn) = toString $ generateDefs ReasonML tn
+generateCode "json"     (Z  **tn) = toString $ generate JSONDef tn
+generateCode "json"     (S _**tn) = "<error : can't generate JSON schema for open typedef>"
+generateCode _          _         = "<error : unknown backend>"
 
-setResult : String -> JS_IO ()
-setResult = foreign FFI_JS "setResult(%0)" _
+-- re-exports
+parseType : String -> Maybe (n : Nat ** TNamed n)
+parseType = parseTNamed 
 
 deserialize0 : String -> String -> Maybe (td : TDef 0 ** Ty [] td)
 deserialize0 tdstr tmstr = 
@@ -22,9 +30,11 @@ deserialize0 tdstr tmstr =
        Z => (\tm => (td ** tm)) <$> deserialize [] [] td tmstr
        _ => Nothing
 
-main : JS_IO ()
---main = setResult $ parseThenStrFun !getSource (\td => print . generate Haskell $ DPair.snd td)
-main = let m1 = deserialize0 "1" "1" in
-       case m1 of 
-         Just _ => setResult $ parseThenStrFun !getSource (\td => print . generate Haskell $ DPair.snd td)
-         Nothing => setResult "foo"
+lib : FFI_Export FFI_JS "" []
+lib = Data (n ** TNamed n) "TNamedN" $
+      Data (Maybe (n ** TNamed n)) "MaybeTNamedN" $
+      Data (Maybe (td : TDef 0 ** Ty [] td)) "MaybeTDefTy" $
+      Fun parseType "parseType" $
+      Fun deserialize0 "deserialize0" $
+      Fun generateCode "generateCode" $
+      End

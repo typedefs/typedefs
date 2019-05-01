@@ -6,6 +6,6 @@ main = ParserJS
 
 sourcedir = parser.js
 
-pkgs = typedefs, js, tparsec
+pkgs = contrib, typedefs, js
 
-opts = "--codegen node"
+opts = "--codegen node --interface"

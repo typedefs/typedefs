@@ -1,10 +1,10 @@
 module TermParse
 
-import TParsec
+import public TParsec
 import TParsec.Running
 
-import Typedefs
-import Types
+import public Typedefs
+import Names
 
 import Data.Vect
 import Data.Vect.Quantifiers
@@ -45,11 +45,12 @@ mutual
   chooseParser (TVar FZ)             (_::_)    (p::_)    = p
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
-  chooseParser (TMu _ td)            ts        ps        =
+  chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (def f) xs) ts ps
+  chooseParser (TMu td)              ts        ps        =
     map (\ty => Inn {tvars = ts} {m = args td} ty) $
     parens (rand (string "inn")
                  (withSpaces $ assert_total $ chooseParser (args td) ((Mu ts (args td))::ts) ((muParser ts ps)::ps)))
-  chooseParser (TName _ td)          ts        ps        = chooseParser td ts ps
+  -- chooseParser (TName _ td)          ts        ps        = chooseParser td ts ps
 
 deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDef n) -> String -> Maybe (Ty ts td)
 deserialize ts ps td s  =

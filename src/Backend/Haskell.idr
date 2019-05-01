@@ -1,6 +1,6 @@
 module Backend.Haskell
 
-import Types
+import Names
 import Typedefs
 
 import Backend
@@ -12,7 +12,7 @@ import Control.Monad.State
 import Data.Vect
 
 %default total
-%access public export
+%access export
 
 ||| The syntactic structure of Haskell types.
 data HsType : Type where -- TODO could be interesting to index this by e.g. used variable names?
@@ -39,6 +39,11 @@ data Haskell : Type where
   ||| An algebraic data type is a declared name (possibly with parameters)
   ||| and a number of constructors, each wrapping a Haskell type.
   ADT     : Decl -> Vect n (Name, HsType) -> Haskell
+
+-- Haskell type variables start with lowercase letters.
+private
+freshEnv : Env n
+freshEnv = freshEnv "x"
 
 ||| Render a name applied to a list of arguments exactly as written.
 ||| Arguments need to be previously parenthesized, if applicable.
@@ -78,55 +83,56 @@ renderDef (ADT     decl cases) = text "data" |++| renderDecl decl
   renderConstructor (name, HsTuple ts) = renderApp name (map guardParen ts)
   renderConstructor (name, params)     = renderApp name [guardParen params]
 
+private
+hsParam : Decl -> HsType
+hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
+
 ||| Generate a Haskell type from a `TDef`.
 makeType : Env n -> TDef n -> HsType
-makeType _ T0             = HsVoid
-makeType _ T1             = HsUnit
-makeType e (TSum xs)      = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
-makeType e (TProd xs)     = HsTuple $ map (assert_total $ makeType e) xs
-makeType e (TVar v)       = either HsVar hsParam $ Vect.index v e
-  where
-  hsParam : Decl -> HsType
-  hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
-makeType e td@(TMu name _)   = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
-makeType e td@(TName name _) = HsParam name . map HsVar $ getFreeVars (getUsedVars e td)
+makeType _    T0          = HsVoid
+makeType _    T1          = HsUnit
+makeType e    (TSum xs)   = foldr1' (\t1,t2 => HsParam "Either" [t1, t2]) (map (assert_total $ makeType e) xs)
+makeType e    (TProd xs)  = HsTuple $ map (assert_total $ makeType e) xs
+makeType e    (TVar v)    = either HsVar hsParam $ Vect.index v e
+makeType e td@(TMu cases) = HsParam (nameMu cases) . map (either HsVar hsParam) $ getUsedVars e td
+makeType e    (TApp f xs) = HsParam (name f) (map (assert_total $ makeType e) xs)
 
-||| Generate Haskell type definitions from a `TDef`, including all of its dependencies.
-makeDefs : Env n -> TDef n -> State (List Name) (List Haskell)
-makeDefs _ T0            = pure []
-makeDefs _ T1            = pure []
-makeDefs e (TProd xs)    = map concat $ traverse (assert_total $ makeDefs e) xs
-makeDefs e (TSum xs)     = map concat $ traverse (assert_total $ makeDefs e) xs
-makeDefs _ (TVar v)      = pure []
-makeDefs e td@(TMu name cs) =
-   do st <- get
-      if List.elem name st then pure []
-       else let
-          decl = MkDecl name (getFreeVars (getUsedVars e td))
-          newEnv = Right decl :: e
-          args = map (map (makeType newEnv)) cs
-         in
-        do res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs newEnv bdy) (toList cs)
-           put (name :: st)
-           pure $ ADT decl args :: res
-makeDefs e td@(TName name body) =
-  do st <- get
-     if List.elem name st then pure []
-       else
-        do res <- assert_total $ makeDefs e body
-           put (name :: st)
-           pure $ Synonym (MkDecl name $ getFreeVars (getUsedVars e td)) (makeType e body) :: res
+||| Generate a Haskell type from a `TNamed`.
+makeType' : Env n -> TNamed n -> HsType
+makeType' e (TName name body) = HsParam name . map (either HsVar hsParam) $ getUsedVars e body
 
-Backend Haskell where
-  generateTyDefs e td = reverse $ evalState (makeDefs e td) []
-  generateCode        = renderDef
-  freshEnv            = freshEnvLC
+mutual
+  ||| Generate all the Haskell type definitions that a `TDef` depends on.
+  makeDefs : TDef n -> State (List Name) (List Haskell)
+  makeDefs    T0          = pure []
+  makeDefs    T1          = pure []
+  makeDefs    (TProd xs)  = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TSum xs)   = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TVar v)    = pure []
+  makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
+  makeDefs    (TApp f xs) = do
+      res <- assert_total $ makeDefs' f
+      res' <- concat <$> traverse (assert_total makeDefs) xs
+      pure (res ++ res')
 
-NewBackend Haskell HsType where
-  msgType          = makeType (freshEnv {lang=Haskell} 0)
-  typedefs td      = reverse $ evalState (makeDefs (freshEnv {lang=Haskell} 0) td) []
-  source type defs = vsep2 $ map renderDef $ Synonym (MkDecl "TypedefSchema" []) type :: defs 
+  ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
+  makeDefs' : TNamed n -> State (List Name) (List Haskell)
+  makeDefs' (TName name body) = ifNotPresent name $ 
+      let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
+      case body of
+        TMu cases => do -- Named `TMu`s are treated as ADTs.
+          let newEnv = Right decl :: freshEnv
+          let args = map (map (makeType newEnv)) cases
+          res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
+          pure $ ADT decl args :: res
+        _ => do -- All other named types are treated as synonyms.
+          res <- assert_total $ makeDefs body
+          pure $ Synonym decl (makeType freshEnv body) :: res
 
-||| Generate type body, only useful for anonymous tdefs (i.e. without wrapping Mu/Name)
-generateType : TDef n -> Doc
-generateType {n} = renderType . makeType (freshEnv {lang=Haskell} n)
+ASTGen Haskell HsType n where
+  msgType           = makeType' freshEnv
+  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
+
+CodegenIndep Haskell HsType where
+  typeSource = renderType
+  defSource  = renderDef

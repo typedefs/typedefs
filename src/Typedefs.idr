@@ -3,34 +3,123 @@ module Typedefs
 import Data.Fin
 import Data.Vect
 
-import Types
+import Names
 
 %default total
 %access public export
 
-||| Type definition
-||| @n The number of type variables in the type
-data TDef : (n:Nat) -> Type where
-  ||| The empty type
-  T0    :                                      TDef n
+mutual
+  ||| Type definition
+  ||| @n The number of type variables in the type
+  data TDef : (n:Nat) -> Type where
+    ||| The empty type
+    T0    :                                          TDef n
 
-  ||| The unit type
-  T1    :                                      TDef n
+    ||| The unit type
+    T1    :                                          TDef n
 
-  ||| The coproduct type
-  TSum  :         Vect (2 + k) (TDef n)     -> TDef n
+    ||| The coproduct type
+    TSum  :             Vect (2 + k) (TDef n)     -> TDef n
 
-  ||| The product type
-  TProd :         Vect (2 + k) (TDef n)     -> TDef n
+    ||| The product type
+    TProd :             Vect (2 + k) (TDef n)     -> TDef n
 
-  ||| A type variable
-  ||| @i De Bruijn index
-  TVar  :         (i:Fin (S n))             -> TDef (S n)
+    ||| A type variable
+    ||| @i De Bruijn index
+    TVar  :             (i:Fin (S n))             -> TDef (S n)
 
-  ||| Mu
-  TMu   : Name -> Vect k (Name, TDef (S n)) -> TDef n
+    ||| Mu
+    TMu   :             Vect k (Name, TDef (S n)) -> TDef n
 
-  TName : Name -> TDef n                    -> TDef n
+    ||| Application of a named type to a vector of arguments.
+    TApp  : TNamed k -> Vect k (TDef n)           -> TDef n
+
+  ||| Named type definition.
+  ||| @n The number of type variables in the type.
+  record TNamed (n : Nat) where
+    constructor TName
+    name : Name
+    def  : TDef n
+
+||| Generate `[TVar 0, ..., TVar (n-1)]`.
+idVars : Vect n (TDef n)
+idVars {n=Z}   = []
+idVars {n=S _} = map TVar range
+
+||| Apply a `TNamed` to the variable list `[TVar 0, ..., TVar (n-1)]`. Semantically, this is the same as
+||| doing nothing, but it allows us to embed a named definition in a regular `TDef`.
+wrap : TNamed n -> TDef n
+wrap tn = TApp tn idVars
+
+||| Alias one `TNamed` with a new name. Note: this is not the same as naming the underlying `TDef` again.
+alias : Name -> TNamed n -> TNamed n
+alias name tn = TName name (wrap tn)
+
+parens : String -> String
+parens "" = ""
+parens s = "(" ++ s ++ ")"
+
+curly : String -> String
+curly "" = ""
+curly s = "{" ++ s ++ "}"
+
+square : String -> String
+square "" = ""
+square s = "[" ++ s ++ "]"
+
+||| Generate the canonical name of a closed type.
+makeName : TDef 0 -> Name
+makeName T0          = "void"
+makeName T1          = "unit"
+makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TMu cases) = concatMap fst cases
+makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
+
+||| Add 1 to all de Bruijn-indices in a `TDef`.
+||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
+shiftVars : TDef n -> TDef (S n)
+shiftVars T0          = T0
+shiftVars T1          = T1
+shiftVars (TSum ts)   = assert_total $ TSum $ map shiftVars ts
+shiftVars (TProd ts)  = assert_total $ TProd $ map shiftVars ts
+shiftVars (TVar v)    = TVar $ shift 1 v
+shiftVars (TMu cs)    = assert_total $ TMu $ map (map shiftVars) cs
+shiftVars (TApp f xs) = assert_total $ TApp f $ map shiftVars xs 
+
+||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
+getUsedIndices : TDef n -> List (Fin n)
+getUsedIndices T0          = []
+getUsedIndices T1          = []
+getUsedIndices (TSum xs)   = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TProd xs)  = assert_total $ nub $ concatMap getUsedIndices xs
+getUsedIndices (TVar i)    = [i]
+getUsedIndices (TMu xs)    = assert_total $ nub $ concatMap ((concatMap weedOutZero) . getUsedIndices . snd) xs
+  where weedOutZero : Fin (S n) -> List (Fin n)
+        weedOutZero FZ     = []
+        weedOutZero (FS i) = [i]
+getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
+                              in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
+
+||| Filter out the entries in an argument vector that are actually referred to by a `TDef`.
+getUsedVars : Vect n a -> (td: TDef n) -> Vect (length (getUsedIndices td)) a
+getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
+
+||| Substitute all variables in a `TDef` with a vector of arguments.
+ap : TDef n -> Vect n (TDef m) -> TDef m
+ap T0          _    = T0
+ap T1          _    = T1
+ap (TSum ts)   args = assert_total $ TSum $ map (flip ap args) ts
+ap (TProd ts)  args = assert_total $ TProd $ map (flip ap args) ts
+ap (TVar v)    args = index v args
+ap (TMu cs)    args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
+ap (TApp f xs) args = assert_total $ def f `ap` (map (flip ap args) xs)
+
+||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
+apN : TNamed n -> Vect n (TDef 0) -> TNamed 0
+apN (TName n body) ts = TName
+                            (n ++ parens (concat . intersperse "," . map makeName $ getUsedVars ts body))
+                            (body `ap` ts)
 
 mutual
   data Mu : Vect n Type -> TDef (S n) -> Type where
@@ -52,11 +141,11 @@ mutual
   Ty : Vect n Type -> TDef n -> Type
   Ty     tvars T0          = Void
   Ty     tvars T1          = Unit
-  Ty {n} tvars (TSum xs)   = Tnary tvars xs Either 
+  Ty {n} tvars (TSum xs)   = Tnary tvars xs Either
   Ty {n} tvars (TProd xs)  = Tnary tvars xs Pair
   Ty     tvars (TVar v)    = Vect.index v tvars
-  Ty     tvars (TMu _ m)   = Mu tvars (args m)
-  Ty     tvars (TName _ t) = Ty tvars t
+  Ty     tvars (TMu m)     = Mu tvars (args m)
+  Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
 
 ------ meta ----------
 
@@ -64,6 +153,9 @@ pow : Nat -> TDef n -> TDef n
 pow Z         _ = T1
 pow (S Z)     a = a
 pow (S (S n)) a = TProd (a :: a :: replicate n a)
+
+powN : Nat -> TNamed n -> TDef n
+powN n tn = pow n (TApp tn idVars)
 
 -- TODO add to stdlib?
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
@@ -89,10 +181,9 @@ mutual
     rewrite sym $ minusPlus n m prf' in
     rewrite plusCommutative (m `minus` n) n in
     TVar $ weakenN (m-n) i
-  weakenTDef (TMu nam xs)   m    prf =
-    TMu nam $ weakenNTDefs xs (S m) (LTESucc prf)
-  weakenTDef (TName nam x)   m    prf =
-    TName nam $ weakenTDef x m prf
+  weakenTDef (TMu xs)   m    prf =
+    TMu $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
@@ -102,29 +193,25 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
+||| Increase the type index representing the number of variables accessible
+||| to a `TNamed`, without actually changing the variables that are used by it.
+|||
+||| @m The new amount of variables.
+weakenTNamed : TNamed n -> (m : Nat) -> LTE n m -> TNamed m
+weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
+
 -------- printing -------
-
-parens : String -> String
-parens "" = ""
-parens s = "(" ++ s ++ ")"
-
-curly : String -> String
-curly "" = ""
-curly s = "{" ++ s ++ "}"
-
-square : String -> String
-square "" = ""
-square s = "[" ++ s ++ "]"
 
 mutual
   showTDef : TDef n -> String
-  showTDef T0         = "0"
-  showTDef T1         = "1"
-  showTDef (TSum xs)  = parens $ showOp "+" xs
-  showTDef (TProd xs) = parens $ showOp "*" xs
-  showTDef (TVar x)   = curly $ show $ toNat x
-  showTDef (TMu n ms) = parens $ n ++ " := mu " ++ square (showNTDefs ms)
-  showTDef (TName n x) = n ++ " " ++ square (showTDef x)
+  showTDef T0          = "0"
+  showTDef T1          = "1"
+  showTDef (TSum xs)   = parens $ showOp "+" xs
+  showTDef (TProd xs)  = parens $ showOp "*" xs
+  showTDef (TVar x)    = curly $ show $ toNat x
+  showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
+  showTDef (TApp f []) = name f
+  showTDef (TApp f xs) = parens $ concat (intersperse " " (name f :: map (assert_total showTDef) xs)) 
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -136,8 +223,14 @@ mutual
   showNTDefs [(n,x)]     = n ++ ": " ++ showTDef x
   showNTDefs ((n,x)::xs) = n ++ ": " ++ showTDef x ++ ", " ++ showNTDefs xs
 
+showTNamed : TNamed n -> String
+showTNamed (TName n t) = parens $ n ++ " := " ++ showTDef t
+
 Show (TDef n) where
   show = showTDef
+
+Show (TNamed n) where
+  show = showTNamed
 
 -- Equality -----
 
@@ -152,6 +245,12 @@ implementation Eq (TDef n) where
   (TSum xs)     == (TSum xs')      = assert_total $ vectEq xs xs'
   (TProd xs)    == (TProd xs')     = assert_total $ vectEq xs xs'
   (TVar i)      == (TVar i')       = i == i'
-  (TMu nam xs)  == (TMu nam' xs')  = nam == nam' && (assert_total $ vectEq xs xs')
-  (TName nam t) == (TName nam' t') = nam == nam' && t == t'
+  (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
+  (TApp f xs)   == (TApp f' xs')   = assert_total $ name f == name f' && heteroEq (def f) (def f') && vectEq xs xs'
+    where
+    heteroEq : {n : Nat} -> {m : Nat} -> TDef n -> TDef m -> Bool
+    heteroEq {n} {m} tn tm with (cmp n m)
+      heteroEq {n}     tn tm | (CmpLT y) = assert_total $ tm == (weakenTDef tn _ (lteAddRight n)) -- or should this be `False`?
+      heteroEq     {m} tn tm | (CmpGT x) = assert_total $ tn == (weakenTDef tm _ (lteAddRight m)) -- or should this be `False`?
+      heteroEq         tn tm | (CmpEQ)   = assert_total $ tn == tm
   _             == _               = False

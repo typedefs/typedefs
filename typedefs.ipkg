@@ -1,6 +1,7 @@
 package typedefs
 
-modules = Types
+modules = Names
+        , ParserUtils
         , Parse
         , Typedefs
         , TermParse
