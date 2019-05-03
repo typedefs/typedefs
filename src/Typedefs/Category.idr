@@ -13,8 +13,7 @@ import Interfaces.Verified
 
 %default total
 
-funext : {f, g : a -> b} -> ((x : a) -> f x = g x) -> f = g
-funext fxgx = really_believe_me fxgx
+postulate funext : {f, g : a -> b} -> ((x : a) -> f x = g x) -> f = g
 
 fundet : {f, g : a -> b} -> f = g -> (x : a) -> f x = g x
 fundet Refl x = Refl
@@ -109,7 +108,7 @@ mutual
   remapTypes (TMu xs)    fs y = remapMu (args xs) fs y
   remapTypes (TApp z xs) fs y = assert_total $ remapTypes (ap (def z) xs) fs y
 
-mapMorphismsN : (tdef : TDef n) -> (a, b : Vect n Type) -> TypeMorVect a b -> TypeMorphism (mapObjsN tdef a) (mapObjsN tdef b)
+mapMorphismsN : (tdef : TDef n) -> (a, b : Vect n Type) -> TypeMorVect a b -> TypeMorphism (Ty a tdef) (Ty b tdef)
 mapMorphismsN tdef a b mor = remapTypes {v1=a} {v2=b} tdef mor
 
 mutual
@@ -205,40 +204,59 @@ mutual
   preserveComposeN (TProd xs)  a b c f g = preserveComposePairs f g xs
   preserveComposeN (TVar i)    a b c f g = preserveComposeTVar f g i
   preserveComposeN (TMu xs)    a b c f g = preserveComposeMu f g xs
-  preserveComposeN (TApp z xs) a b c f g = ?wat7
+  preserveComposeN (TApp z xs) a b c f g = assert_total $ preserveComposeN (ap (def z) xs) a b c f g
 
-{-
 ||| The functor arising from a TDef between TypeCatN n and TypeCat
 tdefCFunctor : (tdef : TDef n) -> CFunctor (TypeCatN n) TypeCat
 tdefCFunctor tdef {n} = MkCFunctor (mapObjsN tdef) 
                                    (mapMorphismsN tdef) 
                                    (\a => funext (preserveIdN tdef a)) 
                                    (preserveComposeN tdef)
-
 infixr 0 -&>
 
 ||| Morphism between two typedefs is a natural transformation between a TypeCatN and TypeCat.
 (-&>) : TDef n -> TDef n -> Type
 (-&>) {n} t s = NaturalTransformation (TypeCatN n) TypeCat (tdefCFunctor t) (tdefCFunctor s)
 
-idComponents : (tdef : TDef n) -> (a : Vect n Type) 
-  -> TypeMorphism (Ty a tdef) (Ty a tdef)
-idComponents _ _ ty = ty
+idComponent : (tdef : TDef n) -> (a : Vect n Type) -> TypeMorphism (Ty a tdef) (Ty a tdef)
+idComponent _ _ ty = ty
 
 idCommutative : (tdef : TDef n) 
-  -> (a, b : Vect n Type)
-  -> (f : TypeVect n a b)
-  -> (mapMorphismsN tdef a b f) . (idComponents tdef a)
-   = (idComponents tdef b) . (mapMorphismsN tdef a b f)
-idCommutative tdef a b f = ?wat 
+             -> (a, b : Vect n Type) 
+             -> (f : TypeMorVect a b) 
+             -> (mapMorphismsN tdef a b f)
+              . (idComponent tdef a)
+              = (idComponent tdef b)
+              . (mapMorphismsN tdef a b f)
+idCommutative tdef a b f = Refl
 
 tdefId : (t : TDef n) -> (t -&> t)
-tdefId {n} tdef = ?wat --MkNaturalTranformation (idComponents tdef) (idCommutative tdef)
+tdefId tdef = MkNaturalTransformation (idComponent tdef) (idCommutative tdef)
 
 infixr 7 -*-
 
+composeComponent : (f : a -&> b)
+                -> (g : b -&> c)
+                -> (v : Vect n Type)
+                -> TypeMorphism (Ty v a) (Ty v c)
+composeComponent (MkNaturalTransformation fComponent _)
+                 (MkNaturalTransformation gComponent _)
+                 v = gComponent v . fComponent v
+
+composeCommutative : (f : a -&> b)
+                  -> (g : b -&> c)
+                  -> (v, w : Vect n Type)
+                  -> (h : TypeVect n v w)
+                  -> (\x => remapTypes c h (composeComponent f g v x))
+                   = (\x => composeComponent f g w (remapTypes a h x))
+composeCommutative (MkNaturalTransformation fcomponent fcompose)
+                   (MkNaturalTransformation gcomponent gcompose)
+                   v w h = ?whut
+
 ||| Composition between two typedefs morphisms.
 (-*-) : {n : Nat} -> {a, b, c : TDef n} -> (a -&> b) -> (b -&> c) -> (a -&> c)
+(-*-) f g {a} {b} {c} = MkNaturalTransformation (composeComponent f g) (composeCommutative f g)
+
 
 tdefLeftId : (a, b : TDef n) -> (f : a -&> b) -> (tdefId a -*- f) = f
 
@@ -249,7 +267,7 @@ tdefAssoc : (a, b, c, d : TDef n)
   -> f -*- (g -*- h) = (f -*- g) -*- h
 
 ||| The category of typedefs with n free variables.
-||| Objects are typedefs, morphisms are functions between typedefs.
+||| Objects are typedefs, morphisms are Natural transformations between typedefs.
 typedefsAsCategory : Nat -> Category
 typedefsAsCategory n = MkCategory
   (TDef n)
@@ -259,4 +277,3 @@ typedefsAsCategory n = MkCategory
   (tdefLeftId)
   (tdefRightId)
   (tdefAssoc)
-  -}
