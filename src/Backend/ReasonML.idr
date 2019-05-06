@@ -117,7 +117,7 @@ mutual
 
   ||| Generate ReasonML type definitions for a `TNamed` and all of its dependencies.
   makeDefs' : TNamed n -> State (List Name) (List ReasonML)
-  makeDefs' (TName name body) = ifNotPresent name $ 
+  makeDefs' (TName name body) = ifNotPresent name $
       let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
       case body of
         TMu cases => do -- Named `TMu`s are treated as ADTs.
@@ -132,7 +132,9 @@ mutual
 ASTGen ReasonML RMLType n where
   msgType           = makeType' freshEnv
   generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
+  generateTermDefs tn = [] -- TODO
 
 CodegenIndep ReasonML RMLType where
   typeSource = renderType
   defSource  = renderDef
+  preamble   = empty -- TODO

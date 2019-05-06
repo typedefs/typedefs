@@ -123,6 +123,7 @@ generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 ASTGen JSONDef JSON 0 where
   msgType           = makeSubSchema'
   generateTyDefs tn = evalState (makeDefs' tn) []
+  generateTermDefs tn = [] -- TODO?
 
 CodegenInterdep JSONDef JSON where
   sourceCode msg defs = literal $ format 2 $ makeSchema msg defs

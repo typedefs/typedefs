@@ -7,6 +7,10 @@ import Typedefs
 import Names
 
 import Data.Vect
+import Data.Fin
+
+import Data.Bytes
+import Data.ByteArray
 
 %default total
 %access public export
@@ -54,3 +58,73 @@ mutual
 deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDef n) -> String -> Maybe (Ty ts td)
 deserialize ts ps td s  =
   parseMaybe s (chooseParser td ts ps)
+
+
+-- Binary deserialization
+
+data Deserialiser : Type -> Type where
+  MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
+
+runDeserializer : Deserialiser a -> Bytes -> Maybe (a, Bytes)
+runDeserializer (MkDeserialiser d) = d
+
+Functor Deserialiser where
+  map f ma = MkDeserialiser (\ bs => do
+    (a', bs') <- runDeserializer ma bs
+    pure (f a', bs'))
+
+Applicative Deserialiser where
+  pure x = MkDeserialiser (pure . MkPair x)
+  mf <*> ma =  MkDeserialiser (\ bs => do
+    (f', bs') <- runDeserializer mf bs
+    (a', bs'') <- runDeserializer ma bs'
+    pure (f' a', bs''))
+
+Monad Deserialiser where
+  ma >>= g = MkDeserialiser (\ bs => do
+    (a', bs') <- runDeserializer ma bs
+    runDeserializer (g a') bs')
+
+  join ma = MkDeserialiser (\ bs => do
+    (ma', bs') <- runDeserializer ma bs
+    runDeserializer ma' bs')
+
+fail : Deserialiser a
+fail = MkDeserialiser (const Nothing)
+
+-- ||| Interprets the first byte as an Int, and returns the rest of the bytestring, if possible
+deserializeInt : (n : Nat) -> Deserialiser (Fin n)
+deserializeInt n = MkDeserialiser (\ bs => case (consView bs) of
+    Nil => Nothing
+    Cons b bs' => map (flip MkPair bs') $ integerToFin (prim__zextB8_BigInt b) n)
+
+injection : (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDef n)) -> Ty tvars (index i ts) -> Tnary tvars ts Either
+injection FZ      [a, b]             x = Left x
+injection (FS FZ) [a, b]             x = Right x
+injection FZ     (a :: b :: c :: ts) x = Left x
+injection (FS i) (a :: b :: c :: ts) x = Right (injection i (b :: c :: ts) x)
+
+deserializeBinary : (t : TDef n) -> (ts : Vect n (a ** Deserialiser a)) -> Deserialiser (Ty (map DPair.fst ts) t)
+deserializeBinary T0 ts = fail -- will never happen!
+deserializeBinary T1 ts = pure ()
+deserializeBinary td@(TSum {k = k} tds) ts = do
+  i <- deserializeInt (2 + k)
+  t' <- deserializeBinary (assert_smaller td (index i tds)) ts
+  pure (injection i tds t')
+deserializeBinary (TProd [a, b]) ts = do
+  ta <- deserializeBinary a ts
+  tb <- deserializeBinary b ts
+  pure (ta, tb)
+deserializeBinary td@(TProd (a ::  b :: c :: tds)) ts = do
+  ta <- deserializeBinary a ts
+  t' <- deserializeBinary (assert_smaller td (TProd (b :: c :: tds))) ts
+  pure (ta, t')
+deserializeBinary (TMu tds) ts = do
+  t <- assert_total $ deserializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** assert_total $ deserializeBinary (TMu tds) ts)::ts)
+  pure (Inn t)
+deserializeBinary (TVar FZ) (t::ts) = snd t
+deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = S n'} (TVar i) ts
+deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
+
+deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
+deserializeBinaryClosed t = runDeserializer (deserializeBinary t [])

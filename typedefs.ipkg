@@ -12,16 +12,14 @@ modules = Names
         , Backend.JSON
         , Backend.ReasonML
         , Backend.Utils
-        
         , Test.TypedefsSuite
         , Test.HaskellTests
         , Test.JSONTests
         , Test.ReasonMLTests
-        , Test.TermParseTests
-        , Test.TermWriteTests
+        , Test.TermParseWriteTests
 
 tests = Test.TypedefsSuite.testSuite
 
 sourcedir = src
 
-pkgs = tparsec, specdris, contrib
+pkgs = tparsec, specdris, contrib, bytes
