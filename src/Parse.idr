@@ -44,11 +44,15 @@ fromVMax {m} vm = go lteRefl vm
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
-MonadRun (StateT PState Identity) where
-  runMonad st = pure $ evalState st empty
+data Error : Type where
+  ParseError : Position -> Error
+  RunError : Error
+
+Subset (Position, List Void) Error where
+  into = ParseError . fst
 
 TPState : Type -> Type
-TPState = TParsecT () Void (State PState)
+TPState = TParsecT Error Void (State PState)
 
 sizedtok' : Type -> Parameters TPState
 sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
@@ -56,11 +60,14 @@ sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState (sizedtok' Char)
 
+headResult : Result Error (List a) -> Result Error a
+headResult res = map head' res >>= fromMaybe RunError
+
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())
 comment = cmap () $ and (char ';') (roptand (nelist $ notChar '\n') (char '\n'))
 
-spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
+spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) => 
                    All (Parser mn p ())
 spacesOrComments {p} = cmap () $ nelist $ comment `alt` (cmap () $ spaces {p})
 
@@ -146,11 +153,11 @@ tdefRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec
 tdefNEL : All (Parser' (NEList (n ** TDef n)))
 tdefNEL = nelist tdef
 
-parseTDef : String -> Maybe (n : Nat ** TDef n)
-parseTDef str = parseMaybe str tdefRec
+parseTDef : String -> Result Error (n : Nat ** TDef n)
+parseTDef str = headResult $ parseResult str tdefRec
 
-parseTDefs : String -> Maybe (NEList (n : Nat ** TDef n))
-parseTDefs str = parseMaybe str tdefNEL
+parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
+parseTDefs str = headResult $ parseResult str tdefNEL
 
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
@@ -168,11 +175,11 @@ tnamedRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tnamed rec
 tnamedNEL : All (Parser' (NEList (n ** TNamed n)))
 tnamedNEL = nelist tnamed
 
-parseTNamed : String -> Maybe (n : Nat ** TNamed n)
-parseTNamed str = parseMaybe str tnamedRec
+parseTNamed : String -> Result Error (n : Nat ** TNamed n)
+parseTNamed str = headResult $ parseResult str tnamedRec
 
-parseTNameds : String -> Maybe (NEList (n : Nat ** TNamed n))
-parseTNameds str = parseMaybe str tnamedNEL
+parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
+parseTNameds str = headResult $ parseResult str tnamedNEL
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed
