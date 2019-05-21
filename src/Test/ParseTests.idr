@@ -24,42 +24,42 @@ testSuite = spec $ do
 
   describe "Parser tests: comments" $ do
 
-    "0;comment\n" `tdefShouldParseAs` "Just (0 ** 0)"
+    "0;comment\n" `tdefShouldParseAs` "(0 ** 0)"
 
-    "0;\n" `tdefShouldParseAs` "Just (0 ** 0)"
+    "0;\n" `tdefShouldParseAs` "(0 ** 0)"
 
-    "; first line\n; second line\n(+ 1 1)" `tdefShouldParseAs` "Just (0 ** (1 + 1))"
+    "; first line\n; second line\n(+ 1 1)" `tdefShouldParseAs` "(0 ** (1 + 1))"
 
-    "; comment followed by empty\n\n(+ 1 1)" `tdefShouldParseAs` "Just (0 ** (1 + 1))"
+    "; comment followed by empty\n\n(+ 1 1)" `tdefShouldParseAs` "(0 ** (1 + 1))"
 
-    "(var ;comment\n123)" `tdefShouldParseAs` "Just (124 ** {123})"
+    "(var ;comment\n123)" `tdefShouldParseAs` "(124 ** {123})"
 
   describe "Parser tests: well-formed terms" $ do
-    "0" `tdefShouldParseAs` "Just (0 ** 0)"
+    "0" `tdefShouldParseAs` "(0 ** 0)"
 
-    "1" `tdefShouldParseAs` "Just (0 ** 1)"
+    "1" `tdefShouldParseAs` "(0 ** 1)"
 
-    "(var 123)" `tdefShouldParseAs` "Just (124 ** {123})"
+    "(var 123)" `tdefShouldParseAs` "(124 ** {123})"
 
-    "(var 0)" `tdefShouldParseAs` "Just (1 ** {0})"
+    "(var 0)" `tdefShouldParseAs` "(1 ** {0})"
 
-    "(var 0) " `tdefShouldParseAs` "Just (1 ** {0})"
+    "(var 0) " `tdefShouldParseAs` "(1 ** {0})"
 
-    "(mu (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "Just (1 ** (mu [cons: ({1} * {0})]))"
+    "(mu (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "(1 ** (mu [cons: ({1} * {0})]))"
 
-    "(mu (nil 1) (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "Just (1 ** (mu [nil: 1, cons: ({1} * {0})]))"
+    "(mu (nil 1) (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "(1 ** (mu [nil: 1, cons: ({1} * {0})]))"
 
-    "(mu (nil 1) (cons (* (var 1) (var 0)) ))" `tdefShouldParseAs` "Just (1 ** (mu [nil: 1, cons: ({1} * {0})]))"
+    "(mu (nil 1) (cons (* (var 1) (var 0)) ))" `tdefShouldParseAs` "(1 ** (mu [nil: 1, cons: ({1} * {0})]))"
 
-    "(* 1 1)" `tdefShouldParseAs` "Just (0 ** (1 * 1))"
+    "(* 1 1)" `tdefShouldParseAs` "(0 ** (1 * 1))"
 
-    "(+ 1 0)" `tdefShouldParseAs` "Just (0 ** (1 + 0))"
+    "(+ 1 0)" `tdefShouldParseAs` "(0 ** (1 + 0))"
 
-    "(+ 1 (* (var 0) 0))" `tdefShouldParseAs` "Just (1 ** (1 + ({0} * 0)))"
+    "(+ 1 (* (var 0) 0))" `tdefShouldParseAs` "(1 ** (1 + ({0} * 0)))"
 
-    "(+ 1 1 0)" `tdefShouldParseAs` "Just (0 ** (1 + 1 + 0))"
+    "(+ 1 1 0)" `tdefShouldParseAs` "(0 ** (1 + 1 + 0))"
 
-    "(+ 1 1 0 (* 1 0))" `tdefShouldParseAs` "Just (0 ** (1 + 1 + 0 + (1 * 0)))"
+    "(+ 1 1 0 (* 1 0))" `tdefShouldParseAs` "(0 ** (1 + 1 + 0 + (1 * 0)))"
 
   describe "Parser tests: ill-formed terms" $ do
 
@@ -78,13 +78,13 @@ testSuite = spec $ do
     "(mu list (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "Nothing"
 
   describe "Parser tests: well-formed definitions" $ do
-    "(name maybe (+ 1 (var 0)))" `tnamedShouldParseAs` "Just (1 ** (maybe := (1 + {0})))"
+    "(name maybe (+ 1 (var 0)))" `tnamedShouldParseAs` "(1 ** (maybe := (1 + {0})))"
 
-    "(name nat (mu (Z 1) (S (var 0))))" `tnamedShouldParseAs` "Just (0 ** (nat := (mu [Z: 1, S: {0}])))"
+    "(name nat (mu (Z 1) (S (var 0))))" `tnamedShouldParseAs` "(0 ** (nat := (mu [Z: 1, S: {0}])))"
 
     "(name nat (mu (Z 1) (S (var 0)))) (name mnat (+ 1 nat)) (name listmnat (mu (nil 1) (cons (* mnat (var 0)))))"
       `tnamedShouldParseAs`
-        "Just (0 ** (listmnat := (mu [nil: 1, cons: (mnat * {0})])))"
+        "(0 ** (listmnat := (mu [nil: 1, cons: (mnat * {0})])))"
 
     """
     (name either (+ (var 0) (var 1)))
@@ -93,7 +93,7 @@ testSuite = spec $ do
     (name bitOrNibble (either bit nibble))
     """ 
       `tnamedShouldParseAs`
-        "Just (0 ** (bitOrNibble := (either bit nibble)))"
+        "(0 ** (bitOrNibble := (either bit nibble)))"
 
   describe "Parser tests: ill-formed definitions" $ do
     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
