@@ -44,9 +44,16 @@ fromVMax {m} vm = go lteRefl vm
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
+Pointed PState where
+  point = empty
+
 data Error : Type where
   ParseError : Position -> Error
   RunError : Error
+
+Show Error where
+  show (ParseError p) = "parse error: " ++ show p
+  show RunError = "internal error"
 
 Subset (Position, List Void) Error where
   into = ParseError . fst
@@ -154,16 +161,16 @@ tdefNEL : All (Parser' (NEList (n ** TDef n)))
 tdefNEL = nelist tdef
 
 parseTDef : String -> Result Error (n : Nat ** TDef n)
-parseTDef str = headResult $ parseResult str tdefRec
+parseTDef str = headResult $ parseResults str tdefRec
 
 parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
-parseTDefs str = headResult $ parseResult str tdefNEL
+parseTDefs str = headResult $ parseResults str tdefNEL
 
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
 
 parseTDefThenStrFun : String -> ((n ** TDef n) -> String) -> String
-parseTDefThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str
+parseTDefThenStrFun str fn = result show show fn $ parseTDef str
 
 ||| Parse a sequence of `TNamed`s and return the last one that parsed, accumulating
 ||| and substituting named entries in the process.
@@ -176,13 +183,13 @@ tnamedNEL : All (Parser' (NEList (n ** TNamed n)))
 tnamedNEL = nelist tnamed
 
 parseTNamed : String -> Result Error (n : Nat ** TNamed n)
-parseTNamed str = headResult $ parseResult str tnamedRec
+parseTNamed str = headResult $ parseResults str tnamedRec
 
 parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
-parseTNameds str = headResult $ parseResult str tnamedNEL
+parseTNameds str = headResult $ parseResults str tnamedNEL
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed
 
 parseTNamedThenStrFun : String -> ((n ** TNamed n) -> String) -> String
-parseTNamedThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTNamed str
+parseTNamedThenStrFun str fn = result show show fn $ parseTNamed str
