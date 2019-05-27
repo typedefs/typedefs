@@ -44,11 +44,13 @@ fileOutput = FileOutput <$> strOption (long "dest" . short 'd')
 parseOutput : Parser OutputFile
 parseOutput = fileOutput <|> stdOutput <|> pure StdOutput
 
+
 record TypedefOpts where
   constructor MkTypedefOpts
   input : InputFile
   output : OutputFile
 
+data CommandLineOpts = Help | GenerateTDefOpt TypedefOpts | HelpFallback
 
 Show TypedefOpts where
   show (MkTypedefOpts i o) = "input : " ++ show i ++ "output : " ++ show o
@@ -58,7 +60,7 @@ helpMessage = """
 Welcome to Typedefs, programming language for types.
 
 Usage:
-  typdefs_parser (-i INLINE_TDEF | -s SOURCE) [-d DEST | --stdout]
+  typedefs_parser (-i INLINE_TDEF | -s SOURCE) [-d DEST | --stdout]
 
   --source, -s : path to the input file
     example:
@@ -77,15 +79,28 @@ Usage:
       typedefs_parser -i bool.tdef --stdout | grep "bool"
 """
 
-parseOptions : Parser TypedefOpts
-parseOptions = MkTypedefOpts <$> parseInput <*> parseOutput
+fallbackMessage : String
+fallbackMessage = """
+No arguments supplied, expected --help or -s SOURCE -d DEST.
+
+Typedefs allows you to define types using very general operations and
+generate seralizers and deserializers for a target language.
+
+If this is your first time head to https://typedefs.com for more information or use --help.
+"""
+
+parseTDefOptions : Parser TypedefOpts
+parseTDefOptions = MkTypedefOpts <$> parseInput <*> parseOutput
+
+parseProgramOptions : Parser CommandLineOpts
+parseProgramOptions = (GenerateTDefOpt <$> parseTDefOptions) 
+                        <|> flag' Help (long "help" . short 'h') 
+                        <|> pure HelpFallback
 
 
-processArgs : List String -> Either ParseError TypedefOpts
-processArgs (_ :: opts) = runParserFully parseOptions opts
-processArgs _ = Left (ErrorMsg helpMessage)
-
-
+processArgs : List String -> Either ParseError CommandLineOpts
+processArgs (_ :: opts) = runParserFully parseProgramOptions opts
+processArgs _ = Left (ErrorMsg "Not enough arguments")
 
 generateTDef : String -> Maybe String
 generateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamed tdef)
@@ -107,13 +122,11 @@ runWithOptions (MkTypedefOpts input output) = do
        Nothing => putStrLn ("Typedef error: " ++ "could not generate typedef")
        Just tdef => writeOutput output tdef
 
---          let tpm = parseTNamed str
---          putStrLn $ "parsed typedef: "
---          putStrLn $ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => show $ DPair.snd tp) tpm
---          putStrLn $ ""
---          putStrLn $ "haskell type: " ++ maybe ("Failed to parse '" ++ str ++ "'.") (\tp => print . generateDefs Haskell $ DPair.snd tp) tpm
-
 partial
 main : IO ()
-main = processArgs <$> getArgs
-           >>= either (\(ErrorMsg msg) => putStrLn msg) runWithOptions
+main = do Right options <- processArgs <$> getArgs
+            | Left (ErrorMsg msg) => putStrLn msg
+          case options of
+               Help => putStrLn helpMessage
+               HelpFallback => putStrLn fallbackMessage
+               GenerateTDefOpt o => runWithOptions o

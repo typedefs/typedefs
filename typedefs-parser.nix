@@ -11,6 +11,7 @@ idrisPackages.build-idris-package {
 
   idrisDeps = with idrisPackages; [
     typedefs
+  , optparse
   ];
 
   postInstall = ''
