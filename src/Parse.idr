@@ -61,11 +61,8 @@ Subset (Position, List Void) Error where
 TPState : Type -> Type
 TPState = TParsecT Error Void (State PState)
 
-sizedtok' : Type -> Parameters TPState
-sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
-
 Parser' : Type -> Nat -> Type
-Parser' = Parser TPState (sizedtok' Char)
+Parser' = Parser TPState chars
 
 headResult : Result Error (List a) -> Result Error a
 headResult res = map head' res >>= fromMaybe RunError
@@ -86,7 +83,8 @@ tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    ignoreSpaces $
-   alts [ guardM
+   alts [ 
+          guardM
               (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
               (mand (lift get) alphas)
         , guardM
@@ -97,12 +95,13 @@ tdef =
               )
               (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
                            (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
-        , cmap (Z ** T0) $ string "0"
-        , cmap (Z ** T1) $ string "1"
+        , 
+          cmap (Z ** T0) $ char '0'
+        , cmap (Z ** T1) $ char '1'
         , nary rec '*' TProd
         , nary rec '+' TSum
         , map (\n => (S n ** TVar $ last {n})) $
-            parens (rand (ignoreSpaces (string "var")) (ignoreSpaces decimalNat))
+            parens $ rand (ignoreSpaces $ string "var") (ignoreSpaces $ commit $ decimalNat)
         , map {a=NEList (String, (n : Nat ** TDef n))}
               (\nel =>
                let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
@@ -115,7 +114,7 @@ tdef =
                  S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
               )
               (parens (rand (ignoreSpaces (string "mu"))
-                            (map {a=Parser' _} (\t => nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
+                            (map {a=Parser' _} (\t => commit $ nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
         ]
   where
   nary : All (Box (Parser' (n ** TDef n))
@@ -131,9 +130,9 @@ tdef =
         ) $
         parens (rand (ignoreSpaces (char sym))
            (map2 {a=Parser' _} {b=Parser' _}
-                 (\p, q => and p q)
-                 (map {a=Parser' _} ignoreSpaces rec)
-                 (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+                 (\p, q => commit $ and p q)
+                 (map {a=Parser' _} (ignoreSpaces . commit) rec)
+                 (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))
  
   tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
   tApp {m} {k} f xs with (decEq k m)
@@ -147,7 +146,8 @@ tnamed : All (Parser' (n ** TNamed n))
 tnamed =
   ignoreSpaces $
   randbindm
-    (parens (rand (ignoreSpaces (string "name")) (and (ignoreSpaces alphas) (ignoreSpaces tdef))))
+    (parens $ rand (ignoreSpaces $ string "name") 
+                   (and (ignoreSpaces alphas) (ignoreSpaces tdef)))
     (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
 
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
