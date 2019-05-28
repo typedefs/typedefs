@@ -63,13 +63,13 @@ testSuite = spec $ do
 
   describe "Parser tests: ill-formed terms" $ do
 
-    "(*)" `tdefShouldParseAs` "Nothing"
+    "(*)" `tdefShouldParseAs` "hard fail: parse error: 0:2"
 
-    "(+ 1)" `tdefShouldParseAs` "Nothing"
+    "(+ 1)" `tdefShouldParseAs` "hard fail: parse error: 0:4"
 
     "(mu list (nil 1))" `tdefShouldParseAs` "Nothing"
 
-    "(+ 1 * 1 0)" `tdefShouldParseAs` "Nothing"
+    "(+ 1 * 1 0)" `tdefShouldParseAs` "hard fail: parse error: 0:5"
 
     "(mu nat (Z 1) (S (var 0))) (name mpat (+ 1 pat))" `tdefShouldParseAs` "Nothing"
 
