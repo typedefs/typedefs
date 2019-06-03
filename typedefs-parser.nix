@@ -1,18 +1,11 @@
-{ stdenv, pkgs, idrisPackages }:
+{ build-idris-package, typedefs, optparse, }:
 
-let
-  typedefs = pkgs.callPackage ./typedefs.nix { };
-in
-
-idrisPackages.build-idris-package {
+build-idris-package {
   name = "typedefs-parser";
   version = "dev";
   src = ./.;
 
-  idrisDeps = with idrisPackages; [
-    typedefs
-  , optparse
-  ];
+  idrisDeps = [ typedefs optparse ];
 
   postInstall = ''
     install -D typedefs_parser $out/bin/typedefs-parser

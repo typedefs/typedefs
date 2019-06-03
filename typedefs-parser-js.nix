@@ -1,18 +1,11 @@
-{ stdenv, pkgs, idrisPackages }:
+{ build-idris-package, typedefs , js }:
 
-let
-  typedefs = pkgs.callPackage ./typedefs.nix { };
-in
-
-idrisPackages.build-idris-package {
+build-idris-package {
   name = "typedefs-parser-js";
   version = "dev";
   src = ./.;
 
-  idrisDeps = with idrisPackages; [
-    typedefs
-    js
-  ];
+  idrisDeps = [ typedefs js ];
 
   postInstall = ''
     install -D typedefs_parser.js $out/share/typedefs/js/typedefs-parser.js

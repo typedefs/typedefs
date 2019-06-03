@@ -1,17 +1,11 @@
-{ stdenv, pkgs, idrisPackages }:
+{ build-idris-package, typedefs }:
 
-let
-  typedefs = pkgs.callPackage ./typedefs.nix { };
-in
-
-idrisPackages.build-idris-package {
+build-idris-package {
   name = "typedefs-examples";
   version = "dev";
   src = ./.;
 
-  idrisDeps = with idrisPackages; [
-    typedefs
-  ];
+  idrisDeps = [ typedefs ];
 
   postInstall = ''
     install -D typedefs_examples $out/bin/typedefs-examples
