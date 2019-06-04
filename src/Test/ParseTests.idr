@@ -67,15 +67,15 @@ testSuite = spec $ do
 
     "(+ 1)" `tdefShouldParseAs` "hard fail: parse error: 0:4"
 
-    "(mu list (nil 1))" `tdefShouldParseAs` "Nothing"
+    "(mu list (nil 1))" `tdefShouldParseAs` "hard fail: parse error: 0:5"
 
     "(+ 1 * 1 0)" `tdefShouldParseAs` "hard fail: parse error: 0:5"
 
-    "(mu nat (Z 1) (S (var 0))) (name mpat (+ 1 pat))" `tdefShouldParseAs` "Nothing"
+    "(mu nat (Z 1) (S (var 0))) (name mpat (+ 1 pat))" `tdefShouldParseAs` "hard fail: parse error: 0:5"
 
-    "(name maybe (+ 1 (var 0)))" `tdefShouldParseAs` "Nothing"
+    "(name maybe (+ 1 (var 0)))" `tdefShouldParseAs` "soft fail: parse error: 0:0"
 
-    "(mu list (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "Nothing"
+    "(mu list (cons (* (var 1) (var 0))))" `tdefShouldParseAs` "hard fail: parse error: 0:5"
 
   describe "Parser tests: well-formed definitions" $ do
     "(name maybe (+ 1 (var 0)))" `tnamedShouldParseAs` "(1 ** (maybe := (1 + {0})))"
@@ -98,6 +98,6 @@ testSuite = spec $ do
   describe "Parser tests: ill-formed definitions" $ do
     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
       `tnamedShouldParseAs`
-        "Nothing"
+        "soft fail: parse error: 0:2"
 
-    "0" `tnamedShouldParseAs` "Nothing"
+    "0" `tnamedShouldParseAs` "soft fail: parse error: 0:1"
