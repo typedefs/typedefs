@@ -3,15 +3,15 @@ build-idris-package {
   name = "optparse";
   version = "2019-06-03";
   src = fetchFromGitHub {
-    owner = "HuwCampbell";
+    owner = "statebox";
     repo = "optparse-idris";
-    rev = "0d8f9fac9e2c1c8f2fe7f983de1d46906ea38778";
-    sha256 = "1djwjkc6z3qbz349znrzsi6jp2ai9nrzs97s2h3l8wq2h874zvl5"; # lib.fakeSha256; # This makes nix error out and give you the correct hash in stderr
+    rev = "bd5d52097f5f414be0f710f2a0cffb01a04e95fd";
+    sha256 = "0nr0hgmndnwsd65r9g49zgkdqsryrzg3c86pv5w2q88ybxplm0ap"; # lib.fakeSha256; # This makes nix error out and give you the correct hash in stderr
   };
   idrisDeps = [ lens wl-pprint ];
 
   meta = {
     description = "Minimal port of optparse-applicative to idris";
-    homepage = https://github.com/HuwCampbell/optparse-idris;
+    homepage = https://github.com/statebox/optparse-idris;
 };
 }

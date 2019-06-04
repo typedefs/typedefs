@@ -21,14 +21,14 @@ getInput : InputFile -> IO (Either FileError String)
 getInput (StringInput x) = pure (Right x)
 getInput (FileInput x) = readFile x
 
-generateTDef : String -> Maybe String
-generateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamed tdef)
+parseAndGenerateTDef : String -> Maybe String
+parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamed tdef)
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do
   Right typedef <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
-  case generateTDef typedef of
+  case parseAndGenerateTDef typedef of
        Nothing => putStrLn ("Typedef error: " ++ "could not generate typedef")
        Just tdef => writeOutput output tdef
 
