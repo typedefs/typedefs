@@ -11,18 +11,26 @@ import Backend.ReasonML
 
 generateCode : String -> (n ** TNamed n) -> String
 generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
-generateCode "reasonml" (n  **tn) = toString $ generateDefs ReasonML tn
-generateCode "json"     (Z  **tn) = toString $ generate JSONDef tn
-generateCode "json"     (S _**tn) = "<error : can't generate JSON schema for open typedef>"
-generateCode _          _         = "<error : unknown backend>"
+generateCode _          _         = "<error : unsupported backend>"
 
 -- re-exports
 parseType : String -> Maybe (n : Nat ** TNamed n)
 parseType = parseTNamed 
 
+generateSerializers : String -> String -> Maybe String
+generateSerializers backend tdef = map (generateCode backend) (parseType tdef)
+
+genType : String -> (n ** TNamed n) -> String
+genType "reasonml" (n   ** tn) = toString $ generateDefs ReasonML tn
+genType "json"     (Z   ** tn) = toString $ generate JSONDef tn
+genType "json"     (S _ ** tn) = "<error : cannot generte JSON schema for open typedefs>"
+genType _          _           = "<error : unsupported backend>"
+
+generateTypeSignature : String -> String -> Maybe String
+generateTypeSignature backend tdef = map (genType backend) (parseType tdef)
+
 lib : FFI_Export FFI_JS "" []
-lib = Data (n ** TNamed n) "TNamedN" $
-      Data (Maybe (n ** TNamed n)) "MaybeTNamedN" $
-      Fun parseType "parseType" $
-      Fun generateCode "generateCode" $
+lib = Data (Maybe String) "MaybeString" $
+      Fun generateSerializers "generateSerializers" $
+      Fun generateTypeSignature "generateTypeSignature" $
       End
