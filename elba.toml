@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = []
 
 [dependencies]
-"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/" }
+"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/", tag = "943c64dfcb4e1582696f68312fad88145dc3a8e4"}
 "HuwCampbell/optparse-idris" = { git = "https://github.com/statebox/optparse-idris" }
 "ziman/idris-bytes" = { git = "https://github.com/statebox/idris-bytes/" }
 "HuwCampbell/idris-lens" = { git = "https://github.com/andrevidela/idris-lens" }

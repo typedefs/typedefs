@@ -1,6 +1,5 @@
 package typedefs
 
-
 executable = typedefs
 
 main = CLI.Main
