@@ -64,8 +64,8 @@ TPState = TParsecT Error Void (State PState)
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState chars
 
-headResult : Result Error (List a) -> Result Error a
-headResult res = map head' res >>= fromMaybe RunError
+getResult : Result Error (Maybe a) -> Result Error a
+getResult res = res >>= (Result.fromMaybe RunError)
 
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())
@@ -161,10 +161,10 @@ tdefNEL : All (Parser' (NEList (n ** TDef n)))
 tdefNEL = nelist tdef
 
 parseTDef : String -> Result Error (n : Nat ** TDef n)
-parseTDef str = headResult $ parseResults str tdefRec
+parseTDef str = getResult $ parseResult str tdefRec
 
 parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
-parseTDefs str = headResult $ parseResults str tdefNEL
+parseTDefs str = getResult $ parseResult str tdefNEL
 
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
@@ -183,10 +183,10 @@ tnamedNEL : All (Parser' (NEList (n ** TNamed n)))
 tnamedNEL = nelist tnamed
 
 parseTNamed : String -> Result Error (n : Nat ** TNamed n)
-parseTNamed str = headResult $ parseResults str tnamedRec
+parseTNamed str = getResult $ parseResult str tnamedRec
 
 parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
-parseTNameds str = headResult $ parseResults str tnamedNEL
+parseTNameds str = getResult $ parseResult str tnamedNEL
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed
