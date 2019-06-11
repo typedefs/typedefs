@@ -12,7 +12,6 @@ authors = []
 [targets.lib]
 path = "src"
 mods = [ "Names"
-       , "ParserUtils"
        , "Parse"
        , "Typedefs"
        , "TermParse"

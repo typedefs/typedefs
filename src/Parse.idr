@@ -12,8 +12,6 @@ import Names
 
 import Data.Vect
 
-import ParserUtils
-
 %default total
 %access public export
 
@@ -69,7 +67,7 @@ getResult res = res >>= (Result.fromMaybe RunError)
 
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())
-comment = cmap () $ and (char ';') (roptand (nelist $ notChar '\n') (char '\n'))
+comment = cmap () $ and (char ';') (roptand (nelist $ anyCharBut '\n') (char '\n'))
 
 spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) => 
                    All (Parser mn p ())
