@@ -23,7 +23,7 @@ generateSerializers backend tdef = map (generateCode backend) (parseType tdef)
 genType : String -> (n ** TNamed n) -> String
 genType "reasonml" (n   ** tn) = toString $ generateDefs ReasonML tn
 genType "json"     (Z   ** tn) = toString $ generate JSONDef tn
-genType "json"     (S _ ** tn) = "<error : cannot generte JSON schema for open typedefs>"
+genType "json"     (S _ ** tn) = "<error : cannot generate JSON schema for open typedefs>"
 genType _          _           = "<error : unsupported backend>"
 
 generateTypeSignature : String -> String -> Maybe String
