@@ -53,6 +53,11 @@ Show Error where
   show (ParseError p) = "parse error: " ++ show p
   show RunError = "internal error"
 
+Eq Error where
+  (ParseError e1) == (ParseError e2) = e1 == e2
+  RunError        == RunError        = True
+  _               == _               = False  
+
 Subset (Position, List Void) Error where
   into = ParseError . fst
 
@@ -69,7 +74,7 @@ comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (T
            All (Parser mn p ())
 comment = cmap () $ and (char ';') (roptand (nelist $ anyCharBut '\n') (char '\n'))
 
-spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) => 
+spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
                    All (Parser mn p ())
 spacesOrComments {p} = cmap () $ nelist $ comment `alt` (cmap () $ spaces {p})
 
@@ -81,8 +86,7 @@ tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    ignoreSpaces $
-   alts [ 
-          guardM
+   alts [ guardM
               (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
               (mand (lift get) alphas)
         , guardM
@@ -93,8 +97,7 @@ tdef =
               )
               (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
                            (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
-        , 
-          cmap (Z ** T0) $ char '0'
+        , cmap (Z ** T0) $ char '0'
         , cmap (Z ** T1) $ char '1'
         , nary rec '*' TProd
         , nary rec '+' TSum
