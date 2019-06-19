@@ -93,6 +93,9 @@ nestedMu6 = TName "nestedMu6" $ TMu [("Foobar", TApp nestedMu4 [TApp maybe2 [TSu
 singleConstructorMu : TNamed 0
 singleConstructorMu = TName "Foo" $ TMu [("Bar", TProd [wrap list, def maybe])]
 
+largeTuple : TNamed 0
+largeTuple = TName "largeTuple" $ TProd (replicate 200 $ def bit)
+
 {-
 
 -- terms
