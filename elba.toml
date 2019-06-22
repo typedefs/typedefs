@@ -4,10 +4,13 @@ version = "0.1.0"
 authors = []
 
 [dependencies]
-"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/" }
+"gallais/idris-tparsec" = { git = "https://github.com/gallais/idris-tparsec/", tag = "d5b27118db15047ef949c7cecda5ecbeecaaa775" }
+"HuwCampbell/optparse-idris" = { git = "https://github.com/statebox/optparse-idris/" }
+"ziman/idris-bytes" = { git = "https://github.com/statebox/idris-bytes/" }
 
 [dev_dependencies]
 "pheymann/specdris" = { git = "https://github.com/pheymann/specdris/" }
+
 
 [targets.lib]
 path = "src"
@@ -25,6 +28,12 @@ mods = [ "Names"
        , "Backend.Utils"
        ]
 idris_opts = ["-p","contrib"]
+
+[[targets.bin]]
+path = "parser"
+name = "typedefs-parser"
+main = "Parser.idr"
+idris_opts = ["-p","contrib", "-p", "typedefs"]
 
 [[targets.test]]
 path = "src"
