@@ -1,12 +1,16 @@
-{ stdenv, pkgs, idrisPackages }:
+{ build-idris-package
+, contrib
+, tparsec
+, specdris
+, bytes }:
 
-idrisPackages.build-idris-package {
+build-idris-package {
   name = "typedefs";
   version = "dev";
   src = ./.;
   doCheck = true;
 
-  idrisDeps = with idrisPackages; [
+  idrisDeps = [
     contrib
     tparsec
     specdris

@@ -42,6 +42,22 @@
 }:
 
 let
+  config = {
+    packageOverrides = pkgs: {
+      idrisPackages = pkgs.idrisPackages.override {
+        # We override the 'idrisPackages' packaget set
+        # This means, that all these package definitions will 'see' eachother
+        #  e.g. if typedefs-parser depends on typedefs, callPackage will automatically inject it
+        # Add new idris packages to this list 
+        overrides = idrisPackagesNew: idrisPackagesOld: {
+          typedefs = idrisPackagesNew.callPackage ./typedefs.nix {};
+          typedefs-parser = idrisPackagesNew.callPackage ./typedefs-parser.nix {};
+          typedefs-parser-js = idrisPackagesNew.callPackage ./typedefs-parser-js.nix {};
+          typedefs-examples = idrisPackagesNew.callPackage ./typedefs-examples.nix {};
+        };
+      };
+    };
+  };
   syspkgs = import <nixpkgs> { };
   pinpkgs = syspkgs.fetchFromGitHub {
     owner = "NixOS";
@@ -51,19 +67,20 @@ let
     rev = "c438c0e0b71c3b4be174486b0a5f60c67dd09721";
     sha256 = "014llk230q6871z73xzilvf93dna0q72y3y8hlgp47fc8h6fafim";
   };
-  usepkgs = if null == pkgs then
-             import pinpkgs {}
-            else
-              if 0 == pkgs then
-                import <nixpkgs> { }
-              else
-                import pkgs {};
+  usepkgs = (
+    if null == pkgs 
+    then import pinpkgs
+    else if 0 == pkgs 
+    then import <nixpkgs>
+    else import pkgs) { inherit config; };
   stdenv = usepkgs.stdenvAdapters.keepDebugInfo usepkgs.stdenv;
 
 in {
-  typedefs = usepkgs.callPackage ./typedefs.nix {};
-  typedefs-parser = usepkgs.callPackage ./typedefs-parser.nix {};
-  typedefs-parser-js = usepkgs.callPackage ./typedefs-parser-js.nix {};
-  typedefs-examples = usepkgs.callPackage ./typedefs-examples.nix {};
-
+  # This attribute set exposes what things will be built by a call to nix-build. See
+  # its as the "CI" entrypoint.
+  inherit (usepkgs.idrisPackages) 
+    typedefs 
+    typedefs-parser
+    typedefs-parser-js 
+    typedefs-examples;
 }
