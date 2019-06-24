@@ -82,66 +82,80 @@ ignoreSpaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspe
                All (Parser mn p a :-> Parser mn p a)
 ignoreSpaces parser = spacesOrComments `roptand` (parser `landopt` spacesOrComments)
 
+-- main parser
+
+tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
+tApp {m} {k} f xs with (decEq k m)
+  | Yes p = Just $ TApp f (rewrite p in xs)
+  | No _  = Nothing
+
+pushName : Name -> (n ** TDef n) -> (n ** TNamed n)
+pushName name (n**td) = (n ** TName name td)
+
+tdefRef : All (Parser' (n ** TDef n))
+tdefRef = guardM
+            (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
+            (mand (lift get) alphas)
+
+tdefName : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
+tdefName rec = guardM
+  {a=((m**TNamed m), NEList (n**TDef n))}
+  (\(f,xs) => 
+      let (mx**vx) = toVMax (toVect xs)
+       in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
+  )
+  (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
+               (Nat.map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+
+tdefNary : All (Box (Parser' (n ** TDef n))
+        :-> Cst  Char
+        :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
+        :->      Parser' (n ** TDef n))
+tdefNary rec sym con =
+  map (\(x,nel) =>
+        -- find the upper bound and weaken all elements to it
+        let (mx**vx) = toVMax (x :: toVect nel) in
+        (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
+                         (fromVMax vx))
+      ) $
+      parens (rand (ignoreSpaces (char sym))
+         (map2 {a=Parser' _} {b=Parser' _}
+               (\p, q => commit $ and p q)
+               (map {a=Parser' _} (ignoreSpaces . commit) rec)
+               (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))               
+
+tdefVar : All (Parser' (n ** TDef n))
+tdefVar = map (\n => (S n ** TVar $ last {n})) $
+            parens $ rand (ignoreSpaces $ string "var") (ignoreSpaces $ commit $ decimalNat)
+
+tdefMu : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
+tdefMu rec = Combinators.map {a=NEList (String, (n : Nat ** TDef n))}
+  (\nel =>
+   let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
+         -- push names under sigma to fit in VMax
+         map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
+       (mx**vx) = toVMax vs
+     in
+   case mx of
+     Z => (Z ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S Z) (lteSuccRight lte))) (fromVMax vx))
+     S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
+  )
+  (parens (rand (ignoreSpaces (string "mu"))
+                (Nat.map {a=Parser' _} (\t => commit $ nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
+
 tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    ignoreSpaces $
-   alts [ guardM
-              (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
-              (mand (lift get) alphas)
-        , guardM
-              {a=((m**TNamed m), NEList (n**TDef n))}
-              (\(f,xs) => 
-                  let (mx**vx) = toVMax (toVect xs)
-                   in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
-              )
-              (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
-                           (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+   alts [ tdefRef
+        , tdefName rec
         , cmap (Z ** T0) $ char '0'
         , cmap (Z ** T1) $ char '1'
-        , nary rec '*' TProd
-        , nary rec '+' TSum
-        , map (\n => (S n ** TVar $ last {n})) $
-            parens $ rand (ignoreSpaces $ string "var") (ignoreSpaces $ commit $ decimalNat)
-        , map {a=NEList (String, (n : Nat ** TDef n))}
-              (\nel =>
-               let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
-                     -- push names under sigma to fit in VMax
-                     map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
-                   (mx**vx) = toVMax vs
-                 in
-               case mx of
-                 Z => (Z ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S Z) (lteSuccRight lte))) (fromVMax vx))
-                 S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
-              )
-              (parens (rand (ignoreSpaces (string "mu"))
-                            (map {a=Parser' _} (\t => commit $ nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
+        , tdefNary rec '*' TProd
+        , tdefNary rec '+' TSum
+        , tdefVar
+        , tdefMu rec
         ]
-  where
-  nary : All (Box (Parser' (n ** TDef n))
-          :-> Cst  Char
-          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
-          :->      Parser' (n ** TDef n))
-  nary rec sym con =
-    map (\(x,nel) =>
-          -- find the upper bound and weaken all elements to it
-          let (mx**vx) = toVMax (x :: toVect nel) in
-          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
-                           (fromVMax vx))
-        ) $
-        parens (rand (ignoreSpaces (char sym))
-           (map2 {a=Parser' _} {b=Parser' _}
-                 (\p, q => commit $ and p q)
-                 (map {a=Parser' _} (ignoreSpaces . commit) rec)
-                 (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))
- 
-  tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
-  tApp {m} {k} f xs with (decEq k m)
-    | Yes p = Just $ TApp f (rewrite p in xs)
-    | No _  = Nothing
-
-  pushName : Name -> (n ** TDef n) -> (n ** TNamed n)
-  pushName name (n**td) = (n ** TName name td)
 
 tnamed : All (Parser' (n ** TNamed n))
 tnamed =
