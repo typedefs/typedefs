@@ -17,12 +17,12 @@ generateCode "json"     (S _**tn) = "<error : can't generate JSON schema for ope
 generateCode _          _         = "<error : unknown backend>"
 
 -- re-exports
-parseType : String -> Maybe (n : Nat ** TNamed n)
-parseType = parseTNamed 
+parseType : String -> Either String (n : Nat ** TNamed n)
+parseType = parseTNamedEither 
 
 lib : FFI_Export FFI_JS "" []
 lib = Data (n ** TNamed n) "TNamedN" $
-      Data (Maybe (n ** TNamed n)) "MaybeTNamedN" $
+      Data (Either String (n ** TNamed n)) "EitherStringTNamedN" $
       Fun parseType "parseType" $
       Fun generateCode "generateCode" $
       End

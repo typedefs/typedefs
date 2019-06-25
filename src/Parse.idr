@@ -181,6 +181,9 @@ parseTDef str = getResult $ parseResult str tdefRec
 parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
 parseTDefs str = getResult $ parseResult str tdefNEL
 
+parseTDefEither : String -> Either String (n : Nat ** TDef n)
+parseTDefEither = result (Left . show) (Left . show) Right . parseTDef
+
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
 
@@ -202,6 +205,9 @@ parseTNamed str = getResult $ parseResult str tnamedRec
 
 parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
 parseTNameds str = getResult $ parseResult str tnamedNEL
+
+parseTNamedEither : String -> Either String (n : Nat ** TNamed n)
+parseTNamedEither = result (Left . show) (Left . show) Right . parseTNamed
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed
