@@ -12,10 +12,11 @@ import Options.Applicative
 import Control.Lens.Setter
 import TParsec.Result
 
+%default total
+
 processArgs : List String -> Either ParseError CommandLineOpts
 processArgs (_ :: opts) = runParserFully parseProgramOptions opts
 processArgs _ = Left (ErrorMsg "Not enough arguments")
-
 
 writeOutput : OutputFile -> String -> IO ()
 writeOutput StdOutput tdef = putStrLn tdef
