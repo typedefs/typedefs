@@ -1,3 +1,5 @@
+module ParserJS
+
 import Text.PrettyPrint.WL
 import public Typedefs
 import Parse

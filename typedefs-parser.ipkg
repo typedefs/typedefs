@@ -1,5 +1,7 @@
 package typedefs-parser
 
+modules = Parser
+
 executable = typedefs_parser
 
 main = Parser

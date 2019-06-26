@@ -1,3 +1,5 @@
+module Parser
+
 import Typedefs
 import Parse
 import Backend
