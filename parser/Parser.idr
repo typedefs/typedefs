@@ -7,10 +7,11 @@ import CommandLine
 
 import Options.Applicative
 
+%default total
+
 processArgs : List String -> Either ParseError CommandLineOpts
 processArgs (_ :: opts) = runParserFully parseProgramOptions opts
 processArgs _ = Left (ErrorMsg "Not enough arguments")
-
 
 writeOutput : OutputFile -> String -> IO ()
 writeOutput StdOutput tdef = putStrLn tdef

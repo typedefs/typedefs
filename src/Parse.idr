@@ -44,9 +44,11 @@ fromVMax {m} vm = go lteRefl vm
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
-MonadRun (StateT PState Identity) where
-  runMonad st = pure $ evalState st empty
-
+--MonadRun (StateT PState Identity) where
+--  runMonad st = pure $ evalState st empty
+Pointed PState where
+  point = empty
+  
 TPState : Type -> Type
 TPState = TParsecT () Void (State PState)
 
