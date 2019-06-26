@@ -5,6 +5,7 @@ import Parse
 import Backend
 import Backend.Utils
 import Backend.Haskell
+import Text.PrettyPrint.WL
 
 main : IO ()
 main = do

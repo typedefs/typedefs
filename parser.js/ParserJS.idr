@@ -1,6 +1,7 @@
 module ParserJS
 
 import Text.PrettyPrint.WL
+import TParsec
 import public Typedefs
 import Parse
 import public TermParse

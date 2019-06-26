@@ -8,4 +8,4 @@ main = Parser
 
 sourcedir = parser
 
-pkgs = typedefs
+pkgs = typedefs, contrib
