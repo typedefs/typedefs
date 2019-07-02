@@ -14,18 +14,22 @@ import Backend.ReasonML
 
 generateCode : String -> (n ** TNamed n) -> String
 generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
-generateCode "reasonml" (n  **tn) = toString $ generateDefs ReasonML tn
-generateCode "json"     (Z  **tn) = toString $ generate JSONDef tn
-generateCode "json"     (S _**tn) = "<error : can't generate JSON schema for open typedef>"
-generateCode _          _         = "<error : unknown backend>"
+generateCode _          _         = "<error : unsupported backend>"
 
--- re-exports
-parseType : String -> Either String (n : Nat ** TNamed n)
-parseType = parseTNamedEither 
+generateTermSerializers : String -> String -> Either String String
+generateTermSerializers backend tdef = map (generateCode backend) (parseTNamedEither tdef)
+
+generateType : String -> String -> Either String String
+generateType backend tdef = map (genType backend) (parseTNamedEither tdef)
+  where
+    genType : String -> (n ** TNamed n) -> String
+    genType "reasonml" (n   ** tn) = toString $ generateDefs ReasonML tn
+    genType "json"     (Z   ** tn) = toString $ generate JSONDef tn
+    genType "json"     (S _ ** tn) = "<error : cannot generate JSON schema for open typedefs>"
+    genType _          _           = "<error : unsupported backend>"
 
 lib : FFI_Export FFI_JS "" []
-lib = Data (n ** TNamed n) "TNamedN" $
-      Data (Either String (n ** TNamed n)) "EitherStringTNamedN" $
-      Fun parseType "parseType" $
-      Fun generateCode "generateCode" $
+lib = Data (Either String String) "EitherStringString" $
+      Fun generateTermSerializers "generateTermSerializers" $
+      Fun Main.generateType "generateType" $
       End

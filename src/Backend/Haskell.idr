@@ -111,12 +111,23 @@ data Haskell : Type where
 renderApp : Name -> Vect n Doc -> Doc
 renderApp name params = text (uppercase name) |+| hsep (empty :: toList params)
 
+||| The same as `tupled : List Doc -> Doc`, except that tuples with
+||| more than 62 components get turned into nested tuples, to adhere
+||| to GHC's restriction on tuple size.
+||| (See https://hackage.haskell.org/package/ghc-prim-0.5.1.0/docs/src/GHC.Tuple.html )
+hsTupled : List Doc -> Doc
+hsTupled xs = if length xs < 63
+              then tupled xs
+              else let (xs0, xs1) = splitAt 61 xs in
+                     tupled (xs0 ++ [hsTupled $ assert_smaller xs xs1])
+
+
 mutual
   ||| Render a type signature as Haskell source code.
   renderType : HsType -> Doc
   renderType HsVoid                = text "Void"
   renderType HsUnit                = text "()"
-  renderType (HsTuple xs)          = tupled . toList . map (assert_total renderType) $ xs
+  renderType (HsTuple xs)          = hsTupled . toList . map (assert_total renderType) $ xs
   renderType (HsSum a b)           = renderApp "Either" [guardParen a, guardParen b]
   renderType (HsVar v)             = text (lowercase v)
   renderType (HsParam name params) = renderApp name (map guardParen params)
@@ -145,7 +156,7 @@ mutual
   ||| Render a term as Haskell source code.
   renderTerm : HsTerm -> Doc
   renderTerm HsUnitTT         = text "()"
-  renderTerm (HsTupC xs) = tupled . toList . map (assert_total guardParenTerm) $ xs
+  renderTerm (HsTupC xs) = hsTupled . toList . map (assert_total guardParenTerm) $ xs
   renderTerm (HsTermVar x)    = text x
   renderTerm HsWildcard       = text "_"
   renderTerm (HsInn name []) = text name

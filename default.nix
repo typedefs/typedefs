@@ -54,6 +54,7 @@ let
           typedefs-parser = idrisPackagesNew.callPackage ./typedefs-parser.nix {};
           typedefs-parser-js = idrisPackagesNew.callPackage ./typedefs-parser-js.nix {};
           typedefs-examples = idrisPackagesNew.callPackage ./typedefs-examples.nix {};
+          optparse = idrisPackagesNew.callPackage ./optparse.nix {};
         };
       };
     };
