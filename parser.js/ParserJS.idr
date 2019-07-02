@@ -1,4 +1,7 @@
+module ParserJS
+
 import Text.PrettyPrint.WL
+import TParsec
 import public Typedefs
 import Parse
 import public TermParse
@@ -13,12 +16,11 @@ generateCode : String -> (n ** TNamed n) -> String
 generateCode "haskell"  (n  **tn) = toString $ generateDefs Haskell tn
 generateCode _          _         = "<error : unsupported backend>"
 
+generateTermSerializers : String -> String -> Either String String
+generateTermSerializers backend tdef = map (generateCode backend) (parseTNamedEither tdef)
 
-generateTermSerializers : String -> String -> Maybe String
-generateTermSerializers backend tdef = map (generateCode backend) (parseTNamed tdef)
-
-generateType : String -> String -> Maybe String
-generateType backend tdef = map (genType backend) (parseTNamed tdef)
+generateType : String -> String -> Either String String
+generateType backend tdef = map (genType backend) (parseTNamedEither tdef)
   where
     genType : String -> (n ** TNamed n) -> String
     genType "reasonml" (n   ** tn) = toString $ generateDefs ReasonML tn
@@ -27,7 +29,7 @@ generateType backend tdef = map (genType backend) (parseTNamed tdef)
     genType _          _           = "<error : unsupported backend>"
 
 lib : FFI_Export FFI_JS "" []
-lib = Data (Maybe String) "MaybeString" $
+lib = Data (Either String String) "EitherStringString" $
       Fun generateTermSerializers "generateTermSerializers" $
       Fun Main.generateType "generateType" $
       End

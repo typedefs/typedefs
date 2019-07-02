@@ -65,8 +65,8 @@ let
     repo = "nixpkgs";
 
     # binary cache exists for revisions listed in https://nixos.org/channels/
-    rev = "140a648e46f9a255849d938efd92930297258621";
-    sha256 = "0az8ph3kf6pgz5xv2x1n4kiccyyq0p5h2rjqfwc5qh97lnqigmbf";
+    rev = "c438c0e0b71c3b4be174486b0a5f60c67dd09721";
+    sha256 = "014llk230q6871z73xzilvf93dna0q72y3y8hlgp47fc8h6fafim";
   };
   usepkgs = (
     if null == pkgs 

@@ -1,7 +1,6 @@
 package typedefs
 
 modules = Names
-        , ParserUtils
         , Parse
         , Typedefs
         , TermParse
@@ -15,6 +14,7 @@ modules = Names
         , Test.TypedefsSuite
         , Test.HaskellTests
         , Test.JSONTests
+        , Test.ParseTests
         , Test.ReasonMLTests
         , Test.TermParseWriteTests
 

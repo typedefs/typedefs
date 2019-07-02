@@ -1,9 +1,11 @@
 package typedefs-parser
 
+modules = Parser
+
 executable = typedefs_parser
 
 main = Parser
 
 sourcedir = parser
 
-pkgs = typedefs, optparse
+pkgs = typedefs, contrib, optparse

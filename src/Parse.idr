@@ -12,8 +12,6 @@ import Names
 
 import Data.Vect
 
-import ParserUtils
-
 %default total
 %access public export
 
@@ -44,21 +42,37 @@ fromVMax {m} vm = go lteRefl vm
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
-MonadRun (StateT PState Identity) where
-  runMonad st = pure $ evalState st empty
+Pointed PState where
+  point = empty
+
+data Error : Type where
+  ParseError : Position -> Error
+  RunError : Error
+
+Show Error where
+  show (ParseError p) = "parse error: " ++ show p
+  show RunError = "internal error"
+
+Eq Error where
+  (ParseError e1) == (ParseError e2) = e1 == e2
+  RunError        == RunError        = True
+  _               == _               = False  
+
+Subset (Position, List Void) Error where
+  into = ParseError . fst
 
 TPState : Type -> Type
-TPState = TParsecT () Void (State PState)
-
-sizedtok' : Type -> Parameters TPState
-sizedtok' tok = MkParameters tok (SizedList tok) (const $ pure ())
+TPState = TParsecT Error Void (State PState)
 
 Parser' : Type -> Nat -> Type
-Parser' = Parser TPState (sizedtok' Char)
+Parser' = Parser TPState chars
+
+getResult : Result Error (Maybe a) -> Result Error a
+getResult res = res >>= (Result.fromMaybe RunError)
 
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())
-comment = cmap () $ and (char ';') (roptand (nelist $ notChar '\n') (char '\n'))
+comment = cmap () $ and (char ';') (roptand (nelist $ anyCharBut '\n') (char '\n'))
 
 spacesOrComments : (Alternative mn, Monad mn, Subset Char (Tok p), Inspect (Toks p) (Tok p), Eq (Tok p)) =>
                    All (Parser mn p ())
@@ -68,72 +82,87 @@ ignoreSpaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspe
                All (Parser mn p a :-> Parser mn p a)
 ignoreSpaces parser = spacesOrComments `roptand` (parser `landopt` spacesOrComments)
 
+-- main parser
+
+tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
+tApp {m} {k} f xs with (decEq k m)
+  | Yes p = Just $ TApp f (rewrite p in xs)
+  | No _  = Nothing
+
+pushName : Name -> (n ** TDef n) -> (n ** TNamed n)
+pushName name (n**td) = (n ** TName name td)
+
+tdefRef : All (Parser' (n ** TDef n))
+tdefRef = guardM
+            (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
+            (mand (lift get) alphas)
+
+tdefName : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
+tdefName rec = guardM
+  {a=((m**TNamed m), NEList (n**TDef n))}
+  (\(f,xs) => 
+      let (mx**vx) = toVMax (toVect xs)
+       in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
+  )
+  (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
+               (Nat.map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+
+tdefNary : All (Box (Parser' (n ** TDef n))
+        :-> Cst  Char
+        :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
+        :->      Parser' (n ** TDef n))
+tdefNary rec sym con =
+  map (\(x,nel) =>
+        -- find the upper bound and weaken all elements to it
+        let (mx**vx) = toVMax (x :: toVect nel) in
+        (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
+                         (fromVMax vx))
+      ) $
+      parens (rand (ignoreSpaces (char sym))
+         (map2 {a=Parser' _} {b=Parser' _}
+               (\p, q => commit $ and p q)
+               (map {a=Parser' _} (ignoreSpaces . commit) rec)
+               (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))               
+
+tdefVar : All (Parser' (n ** TDef n))
+tdefVar = map (\n => (S n ** TVar $ last {n})) $
+            parens $ rand (ignoreSpaces $ string "var") (ignoreSpaces $ commit $ decimalNat)
+
+tdefMu : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
+tdefMu rec = Combinators.map {a=NEList (String, (n : Nat ** TDef n))}
+  (\nel =>
+   let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
+         -- push names under sigma to fit in VMax
+         map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
+       (mx**vx) = toVMax vs
+     in
+   case mx of
+     Z => (Z ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S Z) (lteSuccRight lte))) (fromVMax vx))
+     S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
+  )
+  (parens (rand (ignoreSpaces (string "mu"))
+                (Nat.map {a=Parser' _} (\t => commit $ nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
+
 tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    ignoreSpaces $
-   alts [ guardM
-              (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
-              (mand (lift get) alphas)
-        , guardM
-              {a=((m**TNamed m), NEList (n**TDef n))}
-              (\(f,xs) => 
-                  let (mx**vx) = toVMax (toVect xs)
-                   in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
-              )
-              (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
-                           (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
-        , cmap (Z ** T0) $ string "0"
-        , cmap (Z ** T1) $ string "1"
-        , nary rec '*' TProd
-        , nary rec '+' TSum
-        , map (\n => (S n ** TVar $ last {n})) $
-            parens (rand (ignoreSpaces (string "var")) (ignoreSpaces decimalNat))
-        , map {a=NEList (String, (n : Nat ** TDef n))}
-              (\nel =>
-               let vs : Vect (length nel) (n : Nat ** (String, TDef n)) =
-                     -- push names under sigma to fit in VMax
-                     map (\(nm,(n**td)) => (n**(nm,td))) $ toVect nel
-                   (mx**vx) = toVMax vs
-                 in
-               case mx of
-                 Z => (Z ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S Z) (lteSuccRight lte))) (fromVMax vx))
-                 S m => (m ** TMu $ map (\(_**(lte,nm,td)) => (nm, weakenTDef td (S m) lte)) (fromVMax vx))
-              )
-              (parens (rand (ignoreSpaces (string "mu"))
-                            (map {a=Parser' _} (\t => nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
+   alts [ tdefRef
+        , tdefName rec
+        , cmap (Z ** T0) $ char '0'
+        , cmap (Z ** T1) $ char '1'
+        , tdefNary rec '*' TProd
+        , tdefNary rec '+' TSum
+        , tdefVar
+        , tdefMu rec
         ]
-  where
-  nary : All (Box (Parser' (n ** TDef n))
-          :-> Cst  Char
-          :-> Cst ({k, m : Nat} -> Vect (2+k) (TDef m) -> TDef m)
-          :->      Parser' (n ** TDef n))
-  nary rec sym con =
-    map (\(x,nel) =>
-          -- find the upper bound and weaken all elements to it
-          let (mx**vx) = toVMax (x :: toVect nel) in
-          (mx ** con $ map (\(_**(lte,td)) => weakenTDef td mx lte)
-                           (fromVMax vx))
-        ) $
-        parens (rand (ignoreSpaces (char sym))
-           (map2 {a=Parser' _} {b=Parser' _}
-                 (\p, q => and p q)
-                 (map {a=Parser' _} ignoreSpaces rec)
-                 (map {a=Parser' _} (nelist . ignoreSpaces) rec)))
- 
-  tApp : {m,k : Nat} -> TNamed k -> Vect m (TDef n) -> Maybe (TDef n)
-  tApp {m} {k} f xs with (decEq k m)
-    | Yes p = Just $ TApp f (rewrite p in xs)
-    | No _  = Nothing
-
-  pushName : Name -> (n ** TDef n) -> (n ** TNamed n)
-  pushName name (n**td) = (n ** TName name td)
 
 tnamed : All (Parser' (n ** TNamed n))
 tnamed =
   ignoreSpaces $
   randbindm
-    (parens (rand (ignoreSpaces (string "name")) (and (ignoreSpaces alphas) (ignoreSpaces tdef))))
+    (parens $ rand (ignoreSpaces $ string "name") 
+                   (and (ignoreSpaces alphas) (ignoreSpaces tdef)))
     (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
 
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
@@ -146,17 +175,20 @@ tdefRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec
 tdefNEL : All (Parser' (NEList (n ** TDef n)))
 tdefNEL = nelist tdef
 
-parseTDef : String -> Maybe (n : Nat ** TDef n)
-parseTDef str = parseMaybe str tdefRec
+parseTDef : String -> Result Error (n : Nat ** TDef n)
+parseTDef str = getResult $ parseResult str tdefRec
 
-parseTDefs : String -> Maybe (NEList (n : Nat ** TDef n))
-parseTDefs str = parseMaybe str tdefNEL
+parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
+parseTDefs str = getResult $ parseResult str tdefNEL
+
+parseTDefEither : String -> Either String (n : Nat ** TDef n)
+parseTDefEither = result (Left . show) (Left . show) Right . parseTDef
 
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
 
 parseTDefThenStrFun : String -> ((n ** TDef n) -> String) -> String
-parseTDefThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTDef str
+parseTDefThenStrFun str fn = result show show fn $ parseTDef str
 
 ||| Parse a sequence of `TNamed`s and return the last one that parsed, accumulating
 ||| and substituting named entries in the process.
@@ -168,14 +200,17 @@ tnamedRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tnamed rec
 tnamedNEL : All (Parser' (NEList (n ** TNamed n)))
 tnamedNEL = nelist tnamed
 
-parseTNamed : String -> Maybe (n : Nat ** TNamed n)
-parseTNamed str = parseMaybe str tnamedRec
+parseTNamed : String -> Result Error (n : Nat ** TNamed n)
+parseTNamed str = getResult $ parseResult str tnamedRec
 
-parseTNameds : String -> Maybe (NEList (n : Nat ** TNamed n))
-parseTNameds str = parseMaybe str tnamedNEL
+parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
+parseTNameds str = getResult $ parseResult str tnamedNEL
+
+parseTNamedEither : String -> Either String (n : Nat ** TNamed n)
+parseTNamedEither = result (Left . show) (Left . show) Right . parseTNamed
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed
 
 parseTNamedThenStrFun : String -> ((n ** TNamed n) -> String) -> String
-parseTNamedThenStrFun str fn = maybe ("Failed to parse '" ++ str ++ "'.") fn $ parseTNamed str
+parseTNamedThenStrFun str fn = result show show fn $ parseTNamed str

@@ -1,11 +1,13 @@
 package typedefs-parser-js
 
+modules = ParserJS
+
 executable = typedefs_parser.js
 
 main = ParserJS
 
 sourcedir = parser.js
 
-pkgs = contrib, typedefs, js
+pkgs = contrib, typedefs, tparsec, js
 
 opts = "--codegen node --interface"

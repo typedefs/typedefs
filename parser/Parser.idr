@@ -1,3 +1,5 @@
+module Parser
+
 import Typedefs
 import Parse
 import Backend
@@ -5,6 +7,7 @@ import Backend.Utils
 import Backend.Haskell
 import CommandLine
 
+import Text.PrettyPrint.WL
 import Options.Applicative
 
 processArgs : List String -> Either ParseError CommandLineOpts
@@ -21,8 +24,8 @@ getInput : InputFile -> IO (Either FileError String)
 getInput (StringInput x) = pure (Right x)
 getInput (FileInput x) = readFile x
 
-parseAndGenerateTDef : String -> Maybe String
-parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamed tdef)
+parseAndGenerateTDef : String -> Either String String
+parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamedEither tdef)
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do
