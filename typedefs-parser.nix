@@ -1,4 +1,4 @@
-{ build-idris-package, typedefs, optparse, }:
+{ build-idris-package, typedefs, optparse }:
 
 build-idris-package {
   name = "typedefs-parser";

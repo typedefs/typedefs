@@ -1,4 +1,4 @@
-module Parser
+module Main
 
 import Typedefs
 import Parse
@@ -9,6 +9,8 @@ import CommandLine
 
 import Text.PrettyPrint.WL
 import Options.Applicative
+import Control.Lens.Setter
+import TParsec.Result
 
 processArgs : List String -> Either ParseError CommandLineOpts
 processArgs (_ :: opts) = runParserFully parseProgramOptions opts
@@ -32,8 +34,8 @@ runWithOptions (MkTypedefOpts input output) = do
   Right typedef <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
   case parseAndGenerateTDef typedef of
-       Nothing => putStrLn ("Typedef error: " ++ "could not generate typedef")
-       Just tdef => writeOutput output tdef
+    Left err => putStrLn ("Typedef error: " ++ err)
+    Right tdef => writeOutput output tdef
 
 partial
 main : IO ()

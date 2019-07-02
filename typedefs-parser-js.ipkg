@@ -1,10 +1,10 @@
 package typedefs-parser-js
 
-modules = ParserJS
+modules = Main
 
 executable = typedefs_parser.js
 
-main = ParserJS
+main = Main
 
 sourcedir = parser.js
 

@@ -1,14 +1,14 @@
-{ build-idris-package, fetchFromGitHub, lens, wl-pprint/*, lib*/}:
+{ build-idris-package, fetchFromGitHub, lens, contrib /*, lib*/}:
 build-idris-package {
   name = "optparse";
-  version = "2019-06-03";
+  version = "2019-07-02";
   src = fetchFromGitHub {
     owner = "statebox";
     repo = "optparse-idris";
-    rev = "bd5d52097f5f414be0f710f2a0cffb01a04e95fd";
-    sha256 = "0nr0hgmndnwsd65r9g49zgkdqsryrzg3c86pv5w2q88ybxplm0ap"; # lib.fakeSha256; # This makes nix error out and give you the correct hash in stderr
+    rev = "f5611b1c695299ff0d528cdfc53fd5c51b7fdd84";
+    sha256 = "1r49476sds7sw5x0z0ya4h2xd2g23a0wx8in219j8ngkihcw10hn"; # lib.fakeSha256; # This makes nix error out and give you the correct hash in stderr
   };
-  idrisDeps = [ lens wl-pprint ];
+  idrisDeps = [ lens contrib ];
 
   meta = {
     description = "Minimal port of optparse-applicative to idris";

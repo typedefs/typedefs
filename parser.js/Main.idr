@@ -1,4 +1,4 @@
-module ParserJS
+module Main
 
 import Text.PrettyPrint.WL
 import TParsec
