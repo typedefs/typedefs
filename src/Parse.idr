@@ -42,16 +42,8 @@ fromVMax {m} vm = go lteRefl vm
 PState : Type
 PState = SortedMap Name (DPair Nat TDef)
 
-<<<<<<< HEAD
 Pointed PState where
   point = empty
-=======
-MonadRun (StateT PState Identity) where
-  runMonad st = pure $ evalState st empty
-  
-TPState : Type -> Type
-TPState = TParsecT () Void (State PState)
->>>>>>> revert to older tparsec
 
 data Error : Type where
   ParseError : Position -> Error
