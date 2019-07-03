@@ -1,18 +1,18 @@
-module Test.ReasonMLTests
+module Typedefs.Test.ReasonMLTests
 
-import Names
-import Typedefs
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend
+import Typedefs.Backend.Utils
+import Typedefs.Backend.ReasonML
 
-import Backend
-import Backend.Utils
-import Backend.ReasonML
+import Typedefs.Test
 
 import Text.PrettyPrint.WL
 import Specdris.Spec
 
 import Data.NEList
 import Data.Vect
-import Test
 
 %access public export
 

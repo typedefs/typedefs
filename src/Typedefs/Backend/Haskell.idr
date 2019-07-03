@@ -1,10 +1,11 @@
-module Backend.Haskell
+module Typedefs.Backend.Haskell
 
-import Names
-import Typedefs
+import Typedefs.Names
+import Typedefs.Typedefs
 
-import Backend
-import Backend.Utils
+import Typedefs.Backend
+import Typedefs.Backend.Utils
+
 import Text.PrettyPrint.WL
 import Control.Monad.State
 

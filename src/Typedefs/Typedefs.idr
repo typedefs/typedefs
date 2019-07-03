@@ -1,9 +1,9 @@
-module Typedefs
+module Typedefs.Typedefs
 
 import Data.Fin
 import Data.Vect
 
-import Names
+import Typedefs.Names
 
 %default total
 %access public export

@@ -14,25 +14,25 @@ authors = []
 
 [targets.lib]
 path = "src"
-mods = [ "Names"
-       , "Parse"
-       , "Typedefs"
-       , "TermParse"
-       , "TermWrite"
-       , "Provider"
-       , "Backend"
-       , "Backend.Haskell"
-       , "Backend.JSON"
-       , "Backend.ReasonML"
-       , "Backend.Utils"
+mods = [ "Typedefs.Names"
+       , "Typedefs.Parse"
+       , "Typedefs.Typedefs"
+       , "Typedefs.TermParse"
+       , "Typedefs.TermWrite"
+       , "Typedefs.Provider"
+       , "Typedefs.Backend"
+       , "Typedefs.Backend.Haskell"
+       , "Typedefs.Backend.JSON"
+       , "Typedefs.Backend.ReasonML"
+       , "Typedefs.Backend.Utils"
        ]
 idris_opts = ["-p","contrib"]
 
 [[targets.bin]]
-path = "parser"
-name = "typedefs-parser"
-main = "Main.idr"
-idris_opts = ["-p","contrib", "-p", "typedefs"]
+path = "src"
+name = "typedefs"
+main = "CLI/Main.idr"
+idris_opts = ["-p","contrib"]
 
 [[targets.test]]
 path = "src"

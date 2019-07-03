@@ -1,11 +1,11 @@
-{ build-idris-package, typedefs, js }:
+{ build-idris-package, typedefs, tparsec, bytes, js }:
 
 build-idris-package {
-  name = "typedefs-parser-js";
+  name = "typedefs-js";
   version = "dev";
   src = ./.;
 
-  idrisDeps = [ typedefs js ];
+  idrisDeps = [ tparsec bytes js ];
 
   meta = {
     description = "Programming language agnostic type construction language based on polynomials - parser - JavaScript";

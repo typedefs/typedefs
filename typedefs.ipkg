@@ -1,25 +1,11 @@
 package typedefs
 
-modules = Names
-        , Parse
-        , Typedefs
-        , TermParse
-        , TermWrite
-        , Provider
-        , Backend
-        , Backend.Haskell
-        , Backend.JSON
-        , Backend.ReasonML
-        , Backend.Utils
-        , Test.TypedefsSuite
-        , Test.HaskellTests
-        , Test.JSONTests
-        , Test.ParseTests
-        , Test.ReasonMLTests
-        , Test.TermParseWriteTests
+modules = CLI.CommandLine, CLI.Main
 
-tests = Test.TypedefsSuite.testSuite
+executable = typedefs
+
+main = CLI.Main
 
 sourcedir = src
 
-pkgs = tparsec, specdris, contrib, bytes
+pkgs = contrib, optparse, lens, tparsec

@@ -1,4 +1,4 @@
-module CommandLine
+module CLI.CommandLineParser
 
 import Options.Applicative
 

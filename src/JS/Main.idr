@@ -1,17 +1,18 @@
-module Main
+module JS.Main
 
 import Text.PrettyPrint.WL
 import TParsec
-import public Typedefs
-import Parse
 import Data.NEList
-import public TermParse
-import public TermWrite
-import Backend
-import Backend.Utils
-import Backend.Haskell
-import Backend.JSON
-import Backend.ReasonML
+
+import public Typedefs.Typedefs
+import public Typedefs.TermParse
+import public Typedefs.TermWrite
+import        Typedefs.Parse
+import        Typedefs.Backend
+import        Typedefs.Backend.Utils
+import        Typedefs.Backend.Haskell
+import        Typedefs.Backend.JSON
+import        Typedefs.Backend.ReasonML
 
 generateTermSerializers : String -> String -> Either String String
 generateTermSerializers backend tdef = (resultToEither $ parseTNameds tdef) >>= (genCode backend) 

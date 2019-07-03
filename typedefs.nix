@@ -1,24 +1,14 @@
-{ build-idris-package
-, contrib
-, tparsec
-, specdris
-, bytes }:
+{ build-idris-package, optparse, tparsec, bytes }:
 
 build-idris-package {
   name = "typedefs";
   version = "dev";
   src = ./.;
-  doCheck = true;
 
-  idrisDeps = [
-    contrib
-    tparsec
-    specdris
-    bytes
-  ];
+  idrisDeps = [ optparse tparsec bytes ];
 
   meta = {
-    description = "Programming language agnostic type construction language based on polynomials - library";
+    description = "Programming language agnostic type construction language based on polynomials - parser";
     homepage = "http://typedefs.com";
   };
 }

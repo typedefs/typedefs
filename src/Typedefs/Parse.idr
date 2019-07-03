@@ -1,14 +1,14 @@
-module Parse
+module Typedefs.Parse
 
 import Data.SortedMap
+import Data.NEList
 import Control.Monad.State
 
 import TParsec
 import TParsec.Running
-import Data.NEList
 
-import Typedefs
-import Names
+import Typedefs.Typedefs
+import Typedefs.Names
 
 import Data.Vect
 

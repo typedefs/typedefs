@@ -1,13 +1,12 @@
-module Main
+module CLI.Main
 
-import Typedefs
-import Parse
-import Backend
-import Backend.Utils
-import Backend.Haskell
-import CommandLine
+import Typedefs.Typedefs
+import Typedefs.Parse
+import Typedefs.Backend
+import Typedefs.Backend.Utils
+import Typedefs.Backend.Haskell
+import CLI.CommandLineParser
 
-import Text.PrettyPrint.WL
 import Options.Applicative
 import Control.Lens.Setter
 import Data.NEList

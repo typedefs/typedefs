@@ -1,13 +1,12 @@
-module Backend
+module Typedefs.Backend
 
 import Data.Vect
 import Data.NEList
 
-import Names
-import Typedefs
-import Backend.Utils
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend.Utils
 
-import Data.Vect
 import Text.PrettyPrint.WL
 
 %default total

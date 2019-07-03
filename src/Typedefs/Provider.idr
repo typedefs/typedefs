@@ -1,12 +1,12 @@
-module Provider
+module Typedefs.Provider
 
 import Data.SortedMap 
 
 import TParsec
 import TParsec.Running
 
-import Typedefs
-import Parse
+import Typedefs.Typedefs
+import Typedefs.Parse
 
 %language TypeProviders
 %default total
