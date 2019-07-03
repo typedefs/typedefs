@@ -1,10 +1,9 @@
-module Backend.JSON
+module Typedefs.Backend.JSON
 
-import Names
-import Typedefs
-
-import Backend
-import Backend.Utils
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend
+import Typedefs.Backend.Utils
 
 import Control.Monad.State
 import Language.JSON

@@ -1,8 +1,8 @@
-module Test
+module Typedefs.Test
 
-import Typedefs
-import Names
-import Backend.Utils
+import Typedefs.Typedefs
+import Typedefs.Names
+import Typedefs.Backend.Utils
 
 import Data.Vect 
 

@@ -1,10 +1,9 @@
-module Backend.ReasonML
+module Typedefs.Backend.ReasonML
 
-import Names
-import Typedefs
-
-import Backend
-import Backend.Utils
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend
+import Typedefs.Backend.Utils
 
 import Text.PrettyPrint.WL
 import Control.Monad.State

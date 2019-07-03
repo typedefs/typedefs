@@ -1,15 +1,14 @@
-module Test.TermParseWriteTests
+module Typedefs.Test.TermParseWriteTests
+
+import Typedefs.Typedefs
+import Typedefs.Names
+import Typedefs.TermParse
+import Typedefs.TermWrite
 
 import Data.Vect
-
-import Typedefs
-import Names
-import TermParse
-import TermWrite
-import TParsec
 import Data.Bytes
 import Data.ByteArray
-
+import TParsec
 import Specdris.Spec
 
 %access public export

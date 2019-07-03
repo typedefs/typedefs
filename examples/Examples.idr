@@ -1,11 +1,11 @@
 import Data.Vect
 import Data.Fin
 
-import Names
-import Typedefs
-import TermWrite
-import Backend.Haskell
-import Backend.ReasonML
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.TermWrite
+import Typedefs.Backend.Haskell
+import Typedefs.Backend.ReasonML
 
 -- Example: bits
 

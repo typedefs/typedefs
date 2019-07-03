@@ -6,4 +6,4 @@ main = Examples
 
 sourcedir = examples
 
-pkgs = typedefs
+pkgs = typedefs-core

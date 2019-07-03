@@ -1,10 +1,10 @@
-module Test.ParseTests
+module Typedefs.Test.ParseTests
+
+import Typedefs.Typedefs
+import Typedefs.Parse
 
 import TParsec
 import TParsec.Running
-
-import Typedefs
-import Parse
 
 import Specdris.Spec
 

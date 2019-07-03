@@ -1,7 +1,7 @@
-module Backend.Utils
+module Typedefs.Backend.Utils
 
-import Typedefs
-import Names
+import Typedefs.Typedefs
+import Typedefs.Names
 
 import Control.Monad.State
 import Data.Vect

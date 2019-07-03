@@ -1,18 +1,18 @@
-module Test.HaskellTests
+module Typedefs.Test.HaskellTests
 
-import Names
-import Typedefs
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend
+import Typedefs.Backend.Utils
+import Typedefs.Backend.Haskell
 
-import Backend
-import Backend.Utils
-import Backend.Haskell
+import Typedefs.Test
 
 import Text.PrettyPrint.WL
 import Specdris.Spec
 
 import Data.NEList
 import Data.Vect
-import Test
 
 %access public export
 

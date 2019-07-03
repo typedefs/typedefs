@@ -1,10 +1,10 @@
-module TermParse
+module Typedefs.TermParse
 
 import TParsec
 import TParsec.Running
 
-import Typedefs
-import Names
+import Typedefs.Typedefs
+import Typedefs.Names
 
 import Data.Vect
 import Data.Fin

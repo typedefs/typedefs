@@ -1,4 +1,4 @@
-module Names
+module Typedefs.Names
 
 import Prelude.Chars
 import Prelude.Strings

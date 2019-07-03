@@ -1,11 +1,12 @@
-module Test.JSONTests
+module Typedefs.Test.JSONTests
 
-import Names
-import Typedefs
+import Typedefs.Names
+import Typedefs.Typedefs
+import Typedefs.Backend
+import Typedefs.Backend.Utils
+import Typedefs.Backend.JSON
 
-import Backend
-import Backend.Utils
-import Backend.JSON
+import Typedefs.Test
 
 import Language.JSON
 
@@ -14,7 +15,6 @@ import Specdris.Spec
 
 import Data.NEList
 import Data.Vect
-import Test
 
 %access public export
 

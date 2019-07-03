@@ -1,0 +1,25 @@
+package typedefs-core
+
+modules = Typedefs.Names
+        , Typedefs.Parse
+        , Typedefs.Typedefs
+        , Typedefs.TermParse
+        , Typedefs.TermWrite
+        , Typedefs.Provider
+        , Typedefs.Backend
+        , Typedefs.Backend.Haskell
+        , Typedefs.Backend.JSON
+        , Typedefs.Backend.ReasonML
+        , Typedefs.Backend.Utils
+        , Typedefs.Test.TypedefsSuite
+        , Typedefs.Test.HaskellTests
+        , Typedefs.Test.JSONTests
+        , Typedefs.Test.ParseTests
+        , Typedefs.Test.ReasonMLTests
+        , Typedefs.Test.TermParseWriteTests
+
+tests = Typedefs.Test.TypedefsSuite.testSuite
+
+sourcedir = src
+
+pkgs = tparsec, specdris, contrib, bytes
