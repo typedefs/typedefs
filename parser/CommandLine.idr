@@ -10,7 +10,7 @@ data InputFile = StringInput String
 
 public export
 Show InputFile where
-  show StringInput = "command line input"
+  show  StringInput    = "command line input"
   show (FileInput str) = str
 
 public export
@@ -19,7 +19,7 @@ data OutputFile = StdOutput
 
 public export
 Show OutputFile where
-  show StdOutput = "stdout"
+  show  StdOutput       = "stdout"
   show (FileOutput str) = str
 
 stringInput : Parser InputFile
@@ -39,7 +39,6 @@ fileOutput = FileOutput <$> strOption (long "dest" . short 'd')
 
 parseOutput : Parser OutputFile
 parseOutput = fileOutput <|> stdOutput <|> pure StdOutput
-
 
 public export
 record TypedefOpts where
@@ -90,7 +89,7 @@ If this is your first time head to https://typedefs.com for more information or 
 """
 
 parseTDefOptions : Parser TypedefOpts
-parseTDefOptions = MkTypedefOpts <$> parseInput <*> parseOutput
+parseTDefOptions = [| MkTypedefOpts parseInput parseOutput |]
 
 export
 parseProgramOptions : Parser CommandLineOpts

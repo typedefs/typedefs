@@ -150,7 +150,6 @@ mutual
   Ty     tvars (TMu m)     = Mu tvars (args m)
   Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
 
-
 -- Show and Eq instances
 
 mutual
@@ -217,8 +216,8 @@ powN n tn = pow n (TApp tn idVars)
 
 -- TODO add to stdlib?
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
-minusPlus  Z     m    _   = rewrite plusZeroRightNeutral (m `minus` 0) in
-                            minusZeroRight m
+minusPlus  Z     m    _   = rewrite minusZeroRight m in 
+                            plusZeroRightNeutral m
 minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
@@ -270,6 +269,8 @@ mutual
   showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
   showTDef (TApp f []) = name f
   showTDef (TApp f xs) = parens $ concat (intersperse " " (name f :: map (assert_total showTDef) xs))
+--  showTDef (TApp f []) = name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">"
+--  showTDef (TApp f xs) = parens $ concat $ intersperse " " ((name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">") :: map (assert_total showTDef) xs)
 
   showOp : String -> Vect k (TDef n) -> String
   showOp _  []         = ""
@@ -317,7 +318,6 @@ mutual
     (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
     (TApp f xs)   == (TApp f' xs')   = assert_total $ heteroEqNamed f f' && vectEq xs xs'
     _             == _               = False
-
 
 implementation Eq (TNamed n) where
   (TName n t) == (TName n' t')       = n == n' && t == t'
