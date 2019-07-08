@@ -28,6 +28,9 @@ Env k = Vect k (Either String Decl)
 freshEnv : String -> Env n
 freshEnv var = map (\ix => Left (var ++ show (finToInteger ix))) range
 
+interweave : List a -> List a -> List a
+interweave xs ys = concat $ transpose [xs, ys]
+
 ||| Get the free names from the environment.
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
