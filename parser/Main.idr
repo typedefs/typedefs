@@ -10,6 +10,7 @@ import CommandLine
 import Text.PrettyPrint.WL
 import Options.Applicative
 import Control.Lens.Setter
+import Data.NEList
 import TParsec.Result
 
 %default total
@@ -29,15 +30,15 @@ getInput (StringInput x) = pure (Right x)
 getInput (FileInput x)   = readFile x
 
 parseAndGenerateTDef : String -> Either String String
-parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (parseTNamedEither tdef)
+parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (convertToEither $ parseTNameds tdef)
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do
   Right typedef <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
-  case parseAndGenerateTDef typedef of
+  case parseTNamedsEither typedef of
     Left err => putStrLn ("Typedef error: " ++ err)
-    Right defs => writeOutput output defs
+    Right defs => writeOutput output (show defs)
 
 partial
 main : IO ()

@@ -9,6 +9,7 @@ import Text.PrettyPrint.WL
 import Control.Monad.State
 
 import Data.Vect
+import Data.NEList
 import Data.SortedMap
 
 %default total
@@ -364,8 +365,8 @@ mutual
   makeDefs : TDef n -> State (List Name) (List Haskell)
   makeDefs    T0          = pure []
   makeDefs    T1          = pure []
-  makeDefs    (TProd xs)  = foldr interweave [] <$> traverse (assert_total makeDefs) xs
-  makeDefs    (TSum xs)   = foldr interweave [] <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TProd xs)  = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TSum xs)   = concat <$> traverse (assert_total makeDefs) xs
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
   makeDefs    (TApp f xs) = 
@@ -720,12 +721,15 @@ decodeDef {n} t@(TName tname td) =
                      ]
     genCase n currType currTerm env td = simplify $ runTermGen env (decode td)
 
-ASTGen Haskell HsType n where
-  msgType           = makeType' freshEnv
-  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
-  generateTermDefs tn =
-    let deps = concatMap (\ (m**t) => [encodeDef t, decodeDef t]) (dependencies freshEnv (def tn)) in
-        deps ++ [encodeDef tn, decodeDef tn]
+ASTGen Haskell HsType True where
+  msgType  (Unbounded tn) = makeType' freshEnv tn
+  generateTyDefs tns = 
+    evalState (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
+    --reverse $ evalState (makeDefs' tn) []
+  generateTermDefs (Unbounded tn) =
+ -- let deps = concatMap (\ (m**t) => [encodeDef t, decodeDef t]) (dependencies freshEnv (def tn)) in
+ --     deps ++ 
+        [encodeDef tn, decodeDef tn]
 
 CodegenIndep Haskell HsType where
   typeSource = renderType

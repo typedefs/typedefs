@@ -1,10 +1,10 @@
 module Test
 
-import Data.Vect 
-
 import Typedefs
 import Names
 import Backend.Utils
+
+import Data.Vect 
 
 import Specdris.Spec
 import Text.PrettyPrint.WL

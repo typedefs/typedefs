@@ -1,7 +1,5 @@
 module Test.TermParseWriteTests
 
-import Data.Vect
-
 import Typedefs
 import Names
 import TermParse
@@ -11,6 +9,8 @@ import Data.Bytes
 import Data.ByteArray
 
 import Specdris.Spec
+
+import Data.Vect
 
 %access public export
 

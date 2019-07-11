@@ -10,6 +10,7 @@ import Control.Monad.State
 import Language.JSON
 import Text.PrettyPrint.WL
 
+import Data.NEList
 import Data.Vect
 
 %default total
@@ -119,10 +120,11 @@ makeSchema schema defs = JObject
 generateSchema : TNamed 0 -> JSON
 generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
-
-ASTGen JSONDef JSON 0 where
-  msgType           = makeSubSchema'
-  generateTyDefs tn = evalState (makeDefs' tn) []
+ASTGen JSONDef JSON False where
+  msgType (Zero tn) = makeSubSchema' tn
+  generateTyDefs tns = 
+    evalState (foldlM (\lh,(Zero tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
+    --evalState (makeDefs' tn) []
   generateTermDefs tn = [] -- TODO?
 
 CodegenInterdep JSONDef JSON where

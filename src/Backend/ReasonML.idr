@@ -9,6 +9,7 @@ import Backend.Utils
 import Text.PrettyPrint.WL
 import Control.Monad.State
 
+import Data.NEList
 import Data.Vect
 
 %default total
@@ -129,9 +130,11 @@ mutual
           res <- assert_total $ makeDefs body
           pure $ Alias decl (makeType freshEnv body) :: res
 
-ASTGen ReasonML RMLType n where
-  msgType           = makeType' freshEnv
-  generateTyDefs tn = reverse $ evalState (makeDefs' tn) []
+ASTGen ReasonML RMLType True where
+  msgType  (Unbounded tn) = makeType' freshEnv tn
+  generateTyDefs tns = 
+    evalState (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
+    --reverse $ evalState (makeDefs' tn) []
   generateTermDefs tn = [] -- TODO
 
 CodegenIndep ReasonML RMLType where
