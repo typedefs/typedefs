@@ -114,5 +114,5 @@ suc x = Inn (Right x)
 
 -}
 
-shouldBe : Doc -> Doc -> SpecResult
-shouldBe actual expected = print actual `shouldBe` print expected
+shouldBe : Maybe Doc -> Maybe Doc -> SpecResult
+shouldBe actual expected = map print actual `shouldBe` map print expected

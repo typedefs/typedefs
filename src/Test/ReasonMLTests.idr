@@ -10,6 +10,7 @@ import Backend.ReasonML
 import Text.PrettyPrint.WL
 import Specdris.Spec
 
+import Data.NEList
 import Data.Vect
 import Test
 
@@ -31,8 +32,8 @@ eitherDoc : Doc
 eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
             |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
 
-generate : TNamed n -> Doc
-generate = generateDefs ReasonML
+generate : TNamed n -> Maybe Doc
+generate {n} tn = generateDefs ReasonML $ singleton (n ** tn)
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -45,8 +46,8 @@ testSuite = spec $ do
                   ]
 
     it "bit" $
-      generate bit `shouldBe` bitDoc
-
+      generate bit `shouldBe` (Just bitDoc)
+  {-
     it "byte" $
       generate byte
         `shouldBe` vsep2
@@ -239,3 +240,4 @@ testSuite = spec $ do
                                                               , text "nat" ])))
                       |+| semi
                     ]
+    -}

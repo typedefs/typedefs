@@ -133,8 +133,7 @@ mutual
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = makeType' freshEnv tn
   generateTyDefs tns = 
-    evalState (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
-    --reverse $ evalState (makeDefs' tn) []
+    reverse $ evalState (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
   generateTermDefs tn = [] -- TODO
 
 CodegenIndep ReasonML RMLType where
