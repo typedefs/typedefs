@@ -70,8 +70,8 @@ Parser' = Parser TPState chars
 getResult : Result Error (Maybe a) -> Result Error a
 getResult res = res >>= (Result.fromMaybe RunError)
 
-convertToEither : Result Error a -> Either String a
-convertToEither = result (Left . show) (Left . show) Right
+resultToEither : Result Error a -> Either String a
+resultToEither = result (Left . show) (Left . show) Right
 
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())

@@ -14,14 +14,14 @@ import Backend.JSON
 import Backend.ReasonML
 
 generateTermSerializers : String -> String -> Either String String
-generateTermSerializers backend tdef = (convertToEither $ parseTNameds tdef) >>= (genCode backend) 
+generateTermSerializers backend tdef = (resultToEither $ parseTNameds tdef) >>= (genCode backend) 
   where
   genCode : String -> NEList (n ** TNamed n) -> Either String String
   genCode "haskell"  nel = maybeToEither "<error : cannot generate Haskell for open typedefs (shouldn't happen)" $ print <$> generateDefs Haskell nel
   genCode _          _   = Left "<error : unsupported backend>"
 
 generateType : String -> String -> Either String String
-generateType backend tdef = (convertToEither $ parseTNameds tdef) >>= (genType backend) 
+generateType backend tdef = (resultToEither $ parseTNameds tdef) >>= (genType backend) 
   where
   genType : String -> NEList (n ** TNamed n) -> Either String String
   genType "reasonml" nel = maybeToEither "<error : cannot generate ReasonML for open typedefs (shouldn't happen)" $ print <$> generateDefs ReasonML nel

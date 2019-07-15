@@ -724,12 +724,11 @@ decodeDef {n} t@(TName tname td) =
 ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = makeType' freshEnv tn
   generateTyDefs tns = 
-    evalState (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
-    --reverse $ evalState (makeDefs' tn) []
+    evalState 
+      (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
+      (the (List Name) [])
   generateTermDefs (Unbounded tn) =
- -- let deps = concatMap (\ (m**t) => [encodeDef t, decodeDef t]) (dependencies freshEnv (def tn)) in
- --     deps ++ 
-        [encodeDef tn, decodeDef tn]
+    [encodeDef tn, decodeDef tn]
 
 CodegenIndep Haskell HsType where
   typeSource = renderType

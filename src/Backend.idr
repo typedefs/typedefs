@@ -80,7 +80,7 @@ interface CodegenInterdep def type where
   ||| Generate source code for a type signature and a list of helper definitions.
   sourceCode   : type -> List def -> Doc
 
-{-
+
 ||| Use the given backend to generate code for a list of type definitions.
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generate {fv} def tns = 
@@ -94,7 +94,7 @@ generate {fv} def tns =
   ) <$> (traverse (fromSigma fv) tns)
   
   --sourceCode (msgType {def} tns) (generateTyDefs {def} tns ++ generateTermDefs {def} tns)
-
+{-
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
   tdef : TDef 0
