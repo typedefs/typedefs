@@ -20,8 +20,8 @@ processArgs (_ :: opts) = runParserFully parseProgramOptions opts
 processArgs  _          = Left (ErrorMsg "Not enough arguments")
 
 writeOutput : OutputFile -> String -> IO ()
-writeOutput  StdOutput        tdef = putStrLn tdef
-writeOutput (FileOutput path) tdef = do Right () <- writeFile path tdef
+writeOutput  StdOutput        out = putStrLn out
+writeOutput (FileOutput path) out = do Right () <- writeFile path out
                                           | Left error => putStrLn ("File write error: " ++ show path)
                                         putStrLn ("Generated typedef at " ++ path)
 
@@ -30,13 +30,13 @@ getInput (StringInput x) = pure (Right x)
 getInput (FileInput x)   = readFile x
 
 parseAndGenerateTDef : String -> Either String String
-parseAndGenerateTDef tdef = map (\(_ ** tp) => print . generateDefs Haskell $ tp) (convertToEither $ parseTNameds tdef)
+parseAndGenerateTDef tdef = (convertToEither $ parseTNameds tdef) >>= (maybeToEither "cannot handle free vars (shouldn't happen)" . map print . generateDefs Haskell)
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do
   Right typedef <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
-  case parseTNamedsEither typedef of
+  case parseAndGenerateTDef typedef of
     Left err => putStrLn ("Typedef error: " ++ err)
     Right defs => writeOutput output (show defs)
 
