@@ -22,8 +22,8 @@ processArgs  _          = Left (ErrorMsg "Not enough arguments")
 writeOutput : OutputFile -> String -> IO ()
 writeOutput  StdOutput        out = putStrLn out
 writeOutput (FileOutput path) out = do Right () <- writeFile path out
-                                          | Left error => putStrLn ("File write error: " ++ show path)
-                                        putStrLn ("Generated typedef at " ++ path)
+                                         | Left error => putStrLn ("File write error: " ++ show path)
+                                       putStrLn ("Generated typedef at " ++ path)
 
 getInput : InputFile -> IO (Either FileError String)
 getInput (StringInput x) = pure (Right x)
@@ -38,7 +38,7 @@ runWithOptions (MkTypedefOpts input output) = do
     | Left err => putStrLn ("Filesystem error: " ++ show err)
   case parseAndGenerateTDef typedef of
     Left err => putStrLn ("Typedef error: " ++ err)
-    Right defs => writeOutput output (show defs)
+    Right defs => writeOutput output defs
 
 partial
 main : IO ()
