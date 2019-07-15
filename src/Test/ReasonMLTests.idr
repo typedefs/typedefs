@@ -40,9 +40,10 @@ testSuite = spec $ do
 
   describe "ReasonML code generation tests:" $ do
     let bitDoc = vsep2
-                  [ preamble {def = ReasonML}, eitherDoc
+                  [ preamble {def = ReasonML}
                   , text "type" |++| text "bit"
-                    |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
+                  |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
+                  , eitherDoc
                   ]
 
     it "bit" $

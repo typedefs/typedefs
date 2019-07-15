@@ -29,7 +29,7 @@ fromSigma False (S _** _) = Nothing
 ||| Interface for interpreting type definitions as ASTs.
 ||| @def      the type representing definitions.
 ||| @type     the type representing types.
-||| @freeVars flag contolling if type definition can have free variables.
+||| @freeVars flag controlling if type definition can have free variables.
 interface ASTGen def type (freeVars : Bool) | def where
   ||| Given a list of `TNamed`, generate their corresponding type signatures.
   msgType        : ZeroOrUnbounded TNamed freeVars -> type
@@ -78,22 +78,17 @@ generateType {fv} def tns =
 ||| @type the type representing type signatures.
 interface CodegenInterdep def type where
   ||| Generate source code for a type signature and a list of helper definitions.
-  sourceCode   : type -> List def -> Doc
+  sourceCode   : NEList type -> List def -> Doc
 
 
 ||| Use the given backend to generate code for a list of type definitions.
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generate {fv} def tns = 
-  (\nel => 
-    
-    let 
-      tt0 = (msgType {def}) <$> nel
-      tt = (generateTyDefs {def} nel) ++ (concatMap (generateTermDefs {def}) nel)
-      
-    in ?wat
+  (\nel => sourceCode 
+     ((msgType {def}) <$> nel)
+     (generateTyDefs {def} nel ++ concatMap (generateTermDefs {def}) nel)
   ) <$> (traverse (fromSigma fv) tns)
-  
-  --sourceCode (msgType {def} tns) (generateTyDefs {def} tns ++ generateTermDefs {def} tns)
+
 {-
 record SpecialiseEntry where
   constructor MkSpecialiseEntry
