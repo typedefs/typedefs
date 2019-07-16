@@ -60,17 +60,16 @@ interface CodegenIndep def type | def where
 generateDefs : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generateDefs {fv} def tns = 
   (\nel => 
-    vsep2 $ (preamble {def}) ::
-    (  map defSource (generateTyDefs {def} nel 
-    ++ concatMap (generateTermDefs {def}) nel)
-    )
+    vsep2 $ 
+      (preamble {def}) ::
+      (defSource <$> 
+       (generateTyDefs {def} nel ++ concatMap (generateTermDefs {def}) nel))
   ) <$> (traverse (fromSigma fv) tns)
 
 ||| Use the given backend to generate code for a list of type signatures.
 generateType : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generateType {fv} def tns = 
   (concatMap (typeSource {def} . msgType {def})) <$> (traverse (fromSigma fv) tns)
-  --typeSource {def} (msgType {def} tns)
 
 ||| Interface for code generators that need to generate code for type definitions and
 ||| type signatures at the same time, for example the JSON schema backend.
@@ -80,11 +79,11 @@ interface CodegenInterdep def type where
   ||| Generate source code for a type signature and a list of helper definitions.
   sourceCode   : NEList type -> List def -> Doc
 
-
 ||| Use the given backend to generate code for a list of type definitions.
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generate {fv} def tns = 
-  (\nel => sourceCode 
+  (\nel => 
+    sourceCode 
      ((msgType {def}) <$> nel)
      (generateTyDefs {def} nel ++ concatMap (generateTermDefs {def}) nel)
   ) <$> (traverse (fromSigma fv) tns)

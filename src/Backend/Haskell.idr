@@ -384,10 +384,10 @@ mutual
           do let newEnv = hsParam decl :: freshEnv
              let args = map (map (makeType newEnv)) cases
              res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
-             pure $ ADT decl args :: res
+             pure $ res ++ [ADT decl args]
         _ => -- All other named types are treated as synonyms.
           do res <- assert_total $ makeDefs body
-             pure $ Synonym decl (makeType freshEnv body) :: res
+             pure $ res ++ [Synonym decl (makeType freshEnv body)]
 
 -- Convenience definitions for Termdefs -----
 

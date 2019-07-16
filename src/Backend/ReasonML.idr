@@ -129,11 +129,11 @@ mutual
           do let newEnv = Right decl :: freshEnv
              let args = map (map (makeType newEnv)) cases
              res <- map concat $ traverse {b=List ReasonML} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
-             pure $ Variant decl args :: res
+             pure $ res ++ [Variant decl args]
         _ => 
           -- All other named types are treated as synonyms.
           do res <- assert_total $ makeDefs body
-             pure $ Alias decl (makeType freshEnv body) :: res
+             pure $ res ++ [Alias decl (makeType freshEnv body)]
 
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = makeType' freshEnv tn

@@ -151,40 +151,40 @@ testSuite = spec $ do
     it "bit" $
       generate bit
         `shouldBe` (Just $ generalDoc [ref "Bit"] [bitDef, unitDef])
-{-
+
     it "byte" $
       generate byte
-        `shouldBe` generalDoc (ref "Byte") [byteDef, bitDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "Byte"] [byteDef, bitDef, unitDef])
 
     it "nat" $
       generate nat
-        `shouldBe` generalDoc (ref "Nat") [natDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "Nat"] [natDef, unitDef])
 
     it "listNat" $
       generate listNat
-        `shouldBe` generalDoc (ref "ListNat") [listNatDef, unitDef, natDef]
+        `shouldBe` (Just $ generalDoc [ref "ListNat"] [listNatDef, unitDef, natDef])
 
     it "oneoneoneone" $
       generate oneoneoneone
-        `shouldBe` generalDoc (ref "oneoneoneone") [oneoneoneoneDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "oneoneoneone"] [oneoneoneoneDef, unitDef])
 
     it "listByte" $
       generate listByte
-        `shouldBe` generalDoc (ref "ListByte") [listByteDef, unitDef, byteDef, bitDef]
+        `shouldBe` (Just $ generalDoc [ref "ListByte"] [listByteDef, unitDef, byteDef, bitDef])
 
     it "void or unit" $
       generate voidOrUnit
-        `shouldBe` generalDoc (ref "VoidOrUnit") [voidOrUnitDef, voidDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "VoidOrUnit"] [voidOrUnitDef, voidDef, unitDef])
 
     it "listBitOrByte" $
       generate listBitOrByte
-        `shouldBe` generalDoc (ref "listBitOrByte") listBitOrByteDefs
+        `shouldBe` (Just $ generalDoc [ref "listBitOrByte"] listBitOrByteDefs)
 
     it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
-        `shouldBe` generalDoc (ref "nestedMu3") nestedMu3Defs
+        `shouldBe` (Just $ generalDoc [ref "nestedMu3"] nestedMu3Defs)
 
     it "nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
-        `shouldBe` generalDoc (ref "nestedMu5") nestedMu5Defs
-  -}
+        `shouldBe` (Just $ generalDoc [ref "nestedMu5"] nestedMu5Defs)
+  

@@ -8,8 +8,6 @@ import TParsec.Running
 import Typedefs
 import Parse
 
-import Control.Monad.State
-
 %language TypeProviders
 %default total
 

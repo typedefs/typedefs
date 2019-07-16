@@ -123,7 +123,9 @@ generateSchema tn = makeSchema (singleton $ makeSubSchema' tn) (evalState (makeD
 ASTGen JSONDef JSON False where
   msgType (Zero tn) = makeSubSchema' tn
   generateTyDefs tns = 
-    evalState (foldlM (\lh,(Zero tn) => (lh ++) <$> (makeDefs' tn)) [] tns) (the (List Name) [])
+    evalState 
+      (foldlM (\lh,(Zero tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
+      (the (List Name) [])
   generateTermDefs tn = [] -- TODO?
 
 CodegenInterdep JSONDef JSON where
