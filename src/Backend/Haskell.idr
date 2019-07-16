@@ -157,7 +157,7 @@ mutual
   ||| Render a term as Haskell source code.
   renderTerm : HsTerm -> Doc
   renderTerm  HsUnitTT         = text "()"
-  renderTerm (HsTupC xs)       = tupled . toList . map (assert_total guardParenTerm) $ xs
+  renderTerm (HsTupC xs)       = hsTupled . toList . map (assert_total guardParenTerm) $ xs
   renderTerm (HsTermVar x)     = text x
   renderTerm  HsWildcard       = text "_"
   renderTerm (HsInn name [])   = text name
@@ -727,8 +727,15 @@ ASTGen Haskell HsType True where
     evalState 
       (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
       (the (List Name) [])
-  generateTermDefs (Unbounded tn) =
-    [encodeDef tn, decodeDef tn]
+  generateTermDefs tns =
+    evalState 
+      (foldlM (\lh, (Unbounded {n} tn) => (lh ++) <$> 
+                  let genFrom = dependencies freshEnv (def tn) ++ [(n ** tn)] in 
+                  foldlM (\lh', (_ ** tm) => 
+                            (lh' ++) <$> ifNotPresent (name tm) (pure [encodeDef tm, decodeDef tm])) 
+                         [] genFrom) 
+              [] tns) 
+      (the (List Name) [])
 
 CodegenIndep Haskell HsType where
   typeSource = renderType

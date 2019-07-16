@@ -126,7 +126,7 @@ ASTGen JSONDef JSON False where
     evalState 
       (foldlM (\lh,(Zero tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
       (the (List Name) [])
-  generateTermDefs tn = [] -- TODO?
+  generateTermDefs tns = [] -- TODO?
 
 CodegenInterdep JSONDef JSON where
   sourceCode msg defs = literal $ format 2 $ makeSchema msg defs

@@ -141,7 +141,7 @@ ASTGen ReasonML RMLType True where
     evalState 
       (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
       (the (List Name) [])
-  generateTermDefs tn = [] -- TODO
+  generateTermDefs tns = [] -- TODO
 
 CodegenIndep ReasonML RMLType where
   typeSource = renderType

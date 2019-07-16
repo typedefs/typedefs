@@ -39,7 +39,7 @@ interface ASTGen def type (freeVars : Bool) | def where
 
   ||| Generate serialisation and deserialisation term definitions for a
   ||| a `TNamed` and all its helper definitions.
-  generateTermDefs : ZeroOrUnbounded TNamed freeVars -> List def
+  generateTermDefs : NEList (ZeroOrUnbounded TNamed freeVars) -> List def
 
 ||| Interface for code generators that can generate code for type definitions and
 ||| type signatures independently of each other, for example Haskell and ReasonML.
@@ -63,7 +63,7 @@ generateDefs {fv} def tns =
     vsep2 $ 
       (preamble {def}) ::
       (defSource <$> 
-       (generateTyDefs {def} nel ++ concatMap (generateTermDefs {def}) nel))
+       (generateTyDefs {def} nel ++ generateTermDefs {def} nel))
   ) <$> (traverse (fromSigma fv) tns)
 
 ||| Use the given backend to generate code for a list of type signatures.
@@ -85,7 +85,7 @@ generate {fv} def tns =
   (\nel => 
     sourceCode 
      ((msgType {def}) <$> nel)
-     (generateTyDefs {def} nel ++ concatMap (generateTermDefs {def}) nel)
+     (generateTyDefs {def} nel ++ generateTermDefs {def} nel)
   ) <$> (traverse (fromSigma fv) tns)
 
 {-

@@ -72,7 +72,6 @@ decodeBit = do
       generate bit
         `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, bitDoc ])
 
-{-
     let byteDoc = text """type Bit = Either () ()
 
 type Byte = (Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit)
@@ -115,8 +114,8 @@ decodeByte = do
 
     it "byte" $
       generate byte
-        `shouldBe` vsep2 [ preamble {def = Haskell}, byteDoc ]
-
+        `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, byteDoc ])
+  
     let maybeDoc = text """type Maybe x0 = Either () x0
 
 encodeMaybe :: Serialiser x0 -> Serialiser (Maybe x0)
@@ -137,7 +136,7 @@ decodeMaybe decodeX0 = do
 
     it "maybe" $
       generate maybe
-        `shouldBe` vsep2 [ preamble {def = Haskell}, maybeDoc ]
+        `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, maybeDoc ])
 
     let listDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
@@ -159,7 +158,7 @@ decodeList decodeX0 = do
                           _ -> failDecode"""
 
     it "list" $
-      generate list `shouldBe` vsep2 [ preamble {def = Haskell}, listDoc]
+      generate list `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, listDoc])
 
     let muMaybeDoc = text """data Maybe2 x0 = Nothing | Just x0
 
@@ -178,7 +177,7 @@ decodeMaybe2 decodeX0 = do
                             _ -> failDecode"""
 
     it "maybe2" $
-      generate maybe2 `shouldBe` vsep2 [ preamble {def = Haskell}, muMaybeDoc]
+      generate maybe2 `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, muMaybeDoc])
 
     let natDoc = text """data Nat = Z | S Nat
 
@@ -197,7 +196,7 @@ decodeNat = do
                 _ -> failDecode"""
 
     it "nat" $
-      generate nat `shouldBe` vsep2 [ preamble {def = Haskell}, natDoc ]
+      generate nat `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, natDoc ])
 
     let listNatDoc = text """data Nat = Z | S Nat
 
@@ -236,7 +235,7 @@ decodeListNat = do
 
     it "listNat" $
       generate listNat
-        `shouldBe` vsep2 [ preamble {def = Haskell}, listNatDoc ]
+        `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, listNatDoc ])
 
     let parametricDoc = text """type Maybe x0 = Either () x0
 
@@ -266,8 +265,10 @@ decodeParSyn decodeX0 = decodeMaybe decodeX0"""
 
     it "parametricSynonym" $
       generate parametricSynonym
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, parametricDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , parametricDoc 
+                      ])
 
     let parametric2Doc = text """data Maybe2 x0 = Nothing | Just x0
 
@@ -295,8 +296,10 @@ decodeParSyn2 decodeX0 = decodeMaybe2 decodeX0"""
 
     it "parametricSynonym2" $
       generate parametricSynonym2
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, parametric2Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , parametric2Doc 
+                      ])
 
     let aplusbpluscplusdDoc = text """type Aplusbpluscplusd x0 x1 x2 x3 = Either x0 (Either x1 (Either x2 x3))
 
@@ -331,8 +334,10 @@ decodeAplusbpluscplusd decodeX0 decodeX1 decodeX2 decodeX3 = do
 
     it "aplusbpluscplusd" $
       generate aplusbpluscplusd
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, aplusbpluscplusdDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , aplusbpluscplusdDoc 
+                      ])
 
     let oneoneoneoneDoc = text """type Oneoneoneone = Either () (Either () (Either () ()))
 
@@ -355,8 +360,10 @@ decodeOneoneoneone = do
 
     it "oneoneoneone" $
       generate oneoneoneone
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, oneoneoneoneDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , oneoneoneoneDoc 
+                      ])
 
     let unusedFreeVarsDoc = text """type Id x0 = x0
 
@@ -368,8 +375,10 @@ decodeId decodeX0 = decodeX0"""
 
     it "unusedFreeVars" $
       generate unusedFreeVars
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, unusedFreeVarsDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , unusedFreeVarsDoc 
+                      ])
 
     let voidOrUnitDoc = text """type VoidOrUnit = Either Void ()
 
@@ -390,8 +399,10 @@ decodeVoidOrUnit = do
 
     it "void or unit" $
       generate voidOrUnit
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, voidOrUnitDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , voidOrUnitDoc 
+                      ])
 
     let nonlinearDoc = text """type Nonlinear x0 = (x0,x0)
 
@@ -407,8 +418,10 @@ decodeNonlinear decodeX0 = do
 
     it "nonlinear variable usage" $
       generate nonlinear
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nonlinearDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nonlinearDoc
+                      ])
 
     let listAlphaOrBetaDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
@@ -458,16 +471,18 @@ decodeListAlphaOrBeta decodeX0 decodeX1 = decodeList (decodeSumx0x1 decodeX0 dec
 
     it "listAlphaOrBeta" $
       generate listAlphaOrBeta
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, listAlphaOrBetaDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , listAlphaOrBetaDoc 
+                      ])
 
-    let listBitOrByteDoc = text """type Byte = (Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit)
+    let listBitOrByteDoc = text """data List x0 = Nil | Cons x0 (List x0)
+
+type ListAlphaOrBeta x0 x1 = List (Either x0 x1)
 
 type Bit = Either () ()
 
-data List x0 = Nil | Cons x0 (List x0)
-
-type ListAlphaOrBeta x0 x1 = List (Either x0 x1)
+type Byte = (Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit)
 
 type ListBitOrByte = ListAlphaOrBeta Bit Byte
 
@@ -557,8 +572,10 @@ decodeListBitOrByte = decodeListAlphaOrBeta decodeBit decodeByte"""
 
     it "listBitOrByte" $
       generate listBitOrByte
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, listBitOrByteDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , listBitOrByteDoc 
+                      ])
 
     let nestedMu1Doc = text """data List x0 = Nil | Cons x0 (List x0)
 
@@ -610,8 +627,10 @@ decodeNestedMu1 decodeX0 decodeX1 = do
 
     it "nested Mu 1: List(Either(Alpha, Beta))" $
       generate nestedMu1
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nestedMu1Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nestedMu1Doc
+                      ])
 
     let nestedMu2Doc = text """data Maybe2 x0 = Nothing | Just x0
 
@@ -641,8 +660,10 @@ decodeNestedMu2 decodeX0 = do
 
     it "nested Mu 2: Maybe2(Alpha)" $
       generate nestedMu2
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nestedMu2Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nestedMu2Doc 
+                      ])
 
     let nestedMu3Doc = text """data Maybe2 x0 = Nothing | Just x0
 
@@ -672,8 +693,10 @@ decodeNestedMu3 = do
 
     it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nestedMu3Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nestedMu3Doc 
+                      ])
 
     let nestedMu4Doc = text """data List x0 = Nil | Cons x0 (List x0)
 
@@ -725,8 +748,10 @@ decodeNestedMu4 decodeX0 = do
 
     it "nested mu 4: List(Either (Mu, Alpha))" $
       generate nestedMu4
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nestedMu4Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nestedMu4Doc
+                      ])
 
     let nestedMu5Doc = text """data NilCons x0 = Nil | Cons x0 (NilCons x0)
 
@@ -759,8 +784,10 @@ decodeNestedMu5 = do
 
     it "nested mu 5: AnonList(Mu)" $
       generate nestedMu5
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, nestedMu5Doc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , nestedMu5Doc 
+                      ])
 
     let singleConstructorMuDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
@@ -805,8 +832,10 @@ decodeFoo = do
 
     it "single constructor mu" $
       generate singleConstructorMu
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, singleConstructorMuDoc ]
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , singleConstructorMuDoc 
+                      ])
 
     let largeTupleDoc = text """type LargeTuple = (Either () ()
                   ,Either () ()
@@ -3216,11 +3245,11 @@ decodeLargeTuple = do
 
     it "large tuple" $
       generate largeTuple
-        `shouldBe` vsep2
-                    [ preamble {def = Haskell}, largeTupleDoc ]
-
-                               -}
-
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , largeTupleDoc 
+                      ])
+                    
 {-
   describe "Haskell specialised types tests:" $ do
 
