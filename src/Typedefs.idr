@@ -269,6 +269,8 @@ mutual
   showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
   showTDef (TApp f []) = name f
   showTDef (TApp f xs) = parens $ concat (intersperse " " (name f :: map (assert_total showTDef) xs))
+
+-- useful for debugging
 --  showTDef (TApp f []) = name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">"
 --  showTDef (TApp f xs) = parens $ concat $ intersperse " " ((name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">") :: map (assert_total showTDef) xs)
 

@@ -115,7 +115,7 @@ decodeByte = do
     it "byte" $
       generate byte
         `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}, byteDoc ])
-  
+
     let maybeDoc = text """type Maybe x0 = Either () x0
 
 encodeMaybe :: Serialiser x0 -> Serialiser (Maybe x0)

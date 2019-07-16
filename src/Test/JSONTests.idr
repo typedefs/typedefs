@@ -187,4 +187,3 @@ testSuite = spec $ do
     it "nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
         `shouldBe` (Just $ generalDoc [ref "nestedMu5"] nestedMu5Defs)
-  

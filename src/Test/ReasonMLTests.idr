@@ -43,12 +43,12 @@ testSuite = spec $ do
                   [ preamble {def = ReasonML}
                   , eitherDoc
                   , text "type" |++| text "bit"
-                  |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
+                    |++| equals |++| text "either" |+| tupled (replicate 2 (text "unit")) |+| semi
                   ]
 
     it "bit" $
       generate bit `shouldBe` (Just bitDoc)
-  
+
     it "byte" $
       generate byte
         `shouldBe` (Just $ vsep2
