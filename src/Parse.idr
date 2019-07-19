@@ -70,6 +70,9 @@ Parser' = Parser TPState chars
 getResult : Result Error (Maybe a) -> Result Error a
 getResult res = res >>= (Result.fromMaybe RunError)
 
+resultToEither : Result Error a -> Either String a
+resultToEither = result (Left . show) (Left . show) Right
+
 comment : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
            All (Parser mn p ())
 comment = cmap () $ and (char ';') (roptand (nelist $ anyCharBut '\n') (char '\n'))
@@ -181,9 +184,6 @@ parseTDef str = getResult $ parseResult str tdefRec
 parseTDefs : String -> Result Error (NEList (n : Nat ** TDef n))
 parseTDefs str = getResult $ parseResult str tdefNEL
 
-parseTDefEither : String -> Either String (n : Nat ** TDef n)
-parseTDefEither = result (Left . show) (Left . show) Right . parseTDef
-
 parseThenShowTDef : String -> String
 parseThenShowTDef = show . parseTDef
 
@@ -205,9 +205,6 @@ parseTNamed str = getResult $ parseResult str tnamedRec
 
 parseTNameds : String -> Result Error (NEList (n : Nat ** TNamed n))
 parseTNameds str = getResult $ parseResult str tnamedNEL
-
-parseTNamedEither : String -> Either String (n : Nat ** TNamed n)
-parseTNamedEither = result (Left . show) (Left . show) Right . parseTNamed
 
 parseThenShowTNamed : String -> String
 parseThenShowTNamed = show . parseTNamed

@@ -4,6 +4,7 @@ import Text.PrettyPrint.WL
 import TParsec
 import public Typedefs
 import Parse
+import Data.NEList
 import public TermParse
 import public TermWrite
 import Backend
@@ -12,21 +13,23 @@ import Backend.Haskell
 import Backend.JSON
 import Backend.ReasonML
 
-generateCode : String -> (n ** TNamed n) -> Either String String
-generateCode "haskell"  (n  **tn) = Right $ toString $ generateDefs Haskell tn
-generateCode _          _         = Left $ "<error : unsupported backend>"
-
 generateTermSerializers : String -> String -> Either String String
-generateTermSerializers backend tdef = parseTNamedEither tdef >>= generateCode backend
+generateTermSerializers backend tdef = (resultToEither $ parseTNameds tdef) >>= (genCode backend) 
+  where
+  genCode : String -> NEList (n ** TNamed n) -> Either String String
+  genCode "haskell"  nel = maybeToEither "<error : cannot generate Haskell for open typedefs (shouldn't happen)" $ 
+                           print <$> generateDefs Haskell nel
+  genCode _          _   = Left "<error : unsupported backend>"
 
 generateType : String -> String -> Either String String
-generateType backend tdef = parseTNamedEither tdef >>= genType backend
+generateType backend tdef = (resultToEither $ parseTNameds tdef) >>= (genType backend) 
   where
-    genType : String -> (n ** TNamed n) -> Either String String
-    genType "reasonml" (n   ** tn) = Right $ toString $ generateDefs ReasonML tn
-    genType "json"     (Z   ** tn) = Right $ toString $ generate JSONDef tn
-    genType "json"     (S _ ** tn) = Left "<error : cannot generate JSON schema for open typedefs>"
-    genType _          _           = Left "<error : unsupported backend>"
+  genType : String -> NEList (n ** TNamed n) -> Either String String
+  genType "reasonml" nel = maybeToEither "<error : cannot generate ReasonML for open typedefs (shouldn't happen)" $ 
+                           print <$> generateDefs ReasonML nel
+  genType "json"     nel = maybeToEither "<error : cannot generate JSON schema for open typedefs>" $ 
+                           print <$> generate JSONDef nel
+  genType _          _   = Left "<error : unsupported backend>"
 
 lib : FFI_Export FFI_JS "" []
 lib = Data (Either String String) "EitherStringString" $

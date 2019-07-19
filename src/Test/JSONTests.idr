@@ -12,13 +12,14 @@ import Language.JSON
 import Text.PrettyPrint.WL
 import Specdris.Spec
 
+import Data.NEList
 import Data.Vect
 import Test
 
 %access public export
 
-generate : TNamed 0 -> Doc
-generate = generate JSONDef
+generate : TNamed 0 -> Maybe Doc
+generate tn = generate JSONDef $ singleton (Z ** tn)
 
 dquotes : String -> Doc
 dquotes = dquotes . text
@@ -131,15 +132,15 @@ nestedMu5Defs = [ dquotes "nestedMu5" |+| colon
             |++| taggedSumDef [ ("Nil", unitRef)
                               , ("Cons", prodDef [ref "nestedMu5", ref "NilCons"]) ]
 
-generalDoc : Doc -> List Doc -> Doc
-generalDoc top defs = subthing braces
+generalDoc : List Doc -> List Doc -> Doc
+generalDoc types defs = subthing braces
   [ dquotes "$schema"              |+| colon |++| dquotes "http://json-schema.org/draft-07/schema#"
   , dquotes "type"                 |+| colon |++| dquotes "object"
   , dquotes "required"             |+| colon |++| subthing brackets [ dquotes "value" ]
   , dquotes "additionalProperties" |+| colon |++| text "false"
   , dquotes "definitions"          |+| colon |++| subthing braces defs
   , dquotes "properties"           |+| colon |++| subthing braces 
-    [ dquotes "value" |+| colon |++| top ]
+    [ dquotes "value" |+| colon |++| subthing braces [dquotes "oneOf" |+| colon |++| subthing brackets types] ]
   ]
 
 testSuite : IO ()
@@ -149,40 +150,40 @@ testSuite = spec $ do
 
     it "bit" $
       generate bit
-        `shouldBe` generalDoc (ref "Bit") [bitDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "Bit"] [bitDef, unitDef])
 
     it "byte" $
       generate byte
-        `shouldBe` generalDoc (ref "Byte") [byteDef, bitDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "Byte"] [byteDef, bitDef, unitDef])
 
     it "nat" $
       generate nat
-        `shouldBe` generalDoc (ref "Nat") [natDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "Nat"] [natDef, unitDef])
 
     it "listNat" $
       generate listNat
-        `shouldBe` generalDoc (ref "ListNat") [listNatDef, unitDef, natDef]
+        `shouldBe` (Just $ generalDoc [ref "ListNat"] [listNatDef, unitDef, natDef])
 
     it "oneoneoneone" $
       generate oneoneoneone
-        `shouldBe` generalDoc (ref "oneoneoneone") [oneoneoneoneDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "oneoneoneone"] [oneoneoneoneDef, unitDef])
 
     it "listByte" $
       generate listByte
-        `shouldBe` generalDoc (ref "ListByte") [listByteDef, unitDef, byteDef, bitDef]
+        `shouldBe` (Just $ generalDoc [ref "ListByte"] [listByteDef, unitDef, byteDef, bitDef])
 
     it "void or unit" $
       generate voidOrUnit
-        `shouldBe` generalDoc (ref "VoidOrUnit") [voidOrUnitDef, voidDef, unitDef]
+        `shouldBe` (Just $ generalDoc [ref "VoidOrUnit"] [voidOrUnitDef, voidDef, unitDef])
 
     it "listBitOrByte" $
       generate listBitOrByte
-        `shouldBe` generalDoc (ref "listBitOrByte") listBitOrByteDefs
+        `shouldBe` (Just $ generalDoc [ref "listBitOrByte"] listBitOrByteDefs)
 
     it "nested Mu 3: Maybe2(Mu)" $
       generate nestedMu3
-        `shouldBe` generalDoc (ref "nestedMu3") nestedMu3Defs
+        `shouldBe` (Just $ generalDoc [ref "nestedMu3"] nestedMu3Defs)
 
     it "nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
-        `shouldBe` generalDoc (ref "nestedMu5") nestedMu5Defs
+        `shouldBe` (Just $ generalDoc [ref "nestedMu5"] nestedMu5Defs)

@@ -10,6 +10,7 @@ import Control.Monad.State
 import Language.JSON
 import Text.PrettyPrint.WL
 
+import Data.NEList
 import Data.Vect
 
 %default total
@@ -99,13 +100,13 @@ mutual
         pure $ (name, makeSubSchema body) :: res
 
 ||| Takes a schema and a list of helper definitions and puts them together into a top-level schema. 
-makeSchema : JSON -> List JSONDef -> JSON
+makeSchema : NEList JSON -> List JSONDef -> JSON
 makeSchema schema [] = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
                   , ("type", JString "object")
                   , ("required", JArray [JString "value"])
                   , ("additionalProperties", JBoolean False)
-                  , ("properties", JObject [ ("value", schema) ])
+                  , ("properties", JObject [ ("value", JObject [("oneOf", JArray $ NEList.toList schema)] ) ])
                   ]
 makeSchema schema defs = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")
@@ -113,17 +114,19 @@ makeSchema schema defs = JObject
                   , ("required", JArray [JString "value"])
                   , ("additionalProperties", JBoolean False)
                   , ("definitions", JObject defs)
-                  , ("properties", JObject [ ("value", schema) ])
+                  , ("properties", JObject [ ("value", JObject [("oneOf", JArray $ NEList.toList schema)] ) ])
                   ]
 
 generateSchema : TNamed 0 -> JSON
-generateSchema tn = makeSchema (makeSubSchema' tn) (evalState (makeDefs' tn) [])
+generateSchema tn = makeSchema (singleton $ makeSubSchema' tn) (evalState (makeDefs' tn) [])
 
-
-ASTGen JSONDef JSON 0 where
-  msgType           = makeSubSchema'
-  generateTyDefs tn = evalState (makeDefs' tn) []
-  generateTermDefs tn = [] -- TODO?
+ASTGen JSONDef JSON False where
+  msgType (Zero tn) = makeSubSchema' tn
+  generateTyDefs tns = 
+    evalState 
+      (foldlM (\lh,(Zero tn) => (lh ++) <$> (makeDefs' tn)) [] tns) 
+      (the (List Name) [])
+  generateTermDefs tns = [] -- TODO?
 
 CodegenInterdep JSONDef JSON where
   sourceCode msg defs = literal $ format 2 $ makeSchema msg defs

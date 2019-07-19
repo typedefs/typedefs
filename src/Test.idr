@@ -1,10 +1,10 @@
 module Test
 
-import Data.Vect 
-
 import Typedefs
 import Names
 import Backend.Utils
+
+import Data.Vect 
 
 import Specdris.Spec
 import Text.PrettyPrint.WL
@@ -114,5 +114,5 @@ suc x = Inn (Right x)
 
 -}
 
-shouldBe : Doc -> Doc -> SpecResult
-shouldBe actual expected = print actual `shouldBe` print expected
+shouldBe : Maybe Doc -> Maybe Doc -> SpecResult
+shouldBe actual expected = map print actual `shouldBe` map print expected
