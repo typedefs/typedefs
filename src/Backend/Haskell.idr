@@ -568,21 +568,21 @@ encode    T1            t = pure hsEmpty
 encode   (TSum td)      t =
   do summands <- injectionInv td
      pure $ HsCase t (map (\ (lhs, i, rhs) => (lhs, HsConcat [word i, rhs])) summands)
- where
-  injectionInv : Vect (2 + k) (TDef n) -> TermGen n (List (HsTerm, Int, HsTerm))
-  injectionInv [a, b] =
-    do [freshPV] <- freshVars 1 "z"
-       a' <- encode a freshPV
-       b' <- encode b freshPV
-       pure [ (hsLeft freshPV, 0, a')
-            , (hsRight freshPV, 1, b')
-            ]
-  injectionInv (a::b::c::tds) =
-    do [freshPV] <- freshVars 1 "z"
-       a' <- encode a freshPV
-       rest <- injectionInv (b::c::tds)
-       pure $ (hsLeft freshPV, 0, a') ::
-              (map (\ (lhs, i, rhs) => (hsRight lhs, i + 1, rhs)) rest)
+  where
+    injectionInv : Vect (2 + k) (TDef n) -> TermGen n (List (HsTerm, Int, HsTerm))
+    injectionInv [a, b] =
+      do [freshPV] <- freshVars 1 "z"
+         a' <- encode a freshPV
+         b' <- encode b freshPV
+         pure [ (hsLeft freshPV, 0, a')
+              , (hsRight freshPV, 1, b')
+              ]
+    injectionInv (a::b::c::tds) =
+      do [freshPV] <- freshVars 1 "z"
+         a' <- encode a freshPV
+         rest <- injectionInv (b::c::tds)
+         pure $ (hsLeft freshPV, 0, a') ::
+                (map (\ (lhs, i, rhs) => (hsRight lhs, i + 1, rhs)) rest)
 encode   (TProd {k} td) t =
   do freshPVs <- freshVars (2 + k) "y"
      factors <- mapWithIndexA (\ i, t' => assert_total $ encode (index i td) t') freshPVs
