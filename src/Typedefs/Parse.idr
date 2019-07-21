@@ -211,3 +211,18 @@ parseThenShowTNamed = show . parseTNamed
 
 parseTNamedThenStrFun : String -> ((n ** TNamed n) -> String) -> String
 parseTNamedThenStrFun str fn = result show show fn $ parseTNamed str
+
+specializedList : All (Parser' (NEList String))
+specializedList = nelist $ parens $ rand (ignoreSpaces $ string "specialized") (ignoreSpaces $ alphas)
+
+topLevel : All (Parser' TopLevelDef)
+topLevel = withSpecialized `alt` withoutSpecialized
+  where
+    withoutSpecialized : All (Parser' TopLevelDef)
+    withoutSpecialized = map (MkTopLevelDef []) tnamedNEL
+
+    withSpecialized : All (Parser' TopLevelDef)
+    withSpecialized = map (\(s, t) => MkTopLevelDef (Data.NEList.toList s) t) $ and specializedList tnamedNEL
+
+parseTopLevel : String -> Result Error TopLevelDef
+parseTopLevel str = getResult $ parseResult str topLevel

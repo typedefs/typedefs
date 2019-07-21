@@ -2,6 +2,7 @@ module Typedefs.Typedefs
 
 import Data.Fin
 import Data.Vect
+import Data.NEList
 
 import Typedefs.Names
 
@@ -40,6 +41,11 @@ mutual
     constructor TName
     name : Name
     def  : TDef n
+
+record TopLevelDef where
+  constructor MkTopLevelDef
+  specialized : List String
+  typedefs : NEList (n ** TNamed n)
 
 ||| Generate `[TVar 0, ..., TVar (n-1)]`.
 idVars : Vect n (TDef n)
