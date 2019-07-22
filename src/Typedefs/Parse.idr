@@ -168,6 +168,7 @@ tnamed =
                    (and (ignoreSpaces alphas) (ignoreSpaces tdef)))
     (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
 
+
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
 ||| and substituting named entries in the process
 tdefRec : All (Parser' (n ** TDef n))
