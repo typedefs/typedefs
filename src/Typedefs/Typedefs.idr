@@ -35,6 +35,9 @@ mutual
     ||| Application of a named type to a vector of arguments.
     TApp  : TNamed k -> Vect k (TDef n)           -> TDef n
 
+    ||| A Reference to a named typedef
+    TRef  : Name                                  -> TDef n
+
   ||| Named type definition.
   ||| @n The number of type variables in the type.
   record TNamed (n : Nat) where
@@ -84,6 +87,7 @@ makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_t
 makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
 makeName (TMu cases) = concatMap fst cases
 makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
+makeName (TRef n)    = n
 
 ||| Add 1 to all de Bruijn-indices in a `TDef`.
 ||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
@@ -95,6 +99,7 @@ shiftVars (TProd ts)  = assert_total $ TProd $ map shiftVars ts
 shiftVars (TVar v)    = TVar $ shift 1 v
 shiftVars (TMu cs)    = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs) = assert_total $ TApp f $ map shiftVars xs
+shiftVars (TRef n)    = TRef n
 
 ||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
 getUsedIndices : TDef n -> List (Fin n)
@@ -109,6 +114,7 @@ getUsedIndices (TMu xs)    = assert_total $ nub $ concatMap ((concatMap weedOutZ
         weedOutZero (FS i) = [i]
 getUsedIndices (TApp f xs) = let fUses = assert_total $ getUsedIndices (def f)
                               in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
+getUsedIndices (TRef n)    = []
 
 ||| Filter out the entries in an argument vector that are actually referred to by a `TDef`.
 getUsedVars : Vect n a -> (td: TDef n) -> Vect (length (getUsedIndices td)) a
@@ -123,6 +129,7 @@ ap (TProd ts)  args = assert_total $ TProd $ map (flip ap args) ts
 ap (TVar v)    args = index v args
 ap (TMu cs)    args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
 ap (TApp f xs) args = assert_total $ def f `ap` (map (flip ap args) xs)
+ap (TRef n)    _    = TRef n -- should we do `TRef $ n ++ (map (\t => " " ++ makeName t) args)` ?
 
 ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
 apN : TNamed n -> Vect n (TDef 0) -> TNamed 0
@@ -155,6 +162,9 @@ mutual
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
   Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
+  -- either use a proof that no TRefs exist or a proof that every 
+  -- TRef has a mapping to an Idris type
+  Ty     tvars (TRef n)    = Void
 
 -- Show and Eq instances
 
@@ -178,6 +188,7 @@ mutual
   showTy {n = S (S n')} (_::tvars) (TVar (FS i)) x = showTy {n = S n'} tvars (TVar i) x
   showTy tvars                     (TMu m)       x = showMu tvars (args m) x
   showTy tvars                     (TApp f xs)   x = assert_total $ showTy tvars (def f `ap` xs) x
+  showTy tvars                     (TRef n)      x = show n -- Is this correct?
 
 Show (Mu [] td) where
   show y = showMu [] td y
@@ -205,6 +216,7 @@ mutual
   eqTy {n = S (S n')} (_::tvars) (TVar (FS i)) x x' = eqTy {n = S n'} tvars (TVar i) x x'
   eqTy tvars                     (TMu m)       x x' = eqMu tvars (args m) x x'
   eqTy tvars                     (TApp f xs)   x x' = assert_total $ eqTy tvars (def f `ap` xs) x x'
+  eqTy tvars                     (TRef n)      x x' impossible
   eqTy tvars _ _ _ = False
 
 Eq (Mu [] td) where
@@ -247,6 +259,7 @@ mutual
   weakenTDef (TMu xs)   m    prf =
     TMu $ weakenNTDefs xs (S m) (LTESucc prf)
   weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
+  weakenTDef (TRef n)       _    _   = TRef n
 
   weakenTDefs : Vect k (TDef n) -> (m : Nat) -> LTE n m -> Vect k (TDef m)
   weakenTDefs []      _ _   = []
@@ -275,6 +288,7 @@ mutual
   showTDef (TMu ms)    = parens $ "mu " ++ square (showNTDefs ms)
   showTDef (TApp f []) = name f
   showTDef (TApp f xs) = parens $ concat (intersperse " " (name f :: map (assert_total showTDef) xs))
+  showTDef (TRef n)    = n
 
 -- useful for debugging
 --  showTDef (TApp f []) = name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">"
@@ -325,6 +339,7 @@ mutual
     (TVar i)      == (TVar i')       = i == i'
     (TMu xs)      == (TMu xs')       = assert_total $ vectEq xs xs'
     (TApp f xs)   == (TApp f' xs')   = assert_total $ heteroEqNamed f f' && vectEq xs xs'
+    (TRef n)      == (TRef n')       = n == n'
     _             == _               = False
 
 implementation Eq (TNamed n) where

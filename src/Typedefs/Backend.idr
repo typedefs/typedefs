@@ -12,6 +12,8 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
+data CompilerError = RefNotFound String
+
 --TODO added to TParsec
 Traversable NEList where
   traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
@@ -31,14 +33,14 @@ fromSigma False (S _** _) = Nothing
 ||| @freeVars flag controlling if type definition can have free variables.
 interface ASTGen def type (freeVars : Bool) | def where
   ||| Given a list of `TNamed`, generate their corresponding type signatures.
-  msgType        : ZeroOrUnbounded TNamed freeVars -> type
+  msgType          : ZeroOrUnbounded TNamed freeVars          -> Either CompilerError type
 
   ||| Generate definitions for a list of `TNamed`.
-  generateTyDefs : NEList (ZeroOrUnbounded TNamed freeVars) -> List def
+  generateTyDefs   : NEList (ZeroOrUnbounded TNamed freeVars) -> Either CompilerError (List def)
 
   ||| Generate serialisation and deserialisation term definitions for a
   ||| a `TNamed` and all its helper definitions.
-  generateTermDefs : NEList (ZeroOrUnbounded TNamed freeVars) -> List def
+  generateTermDefs : NEList (ZeroOrUnbounded TNamed freeVars) -> Either CompilerError (List def)
 
 ||| Interface for code generators that can generate code for type definitions and
 ||| type signatures independently of each other, for example Haskell and ReasonML.
@@ -58,17 +60,19 @@ interface CodegenIndep def type | def where
 ||| Use the given backend to generate code for a list of type definitions.
 generateDefs : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generateDefs {fv} def tns = 
-  (\nel => 
-    vsep2 $ 
-      (preamble {def}) ::
-      (defSource <$> 
-       (generateTyDefs {def} nel ++ generateTermDefs {def} nel))
-  ) <$> (traverse (fromSigma fv) tns)
+  -- (\nel => 
+  --   vsep2 $ 
+  --     (preamble {def}) ::
+  --     (defSource <$> 
+  --      (generateTyDefs {def} nel ++ generateTermDefs {def} nel))
+  -- ) 
+  ?generateDefsrhs<$> (traverse (fromSigma fv) tns)
 
 ||| Use the given backend to generate code for a list of type signatures.
 generateType : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generateType {fv} def tns = 
-  (concatMap (typeSource {def} . msgType {def})) <$> (traverse (fromSigma fv) tns)
+  -- (concatMap (typeSource {def} . msgType {def})) 
+  ?generateTypeRhs <$> (traverse (fromSigma fv) tns)
 
 ||| Interface for code generators that need to generate code for type definitions and
 ||| type signatures at the same time, for example the JSON schema backend.
@@ -81,11 +85,12 @@ interface CodegenInterdep def type where
 ||| Use the given backend to generate code for a list of type definitions.
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
 generate {fv} def tns = 
-  (\nel => 
-    sourceCode 
-     ((msgType {def}) <$> nel)
-     (generateTyDefs {def} nel ++ generateTermDefs {def} nel)
-  ) <$> (traverse (fromSigma fv) tns)
+  -- (\nel => 
+  --   sourceCode 
+  --    ((msgType {def}) <$> nel)
+  --    (generateTyDefs {def} nel ++ generateTermDefs {def} nel)
+  -- ) 
+  ?generateRhs <$> (traverse (fromSigma fv) tns)
 
 {-
 record SpecialiseEntry where

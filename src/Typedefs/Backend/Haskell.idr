@@ -13,6 +13,11 @@ import Data.Vect
 import Data.NEList
 import Data.SortedMap
 
+import Effects
+import Effect.State
+import Effect.Exception
+
+
 %default total
 %access export
 
@@ -106,6 +111,80 @@ data Haskell : Type where
   ||| clauses of the form ((arg1, ..., argk), rhs).
   FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
+-- Effects
+
+
+||| specialisation lookup context, used as a reader
+SPECIALIZED : EFFECT
+SPECIALIZED = 'Spec ::: STATE (SortedMap String HsType)
+
+||| Error effect
+ERR : EFFECT
+ERR = EXCEPTION CompilerError
+
+||| Environment, contains currently used variables and names
+ENV : Nat -> EFFECT
+ENV n = 'Env ::: STATE (SortedMap String Nat, Vect n (HsType, HsTerm))
+
+NAMES : EFFECT
+NAMES = 'Names ::: STATE (List Name)
+
+
+-- The TermGen monad -----
+
+||| Monad for the term generator, keeping track of a name supply (in
+||| the form of a map of the number of usages for each name) and a
+||| "semantic" environment consisting of an environment of types, and
+||| terms for decoding/encoding the types.
+||| @ n the size of the environment
+TermGen : (n : Nat) -> Type -> Type
+TermGen n t = Eff t [ENV n, SPECIALIZED, ERR]
+
+toTermGen : Either CompilerError a -> TermGen n a
+toTermGen (Left err) = raise err
+toTermGen (Right val) = pure val
+
+Ord k => Default (SortedMap k v) where
+  default = empty
+
+runTermGen : (env : Vect n (HsType, HsTerm)) -> TermGen n a -> Either CompilerError a
+runTermGen env mx = runInit (initialState env) mx
+  where -- For some reason, inlining this definition will make type inference confused and infer that as
+    -- `Env eff […]` instead of `Env (Either CompilerError) […]`
+    initialState : (env : Vect n (HsType, HsTerm)) -> Env (Either CompilerError)
+      [ STATE (LRes 'Env (SortedMap String Nat, Vect n (HsType, HsTerm)))
+      , STATE (LRes 'Spec (SortedMap String HsType))
+      , EXCEPTION CompilerError
+      ]
+    initialState env = ['Env := (empty, env), 'Spec := empty, default]
+
+ReaderNamesLookup :  Type -> Type
+ReaderNamesLookup n t = Eff t [NAMES, SPECIALIZED, ERR]
+
+runReaderNamesLookup : ReaderNamesLookup a -> Either CompilerError a
+runReaderNamesLookup m = run m
+
+MakeDefM : Type -> Type
+MakeDefM t = Eff t [NAMES, SPECIALIZED, ERR]
+
+runMakeDefsM : MakeDefM a -> Either CompilerError a
+runMakeDefsM m = run m
+
+-- The state monad in which name lookup happens, contains a sorted map of existing types, can throw errors
+LookupM : Type -> Type
+LookupM t = Eff t [SPECIALIZED, ERR]
+
+toLookupM : Either CompilerError a -> LookupM a
+toLookupM (Left err) = raise err
+toLookupM (Right val) = pure val
+
+-- Execute the lookup monad, any error will result in a `Left` value.
+runLookupM : LookupM a -> Either CompilerError a
+runLookupM m = run m -- using `runLookupM = run` does not typecheck
+
+subEffect :  (Eff a es -> Either CompilerError a) -> Eff a es -> TermGen n a
+subEffect run eff= toTermGen $ run eff
+
 -- Rendering Haskell source code -----
 
 ||| Render a name applied to a list of arguments exactly as written.
@@ -122,7 +201,6 @@ hsTupled xs = if length xs < 63
               then tupled xs
               else let (xs0, xs1) = splitAt 61 xs in
                      tupled (xs0 ++ [hsTupled $ assert_smaller xs xs1])
-
 
 mutual
   ||| Render a type signature as Haskell source code.
@@ -347,48 +425,68 @@ freshEnvWithTerms : (prefix : String) -> Vect n (HsType, HsTerm)
 freshEnvWithTerms prefix = map (\ x => (x, HsTermVar (prefix ++ uppercase (hsTypeName x)))) freshEnv
 
 ||| Generate a Haskell type from a `TDef`.
-makeType : Vect n HsType -> TDef n -> HsType
-makeType _    T0          = HsVoid
-makeType _    T1          = HsUnit
-makeType e    (TSum xs)   = foldr1' (\t1,t2 => HsSum t1 t2) (map (assert_total $ makeType e) xs)
-makeType e    (TProd xs)  = HsTuple $ map (assert_total $ makeType e) xs
-makeType e    (TVar v)    = Vect.index v e
-makeType e td@(TMu cases) = HsParam (nameMu cases) $ getUsedVars e td
-makeType e    (TApp f xs) = HsParam (name f) (map (assert_total $ makeType e) xs)
+makeType : Vect n HsType -> TDef n -> LookupM HsType
+makeType _    T0          = pure $ HsVoid
+makeType _    T1          = pure $ HsUnit
+makeType e    (TSum xs)   = do ys <- traverseEffect (assert_total $ makeType e) xs
+                               pure $ foldr1' HsSum ys
+makeType e    (TProd xs)  = do ys <- traverseEffect (assert_total $ makeType e) xs
+                               pure $ HsTuple ys
+makeType e    (TVar v)    = pure $ Vect.index v e
+makeType e td@(TMu cases) = pure $ HsParam (nameMu cases) $ getUsedVars e td
+makeType e    (TApp f xs) = do ys <- (traverseEffect (assert_total (makeType e)) xs)
+                               pure $ HsParam (name f) ys
+makeType e    (TRef n)    = case lookup n !('Spec :- get) of
+                                 Just t => pure t
+                                 Nothing => raise $ RefNotFound n
 
 ||| Generate a Haskell type from a `TNamed`.
-makeType' : Vect n HsType -> TNamed n -> HsType
+makeType' : Vect n HsType -> TNamed n -> LookupM HsType
 makeType' e (TName ""   body) = makeType e body --escape hatch; used e.g. for all non-TApp dependencies of a TApp
-makeType' e (TName name body) = HsParam name $ getUsedVars e body
+makeType' e (TName name body) = pure $ HsParam name $ getUsedVars e body
+
+ifNotPresent' : Name -> MakeDefM (List Haskell) -> MakeDefM (List Haskell)
+ifNotPresent' n gen = if n `List.elem` !('Names :- get)
+                         then pure []
+                         else 'Names :- update (n ::) *> gen 
 
 mutual
   ||| Generate all the Haskell type definitions that a `TDef` depends on.
-  makeDefs : TDef n -> State (List Name) (List Haskell)
+  makeDefs : TDef n -> MakeDefM (List Haskell)
   makeDefs    T0          = pure []
   makeDefs    T1          = pure []
-  makeDefs    (TProd xs)  = concat <$> traverse (assert_total makeDefs) xs
-  makeDefs    (TSum xs)   = concat <$> traverse (assert_total makeDefs) xs
+  makeDefs    (TProd xs)  = pure $ concat !(traverseEffect (assert_total makeDefs) xs)
+  makeDefs    (TSum xs)   = pure $ concat !(traverseEffect (assert_total makeDefs) xs)
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
+  makeDefs    (TRef n)    = pure []
   makeDefs    (TApp f xs) =
     do res <- assert_total $ makeDefs' f
-       res' <- concat <$> traverse (assert_total makeDefs) xs
+       res' <- concat <$> traverseEffect (assert_total makeDefs) xs
        pure (res ++ res')
 
+  -- This is only to help readabilty and type inference
+  makeTypeFromCase : Vect n HsType -> (String, TDef n) -> MakeDefM (String, HsType)
+  makeTypeFromCase env (name, def) = pure (name, !(makeType env def))
+
   ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
-  makeDefs' : TNamed n -> State (List Name) (List Haskell)
-  makeDefs' (TName name body) = ifNotPresent name $
+  makeDefs' : TNamed n -> MakeDefM (List Haskell)
+  makeDefs' (TName name body) = ifNotPresent' name $ addName name body
+
+  addName : Name -> TDef n -> MakeDefM (List Haskell)
+  addName name body = 
       let freshEnvString = map (\ x => case x of HsVar v => v; _ => "") freshEnv
-          decl = MkDecl name (getUsedVars freshEnvString body) in
+          decl           = MkDecl name (getUsedVars freshEnvString body) in
       case body of
-        TMu cases => -- Named `TMu`s are treated as ADTs.
-          do let newEnv = hsParam decl :: freshEnv
-             let args = map (map (makeType newEnv)) cases
-             res <- map concat $ traverse {b=List Haskell} (\(_, bdy) => assert_total $ makeDefs bdy) (toList cases)
-             pure $ res ++ [ADT decl args]
-        _ => -- All other named types are treated as synonyms.
-          do res <- assert_total $ makeDefs body
-             pure $ res ++ [Synonym decl (makeType freshEnv body)]
+        -- Named `TMu`s are treated as ADTs.
+        TMu cases => do let newEnv = hsParam decl :: freshEnv
+                        args <- traverseEffect (makeTypeFromCase newEnv) cases
+                        res <- traverseEffect (\(_, body) => assert_total $ makeDefs body) cases
+                        pure $ (concat res) ++ [ADT decl args]
+        -- All other named types are treated as synonyms.
+        _ => do res <- assert_total $ makeDefs body
+                type <- (makeType freshEnv body)
+                pure $ res ++ [Synonym decl type]
 
 -- Convenience definitions for Termdefs -----
 
@@ -448,30 +546,25 @@ private
 word : Int -> HsTerm
 word i = HsApp (HsFun "word8") [HsWord8 i]
 
--- The TermGen monad -----
 
-||| Monad for the term generator, keeping track of a name supply (in
-||| the form of a map of the number of usages for each name) and a
-||| "semantic" environment consisting of an environment of types, and
-||| terms for decoding/encoding the types.
-||| @ n the size of the environment
-TermGen : (n : Nat) -> Type -> Type
-TermGen n = State (SortedMap String Nat, Vect n (HsType,HsTerm))
+traverseWithIndex : (Fin n -> a -> TermGen m b) -> Vect n a -> TermGen m (Vect n b)
+traverseWithIndex f []        = pure []
+traverseWithIndex f (x :: xs) = do y <- f FZ x
+                                   ys <- traverseWithIndex (f . FS) xs
+                                   pure (y :: ys)
 
 ||| Given an environment, run the term generator, with no names
 ||| already used to start with.
 |||| @ env environment to use
-runTermGen : (env : Vect n (HsType,HsTerm)) -> TermGen n a -> a
-runTermGen env mx = evalState mx (empty, env)
 
 ||| Extract an environment of types.
 envTypes : TermGen n (Vect n HsType)
-envTypes = do (_, fs) <- get
+envTypes = do (_, fs) <- 'Env :- get
               pure $ map fst fs
 
 ||| Extract an environment of encoder/decoder terms.
 envTerms : TermGen n (Vect n HsTerm)
-envTerms = do (_, fs) <- get
+envTerms = do (_, fs) <- 'Env :- get
               pure $ map snd fs
 
 ||| Generate a vector of fresh variables, using a given string as a
@@ -481,10 +574,10 @@ envTerms = do (_, fs) <- get
 freshVars : (k : Nat) -> (suggestion : String) -> TermGen n (Vect k HsTerm)
 freshVars Z suggestion = pure []
 freshVars k@(S n) suggestion =
-  do (alreadyUsed, fs) <- get
+  do (alreadyUsed, fs) <- 'Env :- get
      let currentCount = maybe 0 id (SortedMap.lookup suggestion alreadyUsed)
      let newUsed = insert suggestion (fromNat $ (toNat currentCount) + k) (delete suggestion alreadyUsed)
-     put (newUsed, fs)
+     'Env :- put (newUsed, fs)
      pure $ map (\ i => HsTermVar $ suggestion ++ (showVar $ currentCount + (toNat i))) range
  where
    -- We want x, x0, x1, ...
@@ -505,7 +598,7 @@ decodeName ty = "decode" ++ (uppercase $ hsTypeName ty)
 |||         we generate the encoder or decoder term.
 encoderDecoderTerm : (namer : HsType -> Name) -> TDef n -> TermGen n HsTerm
 encoderDecoderTerm namer (TApp g xs) =
-  do xs' <- traverse (assert_total $ encoderDecoderTerm namer) xs
+  do xs' <- traverseEffect (assert_total $ encoderDecoderTerm namer) xs
      pure (HsApp (HsFun (namer (HsParam (name g) []))) (toList xs'))
 encoderDecoderTerm namer (TVar i)    =
   do env <- envTerms
@@ -513,7 +606,8 @@ encoderDecoderTerm namer (TVar i)    =
 encoderDecoderTerm namer td          =
   do env <- envTerms
      let varEncoders = getUsedVars env td
-     pure $ HsApp (HsFun (namer (makeType freshEnv td))) (toList varEncoders)
+     rawType <- makeType freshEnv td
+     pure $ HsApp (HsFun (namer rawType)) (toList varEncoders)
 
 ||| Term to use for encoder for this `TDef`.
 encoderTerm : TDef n -> TermGen n HsTerm
@@ -526,31 +620,42 @@ decoderTerm td = encoderDecoderTerm decodeName td
 ||| Compute the list of `TNamed`s whose termdefs the termdef for the
 ||| given `TDef` depends on. Does not include the given `TDef` itself.
 ||| @ env semantic environment, used for knowing what to name things
-dependencies : (env : Vect n HsType) -> TDef n -> List (m ** TNamed m)
+dependencies : (env : Vect n HsType) -> TDef n -> LookupM (List (m ** TNamed m))
 dependencies env td =
-  filter (\ (m ** t) => not $ heteroEq (def t) td)
-    (nubBy (\ (m ** t), (m' ** t') => heteroEqNamed t t') (go env td))
+  pure $ filter (\ (m ** t) => not $ heteroEq (def t) td)
+    (nubBy (\ (m ** t), (m' ** t') => heteroEqNamed t t') !(go env td))
   where
   mutual
-    goMu : Vect n HsType -> Vect k (String, TDef (S n)) -> List (m ** TNamed m)
-    goMu env tds = concatMap (assert_total $ go ((makeType env (TMu tds))::env) . snd) tds
+    -- Traverse TDef lists recursively with `go` 
+    traverseRec : Vect n HsType -> Vect k (TDef n) -> LookupM (List (m ** TNamed m))
+    traverseRec env xs = do traversed <-  traverseEffect (assert_total (go env)) xs
+                            pure $ concat traversed
+
+    -- Traverse TMu recursively
+    goMu : Vect n HsType -> Vect k (String, TDef (S n)) -> LookupM (List (m ** TNamed m))
+    goMu env tds = do muType <- makeType env (TMu tds)
+                      let tdefs = map snd tds
+                      let extendedEnv = muType :: env
+                      traverseRec extendedEnv tdefs
 
     -- We return a TNamed here, because we still have access to the name information
-    go : Vect n HsType -> TDef n -> List (m ** TNamed m)
-    go     env    T0                             = []
-    go     env    T1                             = []
-    go     env   (TSum xs)                       = concatMap (assert_total $ go env) xs
-    go     env   (TProd xs)                      = concatMap (assert_total $ go env) xs
-    go     env   (TVar v)                        = []
-    go {n} env t@(TMu tds)                       = (n ** TName (nameMu tds) t) :: goMu env tds
-    go     env   (TApp {k} t@(TName name td) xs) =
-      let envxs = map (makeType env) xs
-          -- dependencies of the actual td
-          depTd = case td of
-                   TMu tds => goMu envxs tds -- skip the TMu itself
-                   _       => go envxs td
-        in
-      depTd ++ [(k**t)] ++ (concatMap (assert_total $ go env) xs) ++ (concatMap fixup xs)
+    go : Vect n HsType -> TDef n -> LookupM (List (m ** TNamed m))
+    go     env    T0                             = pure $ []
+    go     env    T1                             = pure $ []
+    go     env   (TSum xs)                       = traverseRec env xs
+    go     env   (TProd xs)                      = traverseRec env xs
+    go     env   (TVar v)                        = pure $ []
+    go {n} env t@(TMu tds)                       = pure $ (n ** TName (nameMu tds) t) :: !(goMu env tds)
+    -- TRefs are not followed through the dependencies of the type they point to.
+    go     env   (TRef n)                        = pure $ []
+    go     env   (TApp {k} t@(TName name td) xs) = do
+        envxs <- traverseEffect (makeType env) xs 
+        -- dependencies of the actual td
+        depTd <- case td of
+                 TMu tds => goMu envxs tds -- skip the TMu itself
+                 _       => go envxs td
+        xs' <- traverseRec env xs
+        pure $ depTd ++ [(k**t)] ++ xs' ++ (concatMap fixup xs)
       where
          -- function to fix up some unwanted entries
         fixup : {l : Nat} -> TDef l -> List (m ** TNamed m)
@@ -586,7 +691,7 @@ encode   (TSum td)      t =
                 (map (\ (lhs, i, rhs) => (hsRight lhs, i + 1, rhs)) rest)
 encode   (TProd {k} td) t =
   do freshPVs <- freshVars (2 + k) "y"
-     factors <- mapWithIndexA (\ i, t' => assert_total $ encode (index i td) t') freshPVs
+     factors <- traverseWithIndex (\ i, t' => assert_total $ encode (index i td) t') freshPVs
      pure $ HsCase t [(HsTupC freshPVs, HsConcat (toList factors))]
 encode   (TVar i)       t =
   do encoders <- envTerms
@@ -597,6 +702,7 @@ encode t@(TMu tds)      y =
 encode t@(TApp f xs)    y =
   do eTerm <- encoderTerm t
      pure $ HsApp eTerm [y] -- assumes the def of eTerm is generated elsewhere
+encode   (TRef n)       y = raise $ RefNotFound n
 
 ||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
@@ -604,7 +710,7 @@ decode : TDef n -> TermGen n HsTerm
 decode    T0            = pure hsFailDecode
 decode    T1            = pure $ hsReturn HsUnitTT
 decode   (TSum {k} tds) =
-  do cases <- mapWithIndexA f tds
+  do cases <- traverseWithIndex f tds
      [i] <- freshVars 1 "i"
      pure $ HsDo [ (Just i, hsReadInt (fromNat k))
                  , (Nothing, hsCaseDef i (toList cases) hsFailDecode)
@@ -621,36 +727,43 @@ decode   (TSum {k} tds) =
          pure (HsInt (finToInteger i), HsDo [(Just y, t'), (Nothing, hsReturn (injection i y))])
 decode   (TProd {k} xs) =
   do vs <- freshVars (2 + k) "x"
-     xs' <- mapWithIndexA (\ i, x => map (MkPair (Just (index i vs))) $ assert_total (decode x)) xs
+     xs' <- traverseWithIndex (traverseIndexDecode vs) xs
      pure (HsDo $ (toList xs') ++ [(Nothing, hsReturn (HsTupC vs))])
+  where
+    traverseIndexDecode : Vect (2 + k) HsTerm -> Fin (2 + k) -> TDef n -> TermGen n (Maybe HsTerm, HsTerm)
+    traverseIndexDecode vars i tdef = pure (Just $ index i vars, !(assert_total $ decode tdef))
 decode   (TVar i)       =
   do decoders <- envTerms
      pure $ index i decoders
 decode t@(TMu tds)      = decoderTerm t -- assumes the def of this is generated elsewhere
-decode t@(TApp f xs)   = decoderTerm t -- assumes the def of this is generated elsewhere
+decode t@(TApp f xs)    = decoderTerm t -- assumes the def of this is generated elsewhere
+decode   (TRef n)       = raise $ RefNotFound n
 
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
-encodeDef : TNamed n -> Haskell
-encodeDef {n} t@(TName tname td) =
-  let env = freshEnvWithTerms "encode"
-      envTypes = map fst env
-      funName = if tname == ""
-                then encodeName (makeType envTypes td)
-                else "encode" ++ uppercase tname
-      varEncs = toList $ getUsedVars (map snd env) td
-      currTerm = HsApp (HsFun funName) varEncs
-      currType = if tname == ""
-                 then makeType envTypes td
-                 else HsParam tname []
-      funType = foldr HsArrow (hsSerialiser (makeType' envTypes t)) (map hsSerialiser (getUsedVars envTypes td))
-      clauses = genClauses n currType currTerm env varEncs td in
-      FunDef funName funType clauses
+encodeDef : TNamed n -> LookupM Haskell
+encodeDef {n} t@(TName tname td) = do
+      let env = freshEnvWithTerms "encode"
+      let envTypes = map fst env
+      funName <- if tname == ""
+                    then encodeName <$> makeType envTypes td
+                    else pure $ "encode" ++ uppercase tname
+      let varEncs = toList $ getUsedVars (map snd env) td
+      currTerm <- pure $ HsApp (HsFun funName) varEncs
+      currType <- if tname == ""
+                     then makeType envTypes td
+                     else pure $ HsParam tname []
+      funType <- do init <- makeType' envTypes t 
+                    pure $ foldr HsArrow 
+                                (hsSerialiser init)
+                                (map hsSerialiser (getUsedVars envTypes td))
+      clauses <- toLookupM $ genClauses n currType currTerm env varEncs td 
+      pure $ FunDef funName funType clauses
   where
     genConstructor : (n : Nat) -> String -> TDef n -> TermGen n (HsTerm, List HsTerm)
     genConstructor n name (TProd {k = k} xs) =
       do xs' <- freshVars (2 + k) "x"
-         rhs <- mapWithIndexA (\ i, t' => encode (index i xs) t') xs'
+         rhs <- traverseWithIndex (\ i, t' => encode (index i xs) t') xs'
          pure $ (HsInn name (toList xs'), toList rhs)
     genConstructor n name td =
       do [x'] <- freshVars 1 "x"
@@ -664,40 +777,47 @@ encodeDef {n} t@(TName tname td) =
          pure (varEncs ++ [con], simplify $ HsConcat (word (fromInteger (finToInteger i))::rhs))
 
         -- Idris is not clever enough to figure out the following type if written as a case expression
-    genClauses : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> List HsTerm -> TDef n -> List (List HsTerm, HsTerm)
-    genClauses n currType currTerm env varEncs (TMu [(name, td)]) = runTermGen ((currType, currTerm)::env) $
-      do (con, rhs) <- genConstructor (S n) name td
-         pure [(varEncs ++ [con], simplify $ HsConcat rhs)]
+    genClauses : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> List HsTerm -> TDef n -> Either CompilerError (List (List HsTerm, HsTerm))
+    genClauses n currType currTerm env varEncs (TMu [(name, td)]) =
+      -- We run this in its own `TermGen` because the state is indexed over `S n` and not `n`.
+      -- Once we have the result as a value we convert it back to a `TermGen n`.
+      map (\(con, rhs) => [(varEncs ++ [con], simplify $ HsConcat rhs)])
+          (runTermGen ((currType, currTerm) :: env) $ genConstructor (S n) name td)
+             
     genClauses n currType currTerm env varEncs (TMu tds) =
-      toList $ runTermGen ((currType, currTerm)::env) (mapWithIndexA (genClause (S n) varEncs) tds)
+      map toList 
+          (runTermGen ((currType, currTerm) :: env) $ traverseWithIndex (genClause (S n) varEncs) tds)
     genClauses n currType currTerm env varEncs td        =
       let v = HsTermVar "x" in
-      [(varEncs ++ [v] , simplify $ runTermGen env (encode td v))]
+      map (\encoded => [(varEncs ++ [v] , simplify encoded)])
+          (runTermGen env $ encode td v)
+             
 
 ||| Generate an decoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
-decodeDef : TNamed n -> Haskell
+decodeDef : TNamed n -> LookupM Haskell
 decodeDef {n} t@(TName tname td) =
-  let env = freshEnvWithTerms "decode"
-      envTypes = map fst env
-      funName = if tname == ""
-                then decodeName (makeType envTypes td)
-                else "decode" ++ uppercase tname
-      varEncs = toList $ getUsedVars (map snd env) td
-      currTerm = HsApp (HsFun funName) varEncs
-      currType = if tname == ""  -- makeType' env t
-                 then makeType envTypes td
-                 else HsParam tname []
-      funType = foldr HsArrow (hsDeserialiser (makeType' envTypes t)) (map hsDeserialiser (getUsedVars envTypes td))
-      rhs = genCase n currType currTerm env td
-    in
-  FunDef funName funType [(varEncs, rhs)]
+  do let env = freshEnvWithTerms "decode"
+     let envTypes = map fst env
+     funName <- if tname == ""
+                   then decodeName <$> makeType envTypes td
+                   else pure $ "decode" ++ uppercase tname
+     let varEncs = toList $ getUsedVars (map snd env) td
+     let currTerm = HsApp (HsFun funName) varEncs
+     currType <- if tname == ""  -- makeType' env t
+                    then makeType envTypes td
+                    else pure $ HsParam tname []
+     funType <- do init <- makeType' envTypes t 
+                   pure $ foldr HsArrow 
+                                (hsSerialiser init)
+                                (map hsSerialiser (getUsedVars envTypes td))
+     rhs <- genCase n currType currTerm env td
+     pure $ FunDef funName funType [(varEncs, rhs)]
   where
     genConstructor : (n : Nat) -> String -> TDef n -> TermGen n (List (HsTerm, HsTerm))
     genConstructor n name (TProd {k = k} xs) =
       do vs <- freshVars (2 + k) "x"
-         xs' <- mapWithIndexA (\ i, x => do x' <- decode x
-                                            pure (index i vs, x')) xs
+         xs' <- traverseWithIndex (\ i, x => pure (index i vs, !(decode x))) xs
          pure $ toList xs'
     genConstructor n name td =
       do [v] <- freshVars 1 "x"
@@ -711,32 +831,50 @@ decodeDef {n} t@(TName tname td) =
          pure (HsInt (finToInteger i), HsDo $ (map (\ (x, e) => (Just x, e)) args')++[(Nothing, hsReturn (HsInn name (map fst args')))])
 
     -- Idris is not clever enough to figure out the following type if written as a case expression
-    genCase : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> TDef n -> HsTerm
+    genCase : (n : Nat) -> HsType -> HsTerm -> Vect n (HsType, HsTerm) -> TDef n -> LookupM HsTerm
     genCase n currType currTerm env (TMu [(name, td)]) =
-      simplify $ snd $ runTermGen ((currType, currTerm)::env) (genCases {k = S Z} (S n) FZ (name, td))
-    genCase n currType currTerm env (TMu {k} tds)      = runTermGen ((currType, currTerm)::env) $
-      do cases <- mapWithIndexA (genCases (S n)) tds
-         [i] <- freshVars 1 "i"
-         pure $ HsDo [ (Just i, hsReadInt (fromNat k))
-                     , (Nothing, simplify $ hsCaseDef i (toList cases) hsFailDecode)
-                     ]
-    genCase n currType currTerm env td = simplify $ runTermGen env (decode td)
+      toLookupM $ map (simplify . snd) $ runTermGen ((currType, currTerm)::env) (genCases {k = S Z} (S n) FZ (name, td))
+    genCase n currType currTerm env (TMu {k} tds)      =
+      toLookupM $ runTermGen ((currType, currTerm)::env) (
+        do cases <- traverseWithIndex (genCases (S n)) tds
+           [i] <- freshVars 1 "i"
+           pure $ HsDo [ (Just i, hsReadInt (fromNat k))
+                       , (Nothing, simplify $ hsCaseDef i (toList cases) hsFailDecode)
+                       ])
+    genCase n currType currTerm env td = toLookupM $ map simplify $ runTermGen env (decode td)
 
 ASTGen Haskell HsType True where
-  msgType  (Unbounded tn) = makeType' freshEnv tn
-  generateTyDefs tns =
-    evalState
-      (foldlM (\lh,(Unbounded tn) => (lh ++) <$> (makeDefs' tn)) [] tns)
-      (the (List Name) [])
-  generateTermDefs tns =
-    evalState
-      (foldlM (\lh, (Unbounded {n} tn) => (lh ++) <$>
-                  let genFrom = dependencies freshEnv (def tn) ++ [(n ** tn)] in
-                  foldlM (\lh', (_ ** tm) =>
-                            (lh' ++) <$> ifNotPresent (name tm) (pure [encodeDef tm, decodeDef tm]))
-                         [] genFrom)
-              [] tns)
-      (the (List Name) [])
+  msgType  (Unbounded tn) = runLookupM $ makeType' freshEnv tn
+  generateTyDefs tns = runMakeDefsM $ do defs <- traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
+                                         pure $ concat defs
+  generateTermDefs tns = runReaderNamesLookup [] $ 
+    do gen <- traverseEffect genHaskell (toVect tns)
+       pure $ concat gen
+    where
+      genTerms : TNamed n -> LookupM (List Haskell)
+      genTerms tn = pure [!(encodeDef tn), !(decodeDef tn)]
+
+      generateNext : TNamed n -> ReaderNamesLookup (List Haskell)
+      generateNext tn = if (name tn) `elem` !('Names :- get)
+                           then pure []
+                           else do 'Names :- update ((name tn) ::)
+                                   genTerms tn
+
+      genHaskell : ZeroOrUnbounded TNamed True -> ReaderNamesLookup (List Haskell)
+      genHaskell (Unbounded {n} tn) =
+        do deps <- (dependencies freshEnv (def tn))
+           let genFrom = deps ++ [(n ** tn)]
+           generated <- traverseEffect (\(n ** tn) => generateNext tn) (fromList genFrom)
+           pure $ concat generated
+
+    -- evalState
+    --   (foldlM (\lh, (Unbounded {n} tn) => (lh ++) <$>
+    --               let genFrom = dependencies freshEnv (def tn) ++ [(n ** tn)] in ?foldState)
+    --               -- foldlM (\lh', (_ ** tm) =>
+    --               --           (lh' ++) <$> ifNotPresent (name tm) (?collapseState [Right $ encodeDef tm, decodeDef tm]))
+    --               --        [] genFrom)
+    --           [] tns)
+    --   (the (List Name) [])
 
 CodegenIndep Haskell HsType where
   typeSource = renderType
