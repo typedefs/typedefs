@@ -8,4 +8,4 @@ main = CLI.Main
 
 sourcedir = src
 
-pkgs = contrib, optparse, lens, tparsec
+pkgs = contrib, optparse, lens, tparsec, effects

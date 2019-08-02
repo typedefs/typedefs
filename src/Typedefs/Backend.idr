@@ -12,7 +12,6 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
-data CompilerError = RefNotFound String
 
 --TODO added to TParsec
 Traversable NEList where

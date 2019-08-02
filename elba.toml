@@ -27,15 +27,15 @@ mods = [ "Typedefs.Names"
        , "Typedefs.Backend.ReasonML"
        , "Typedefs.Backend.Utils"
        ]
-idris_opts = ["-p","contrib"]
+idris_opts = ["-p","contrib","-p","effects"]
 
 [[targets.bin]]
 path = "src"
 name = "typedefs"
 main = "CLI/Main.idr"
-idris_opts = ["-p","contrib"]
+idris_opts = ["-p","contrib","-p","effects"]
 
 [[targets.test]]
 path = "src"
 main = "Typedefs.Test.TypedefsSuite.testSuite"
-idris_opts = ["-p","contrib","--total"]
+idris_opts = ["-p","contrib","-p","effects","--total"]

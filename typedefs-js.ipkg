@@ -8,6 +8,6 @@ main = JS.Main
 
 sourcedir = src
 
-pkgs = contrib, tparsec, js, bytes
+pkgs = contrib, tparsec, js, bytes, effects
 
 opts = "--codegen node --interface"
