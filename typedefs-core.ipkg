@@ -23,4 +23,4 @@ tests = Typedefs.Test.TypedefsSuite.testSuite
 
 sourcedir = src
 
-pkgs = tparsec, specdris, contrib, bytes
+pkgs = tparsec, specdris, contrib, bytes, effects

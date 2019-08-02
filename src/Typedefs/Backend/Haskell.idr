@@ -17,7 +17,6 @@ import Effects
 import Effect.State
 import Effect.Exception
 
-
 %default total
 %access export
 
@@ -97,7 +96,6 @@ data HsTerm : Type where
   ||| `mconcat :: [Builder] -> Builder` from Data.ByteString.Builder.
   HsConcat :          List HsTerm                 -> HsTerm
 
-
 ||| The syntactic structure of Haskell type declarations.
 data Haskell : Type where
   ||| A type synonym is a declared name (possibly with parameters) and a type.
@@ -111,26 +109,11 @@ data Haskell : Type where
   ||| clauses of the form ((arg1, ..., argk), rhs).
   FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
--- Effects
-
-
-||| specialisation lookup context, used as a reader
-SPECIALIZED : EFFECT
-SPECIALIZED = 'Spec ::: STATE (SortedMap String HsType)
-
-||| Error effect
-ERR : EFFECT
-ERR = EXCEPTION CompilerError
+-- Effects -----
 
 ||| Environment, contains currently used variables and names
 ENV : Nat -> EFFECT
 ENV n = 'Env ::: STATE (SortedMap String Nat, Vect n (HsType, HsTerm))
-
-NAMES : EFFECT
-NAMES = 'Names ::: STATE (List Name)
-
-
--- The TermGen monad -----
 
 ||| Monad for the term generator, keeping track of a name supply (in
 ||| the form of a map of the number of usages for each name) and a
@@ -138,7 +121,7 @@ NAMES = 'Names ::: STATE (List Name)
 ||| terms for decoding/encoding the types.
 ||| @ n the size of the environment
 TermGen : (n : Nat) -> Type -> Type
-TermGen n t = Eff t [ENV n, SPECIALIZED, ERR]
+TermGen n t = Eff t [ENV n, SPECIALIZED HsType, ERR]
 
 toTermGen : Either CompilerError a -> TermGen n a
 toTermGen (Left err) = raise err
@@ -158,21 +141,16 @@ runTermGen env mx = runInit (initialState env) mx
       ]
     initialState env = ['Env := (empty, env), 'Spec := empty, default]
 
-ReaderNamesLookup :  Type -> Type
-ReaderNamesLookup n t = Eff t [NAMES, SPECIALIZED, ERR]
+HaskellDefM : Type -> Type
+HaskellDefM = MakeDefM HsType
 
-runReaderNamesLookup : ReaderNamesLookup a -> Either CompilerError a
-runReaderNamesLookup m = run m
-
-MakeDefM : Type -> Type
-MakeDefM t = Eff t [NAMES, SPECIALIZED, ERR]
-
-runMakeDefsM : MakeDefM a -> Either CompilerError a
+runMakeDefsM : HaskellDefM a -> Either CompilerError a
 runMakeDefsM m = run m
 
+-- TODO use definition from Utils
 -- The state monad in which name lookup happens, contains a sorted map of existing types, can throw errors
 LookupM : Type -> Type
-LookupM t = Eff t [SPECIALIZED, ERR]
+LookupM t = Eff t [SPECIALIZED HsType, ERR]
 
 toLookupM : Either CompilerError a -> LookupM a
 toLookupM (Left err) = raise err
@@ -437,26 +415,26 @@ makeType e td@(TMu cases) = pure $ HsParam (nameMu cases) $ getUsedVars e td
 makeType e    (TApp f xs) = do ys <- (traverseEffect (assert_total (makeType e)) xs)
                                pure $ HsParam (name f) ys
 makeType e    (TRef n)    = case lookup n !('Spec :- get) of
-                                 Just t => pure t
-                                 Nothing => raise $ RefNotFound n
+                              Just t => pure t
+                              Nothing => raise $ RefNotFound n
 
 ||| Generate a Haskell type from a `TNamed`.
 makeType' : Vect n HsType -> TNamed n -> LookupM HsType
 makeType' e (TName ""   body) = makeType e body --escape hatch; used e.g. for all non-TApp dependencies of a TApp
 makeType' e (TName name body) = pure $ HsParam name $ getUsedVars e body
 
-ifNotPresent' : Name -> MakeDefM (List Haskell) -> MakeDefM (List Haskell)
+ifNotPresent' : Name -> HaskellDefM (List Haskell) -> HaskellDefM (List Haskell)
 ifNotPresent' n gen = if n `List.elem` !('Names :- get)
                          then pure []
                          else 'Names :- update (n ::) *> gen 
 
 mutual
   ||| Generate all the Haskell type definitions that a `TDef` depends on.
-  makeDefs : TDef n -> MakeDefM (List Haskell)
+  makeDefs : TDef n -> HaskellDefM (List Haskell)
   makeDefs    T0          = pure []
   makeDefs    T1          = pure []
-  makeDefs    (TProd xs)  = pure $ concat !(traverseEffect (assert_total makeDefs) xs)
-  makeDefs    (TSum xs)   = pure $ concat !(traverseEffect (assert_total makeDefs) xs)
+  makeDefs    (TProd xs)  = concat <$> traverseEffect (assert_total makeDefs) xs
+  makeDefs    (TSum xs)   = concat <$> traverseEffect (assert_total makeDefs) xs
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
   makeDefs    (TRef n)    = pure []
@@ -466,14 +444,14 @@ mutual
        pure (res ++ res')
 
   -- This is only to help readabilty and type inference
-  makeTypeFromCase : Vect n HsType -> (String, TDef n) -> MakeDefM (String, HsType)
+  makeTypeFromCase : Vect n HsType -> (String, TDef n) -> HaskellDefM (String, HsType)
   makeTypeFromCase env (name, def) = pure (name, !(makeType env def))
 
   ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
-  makeDefs' : TNamed n -> MakeDefM (List Haskell)
+  makeDefs' : TNamed n -> HaskellDefM (List Haskell)
   makeDefs' (TName name body) = ifNotPresent' name $ addName name body
 
-  addName : Name -> TDef n -> MakeDefM (List Haskell)
+  addName : Name -> TDef n -> HaskellDefM (List Haskell)
   addName name body = 
       let freshEnvString = map (\ x => case x of HsVar v => v; _ => "") freshEnv
           decl           = MkDecl name (getUsedVars freshEnvString body) in
@@ -791,7 +769,6 @@ encodeDef {n} t@(TName tname td) = do
       let v = HsTermVar "x" in
       map (\encoded => [(varEncs ++ [v] , simplify encoded)])
           (runTermGen env $ encode td v)
-             
 
 ||| Generate an decoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
@@ -847,34 +824,25 @@ ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = runLookupM $ makeType' freshEnv tn
   generateTyDefs tns = runMakeDefsM $ do defs <- traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
                                          pure $ concat defs
-  generateTermDefs tns = runReaderNamesLookup [] $ 
+  generateTermDefs tns = runMakeDefsM $ 
     do gen <- traverseEffect genHaskell (toVect tns)
        pure $ concat gen
     where
       genTerms : TNamed n -> LookupM (List Haskell)
       genTerms tn = pure [!(encodeDef tn), !(decodeDef tn)]
 
-      generateNext : TNamed n -> ReaderNamesLookup (List Haskell)
+      generateNext : TNamed n -> HaskellDefM (List Haskell)
       generateNext tn = if (name tn) `elem` !('Names :- get)
                            then pure []
                            else do 'Names :- update ((name tn) ::)
                                    genTerms tn
 
-      genHaskell : ZeroOrUnbounded TNamed True -> ReaderNamesLookup (List Haskell)
+      genHaskell : ZeroOrUnbounded TNamed True -> HaskellDefM (List Haskell)
       genHaskell (Unbounded {n} tn) =
         do deps <- (dependencies freshEnv (def tn))
            let genFrom = deps ++ [(n ** tn)]
            generated <- traverseEffect (\(n ** tn) => generateNext tn) (fromList genFrom)
            pure $ concat generated
-
-    -- evalState
-    --   (foldlM (\lh, (Unbounded {n} tn) => (lh ++) <$>
-    --               let genFrom = dependencies freshEnv (def tn) ++ [(n ** tn)] in ?foldState)
-    --               -- foldlM (\lh', (_ ** tm) =>
-    --               --           (lh' ++) <$> ifNotPresent (name tm) (?collapseState [Right $ encodeDef tm, decodeDef tm]))
-    --               --        [] genFrom)
-    --           [] tns)
-    --   (the (List Name) [])
 
 CodegenIndep Haskell HsType where
   typeSource = renderType

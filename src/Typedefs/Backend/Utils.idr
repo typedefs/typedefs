@@ -6,9 +6,11 @@ import Typedefs.Names
 import Control.Monad.State
 import Data.Vect
 import Text.PrettyPrint.WL
+import Data.SortedMap
 
 import Effects
 import Effect.State
+import Effect.Exception
 
 %default total
 %access public export
@@ -36,13 +38,6 @@ getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
 
-||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
-ifNotPresent : Eq name => name -> State (List name) (List def) -> State (List name) (List def)
-ifNotPresent n gen = do
-  st <- get
-  if n `List.elem` st
-    then pure []
-    else modify {stateType=List name} (n ::) *> gen 
 
 -- TODO implementation in base was erroneous, this has been merged but is not in a version yet. 
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
@@ -90,3 +85,41 @@ traverseEffect f [] = pure []
 traverseEffect f (x :: xs) = do v <- f x
                                 vs <- traverseEffect f xs
                                 pure $ v :: vs
+
+||| Errors that the compiler can throw
+data CompilerError = RefNotFound String
+
+-- The state containing all the specialised types.
+SPECIALIZED : Type -> EFFECT
+SPECIALIZED targetType = 'Spec ::: STATE (SortedMap String targetType)
+
+||| Errors that the compiler can throw.
+ERR : EFFECT
+ERR = EXCEPTION CompilerError
+
+-- The state of already generated definitions
+NAMES : EFFECT
+NAMES = 'Names ::: STATE (List Name)
+
+-- The context in which specialized type lookup is done
+LookupM : Type -> Type -> Type
+LookupM targetType t = Eff t [SPECIALIZED targetType, ERR]
+
+-- The context in which definition are generated.
+-- Keeps track of generated names and requires specialized types lookup
+MakeDefM : Type -> Type -> Type
+MakeDefM target t = Eff t [NAMES, SPECIALIZED target, ERR]
+
+runMakeDefM : MakeDefM t a -> Either CompilerError a
+runMakeDefM m = runInit ['Names := [], 'Spec := empty, default] m
+
+-- idk why this is necessary sometimes
+subLookup : LookupM target value -> MakeDefM target value
+subLookup m = m
+
+||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
+ifNotPresent : {t : Type} -> Name -> MakeDefM t (List def) -> MakeDefM t (List def)
+ifNotPresent n gen =
+  if n `List.elem` !('Names :- get)
+    then pure []
+    else 'Names :- update (n ::) *> gen 
