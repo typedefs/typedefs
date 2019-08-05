@@ -75,11 +75,6 @@ flattenMus muName = flattenMu [muName]
   flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
   flattenMu names (TRef n)    = TRef n
 
--- TODO: is this in a library somewhere?
-mapWithIndexA : Applicative m => {n : Nat} -> (Fin n -> a -> m b) -> Vect n a -> m (Vect n b)
-mapWithIndexA f [] = pure []
-mapWithIndexA f (a::as) = pure (::) <*> f FZ a <*> mapWithIndexA (f . FS) as
-
 traverseEffect : (a -> Eff b e) -> Vect k a -> Eff (Vect k b) e
 traverseEffect f [] = pure []
 traverseEffect f (x :: xs) = do v <- f x

@@ -49,6 +49,7 @@ mutual
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
   chooseParser (TApp f xs)           ts        ps        = assert_total $ chooseParser (ap (def f) xs) ts ps
+  chooseParser (TRef n)              ts        ps        = ?errwhat
   chooseParser (TMu td)              ts        ps        =
     map (\ty => Inn {tvars = ts} {m = args td} ty) $
     parens (rand (string "inn")
@@ -125,6 +126,7 @@ deserializeBinary (TMu tds) ts = do
 deserializeBinary (TVar FZ) (t::ts) = snd t
 deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = S n'} (TVar i) ts
 deserializeBinary (TApp f xs) ts = assert_total $ deserializeBinary (ap (def f) xs) ts
+deserializeBinary (TRef n) ts = ?deserialize_bin
 
 deserializeBinaryClosed : (t : TDef 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
 deserializeBinaryClosed t = runDeserializer (deserializeBinary t [])
