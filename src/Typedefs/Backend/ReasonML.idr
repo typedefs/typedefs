@@ -96,7 +96,7 @@ rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 ||| Generate a ReasonML type from a `TDef`.
 makeType : Env n -> TDef n -> ReasonLookupM RMLType
 makeType _     T0         = pure $ RMLParam "void" []
-makeType _     T1         = pure $ RMLUnit
+makeType _     T1         = pure RMLUnit
 makeType e    (TSum xs)   = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) <$> traverseEffect (assert_total $ makeType e) xs
 makeType e    (TProd xs)  = RMLTuple <$> traverseEffect (assert_total $ makeType e) xs
 makeType e    (TVar v)    = pure $ either RMLVar rmlParam $ Vect.index v e
@@ -154,9 +154,7 @@ mutual
 
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
-  generateTyDefs tns = runMakeDefM $
-    do ts <- traverseEffect genDef (toVect tns)
-       pure $ concat ts
+  generateTyDefs tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
     where
       genDef : ZeroOrUnbounded TNamed True -> ReasonDefM (List ReasonML)
       genDef (Unbounded tn) = makeDefs' tn

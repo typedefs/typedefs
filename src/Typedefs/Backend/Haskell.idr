@@ -404,8 +404,8 @@ freshEnvWithTerms prefix = map (\ x => (x, HsTermVar (prefix ++ uppercase (hsTyp
 
 ||| Generate a Haskell type from a `TDef`.
 makeType : Vect n HsType -> TDef n -> LookupM HsType
-makeType _    T0          = pure $ HsVoid
-makeType _    T1          = pure $ HsUnit
+makeType _    T0          = pure HsVoid
+makeType _    T1          = pure HsUnit
 makeType e    (TSum xs)   = do ys <- traverseEffect (assert_total $ makeType e) xs
                                pure $ foldr1' HsSum ys
 makeType e    (TProd xs)  = do ys <- traverseEffect (assert_total $ makeType e) xs
@@ -422,11 +422,6 @@ makeType e    (TRef n)    = case lookup n !('Spec :- get) of
 makeType' : Vect n HsType -> TNamed n -> LookupM HsType
 makeType' e (TName ""   body) = makeType e body --escape hatch; used e.g. for all non-TApp dependencies of a TApp
 makeType' e (TName name body) = pure $ HsParam name $ getUsedVars e body
-
-ifNotPresent' : Name -> HaskellDefM (List Haskell) -> HaskellDefM (List Haskell)
-ifNotPresent' n gen = if n `List.elem` !('Names :- get)
-                         then pure []
-                         else 'Names :- update (n ::) *> gen 
 
 mutual
   ||| Generate all the Haskell type definitions that a `TDef` depends on.
@@ -449,7 +444,7 @@ mutual
 
   ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
   makeDefs' : TNamed n -> HaskellDefM (List Haskell)
-  makeDefs' (TName name body) = ifNotPresent' name $ addName name body
+  makeDefs' (TName name body) = ifNotPresent name $ addName name body
 
   addName : Name -> TDef n -> HaskellDefM (List Haskell)
   addName name body = 
@@ -606,8 +601,7 @@ dependencies env td =
   mutual
     -- Traverse TDef lists recursively with `go` 
     traverseRec : Vect n HsType -> Vect k (TDef n) -> LookupM (List (m ** TNamed m))
-    traverseRec env xs = do traversed <-  traverseEffect (assert_total (go env)) xs
-                            pure $ concat traversed
+    traverseRec env xs = concat <$> traverseEffect (assert_total (go env)) xs
 
     -- Traverse TMu recursively
     goMu : Vect n HsType -> Vect k (String, TDef (S n)) -> LookupM (List (m ** TNamed m))
@@ -618,14 +612,14 @@ dependencies env td =
 
     -- We return a TNamed here, because we still have access to the name information
     go : Vect n HsType -> TDef n -> LookupM (List (m ** TNamed m))
-    go     env    T0                             = pure $ []
-    go     env    T1                             = pure $ []
+    go     env    T0                             = pure []
+    go     env    T1                             = pure []
     go     env   (TSum xs)                       = traverseRec env xs
     go     env   (TProd xs)                      = traverseRec env xs
-    go     env   (TVar v)                        = pure $ []
+    go     env   (TVar v)                        = pure []
     go {n} env t@(TMu tds)                       = pure $ (n ** TName (nameMu tds) t) :: !(goMu env tds)
     -- TRefs are not followed through the dependencies of the type they point to.
-    go     env   (TRef n)                        = pure $ []
+    go     env   (TRef n)                        = pure []
     go     env   (TApp {k} t@(TName name td) xs) = do
         envxs <- traverseEffect (makeType env) xs 
         -- dependencies of the actual td
@@ -786,8 +780,8 @@ decodeDef {n} t@(TName tname td) =
                     else pure $ HsParam tname []
      funType <- do init <- makeType' envTypes t 
                    pure $ foldr HsArrow 
-                                (hsSerialiser init)
-                                (map hsSerialiser (getUsedVars envTypes td))
+                                (hsDeserialiser init)
+                                (map hsDeserialiser (getUsedVars envTypes td))
      rhs <- genCase n currType currTerm env td
      pure $ FunDef funName funType [(varEncs, rhs)]
   where
@@ -822,8 +816,7 @@ decodeDef {n} t@(TName tname td) =
 
 ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = runLookupM $ makeType' freshEnv tn
-  generateTyDefs tns = runMakeDefsM $ do defs <- traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
-                                         pure $ concat defs
+  generateTyDefs tns = runMakeDefsM $ concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
   generateTermDefs tns = runMakeDefsM $ 
     do gen <- traverseEffect genHaskell (toVect tns)
        pure $ concat gen
@@ -832,17 +825,13 @@ ASTGen Haskell HsType True where
       genTerms tn = pure [!(encodeDef tn), !(decodeDef tn)]
 
       generateNext : TNamed n -> HaskellDefM (List Haskell)
-      generateNext tn = if (name tn) `elem` !('Names :- get)
-                           then pure []
-                           else do 'Names :- update ((name tn) ::)
-                                   genTerms tn
+      generateNext tn = ifNotPresent (name tn) (genTerms tn)
 
       genHaskell : ZeroOrUnbounded TNamed True -> HaskellDefM (List Haskell)
       genHaskell (Unbounded {n} tn) =
         do deps <- (dependencies freshEnv (def tn))
            let genFrom = deps ++ [(n ** tn)]
-           generated <- traverseEffect (\(n ** tn) => generateNext tn) (fromList genFrom)
-           pure $ concat generated
+           concat <$> traverseEffect (\(n ** tn) => generateNext tn) (fromList genFrom)
 
 CodegenIndep Haskell HsType where
   typeSource = renderType
