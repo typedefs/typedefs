@@ -1,6 +1,9 @@
 *.ibc
 *.exe
 
+*.o
+*.hi
+
 target/
 elba.lock
 
