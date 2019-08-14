@@ -54,7 +54,11 @@ Clean up:
 
 ### Elba
 
-Build:
+There is a complete tutorial on how to compile and install typedefs using the elba 
+package manager [here](docs/TUTORIAL_INSTALL.md).
+
+In most cases it should be just as easy as:
+
 ```
-elba build
+elba install
 ```
