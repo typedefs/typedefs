@@ -100,6 +100,9 @@ NAMES = 'Names ::: STATE (List Name)
 LookupM : Type -> Type -> Type
 LookupM targetType t = Eff t [SPECIALIZED targetType, ERR]
 
+runLookupM : LookupM t a -> Either CompilerError a
+runLookupM m = runInit ['Spec := empty, default] m
+
 -- The context in which definition are generated.
 -- Keeps track of generated names and requires specialized types lookup
 MakeDefM : Type -> Type -> Type
