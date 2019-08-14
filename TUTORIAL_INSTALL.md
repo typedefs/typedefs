@@ -56,7 +56,7 @@ git clone git@github.com:typedefs/typedefs.git
 ## 2. Get elba
 
 For this tutorial we are going to build the project using the [elba package manager][ELBA].
-The main page ( [https://github.com/elba/elba/][ELBA] ) contains the instruction to install elba 
+The [README](https://github.com/elba/elba/#elba]) contains the instructions to install elba 
 on your system.
 
 The easiest way to install is to use the pre-built binary and add it to your path.
