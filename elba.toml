@@ -37,5 +37,5 @@ idris_opts = ["-p","contrib"]
 
 [[targets.test]]
 path = "src"
-main = "Test.TypedefsSuite.testSuite"
+main = "Typedefs.Test.TypedefsSuite.testSuite"
 idris_opts = ["-p","contrib","--total"]
