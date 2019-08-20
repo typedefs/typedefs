@@ -3,6 +3,7 @@ package typedefs-core
 modules = Typedefs.Names
         , Typedefs.Parse
         , Typedefs.Typedefs
+        , Typedefs.TypedefsDecEq
         , Typedefs.TermParse
         , Typedefs.TermWrite
         , Typedefs.Provider
