@@ -1,11 +1,11 @@
-{ build-idris-package, optparse, tparsec, bytes }:
+{ build-idris-package, optparse, tparsec, bytes, effects }:
 
 build-idris-package {
   name = "typedefs";
   version = "dev";
   src = ./.;
 
-  idrisDeps = [ optparse tparsec bytes ];
+  idrisDeps = [ optparse tparsec bytes effects ];
 
   meta = {
     description = "Programming language agnostic type construction language based on polynomials - parser";

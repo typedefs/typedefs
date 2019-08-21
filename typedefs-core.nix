@@ -1,5 +1,6 @@
 { build-idris-package
 , contrib
+, effects
 , tparsec
 , specdris
 , bytes }:
@@ -15,6 +16,7 @@ build-idris-package {
     tparsec
     specdris
     bytes
+    effects
   ];
 
   meta = {

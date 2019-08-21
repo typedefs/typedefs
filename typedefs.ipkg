@@ -1,6 +1,5 @@
 package typedefs
 
-modules = CLI.CommandLine, CLI.Main
 
 executable = typedefs
 
