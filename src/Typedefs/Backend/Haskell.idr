@@ -445,7 +445,7 @@ mutual
   makeDefs' (TName name body) = ifNotPresent name $ addName name body
 
   addName : Name -> TDef n -> HaskellDefM (List Haskell)
-  addName name body = 
+  addName name body =
       let freshEnvString = map (\ x => case x of HsVar v => v; _ => "") freshEnv
           decl           = MkDecl name (getUsedVars freshEnvString body) in
       case body of
@@ -597,7 +597,7 @@ dependencies env td =
     (nubBy (\ (m ** t), (m' ** t') => heteroEqNamed t t') !(go env td))
   where
   mutual
-    -- Traverse TDef lists recursively with `go` 
+    -- Traverse TDef lists recursively with `go`
     traverseRec : Vect n HsType -> Vect k (TDef n) -> HaskellLookupM (List (m ** TNamed m))
     traverseRec env xs = concat <$> traverseEffect (assert_total (go env)) xs
 
@@ -619,7 +619,7 @@ dependencies env td =
     -- TRefs are not followed through the dependencies of the type they point to.
     go     env   (TRef n)                        = pure []
     go     env   (TApp {k} t@(TName name td) xs) = do
-        envxs <- traverseEffect (makeType env) xs 
+        envxs <- traverseEffect (makeType env) xs
         -- dependencies of the actual td
         depTd <- case td of
                  TMu tds => goMu envxs tds -- skip the TMu itself
@@ -723,11 +723,11 @@ encodeDef {n} t@(TName tname td) = do
       currType <- if tname == ""
                      then makeType envTypes td
                      else pure $ HsParam tname []
-      funType <- do init <- makeType' envTypes t 
-                    pure $ foldr HsArrow 
+      funType <- do init <- makeType' envTypes t
+                    pure $ foldr HsArrow
                                 (hsSerialiser init)
                                 (map hsSerialiser (getUsedVars envTypes td))
-      clauses <- toHaskellLookupM $ genClauses n currType currTerm env varEncs td 
+      clauses <- toHaskellLookupM $ genClauses n currType currTerm env varEncs td
       pure $ FunDef funName funType clauses
   where
     genConstructor : (n : Nat) -> String -> TDef n -> TermGen n (HsTerm, List HsTerm)
@@ -753,9 +753,9 @@ encodeDef {n} t@(TName tname td) = do
       -- Once we have the result as a value we convert it back to a `TermGen n`.
       map (\(con, rhs) => [(varEncs ++ [con], simplify $ HsConcat rhs)])
           (runTermGen ((currType, currTerm) :: env) $ genConstructor (S n) name td)
-             
+
     genClauses n currType currTerm env varEncs (TMu tds) =
-      map toList 
+      map toList
           (runTermGen ((currType, currTerm) :: env) $ traverseWithIndex (genClause (S n) varEncs) tds)
     genClauses n currType currTerm env varEncs td        =
       let v = HsTermVar "x" in
@@ -776,8 +776,8 @@ decodeDef {n} t@(TName tname td) =
      currType <- if tname == ""  -- makeType' env t
                     then makeType envTypes td
                     else pure $ HsParam tname []
-     funType <- do init <- makeType' envTypes t 
-                   pure $ foldr HsArrow 
+     funType <- do init <- makeType' envTypes t
+                   pure $ foldr HsArrow
                                 (hsDeserialiser init)
                                 (map hsDeserialiser (getUsedVars envTypes td))
      rhs <- genCase n currType currTerm env td
@@ -815,7 +815,7 @@ decodeDef {n} t@(TName tname td) =
 ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = runHaskellLookupM $ makeType' freshEnv tn
   generateTyDefs tns = runMakeDefsM $ concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
-  generateTermDefs tns = runMakeDefsM $ 
+  generateTermDefs tns = runMakeDefsM $
     do gen <- traverseEffect genHaskell (toVect tns)
        pure $ concat gen
     where
@@ -834,7 +834,9 @@ ASTGen Haskell HsType True where
 CodegenIndep Haskell HsType where
   typeSource = renderType
   defSource  = renderDef
-  preamble   = text """import Data.Word
+  preamble   = text """module Typedefs.Definitions
+
+import Data.Word
 import Data.ByteString.Lazy
 import Data.ByteString.Builder
 
