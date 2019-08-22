@@ -86,14 +86,14 @@ done! 1 binaries installed into ~/.elba/bin [54.81s]
 You can try _Typedefs_ by running it with a very simple command:
 
 ```sh
-~/.elba/bin/typedefs-parser -i "(name bool (+ 1 1))"
+~/.elba/bin/typedefs -i "(name bool (+ 1 1))"
 ```
 
 This assumes that `elba` installed the binary in `~/.elba/bin`. If you have `~/.elba/bin` in your path you can simply 
 call
 
 ```sh
-typedefs-parser -i "(name bool (+ 1 1))"
+typedefs -i "(name bool (+ 1 1))"
 ```
 
 You can now move on to our next tutorial [Using typedefs](./TUTORIAL_USING_TYPEDEFS.md)
