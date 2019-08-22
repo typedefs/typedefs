@@ -1,7 +1,7 @@
 # Tutorial: Installing Typedefs
 
 This tutorial aims to explain how to install and use _Typedefs_. _Typedefs_ is a language to define _types_ and 
-generate type definitions as well as serializers and deserializers for a target language. We are going to see later how 
+generate type definitions as well as serialisers and deserialisers for a target language. We are going to see later how
 to achieve that, right now we are going to focus on how to install the tools.
 
 ## 0. Install Idris
