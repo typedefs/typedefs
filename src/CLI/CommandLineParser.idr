@@ -83,7 +83,7 @@ fallbackMessage = """
 No arguments supplied, expected --help or -s SOURCE -d DEST.
 
 Typedefs allows you to define types using very general operations and
-generate seralizers and deserializers for a target language.
+generate seralisers and deserialisers for a target language.
 
 If this is your first time head to https://typedefs.com for more information or use --help.
 """
@@ -93,8 +93,8 @@ parseTDefOptions = [| MkTypedefOpts parseInput parseOutput |]
 
 export
 parseProgramOptions : Parser CommandLineOpts
-parseProgramOptions = (GenerateTDefOpt <$> parseTDefOptions) 
-                        <|> flag' Help (long "help" . short 'h') 
+parseProgramOptions = (GenerateTDefOpt <$> parseTDefOptions)
+                        <|> flag' Help (long "help" . short 'h')
                         <|> pure HelpFallback
 
 
