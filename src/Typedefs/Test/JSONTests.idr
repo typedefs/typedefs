@@ -132,6 +132,19 @@ nestedMu5Defs = [ dquotes "nestedMu5" |+| colon
             |++| taggedSumDef [ ("Nil", unitRef)
                               , ("Cons", prodDef [ref "nestedMu5", ref "NilCons"]) ]
 
+listOfDefsJSON : List Doc
+listOfDefsJSON = [ dquotes "bit" |+| colon |++| sumDef [ unitRef, unitRef ]
+                 , unitDef
+                 , dquotes "nibble" |+| colon |++| prodDef (replicate 4 $ ref "bit")
+                 , dquotes "byte" |+| colon |++| prodDef (replicate 2 $ ref "nibble")
+                 , dquotes "char" |+| colon |++| ref "byte"
+                 , dquotes "hash" |+| colon |++| ref "byte"
+                 , dquotes "transitionId" |+| colon |++| ref "byte"
+                 , dquotes "data" |+| colon |++| ref "byte"
+                 , dquotes "previous" |+| colon |++| ref "hash"
+                 , dquotes "rootTx" |+| colon |++| prodDef [ref "data", ref "previous"]
+                 ]
+
 generalDoc : List Doc -> List Doc -> Doc
 generalDoc types defs = subthing braces
   [ dquotes "$schema"              |+| colon |++| dquotes "http://json-schema.org/draft-07/schema#"
@@ -187,3 +200,16 @@ testSuite = spec $ do
     it "nested mu 5: AnonList(Mu)" $ 
       generate nestedMu5
         `shouldBe` (Just $ generalDoc [ref "nestedMu5"] nestedMu5Defs)
+
+    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
+      generate JSONDef listOfDefs
+        `shouldBe` (Just $ generalDoc [ ref "bit"
+                                      , ref "nibble"
+                                      , ref "byte"
+                                      , ref "char"
+                                      , ref "hash"
+                                      , ref "transitionId"
+                                      , ref "data"
+                                      , ref "previous"
+                                      , ref "rootTx"] 
+                                      listOfDefsJSON)     

@@ -206,6 +206,13 @@ testSuite = spec $ do
                       , singleConstructorMuDoc 
                       ])
 
+    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $ 
+      generateDefs Haskell listOfDefs 
+        `shouldBe` (Just $ vsep2
+                      [ preamble {def = Haskell}
+                      , listOfDefsDoc 
+                      ])
+
 {- 
     it "large tuple" $
       generate largeTuple

@@ -225,12 +225,12 @@ Eq (Mu [] td) where
 ------ meta ----------
 
 pow : Nat -> TDef n -> TDef n
-pow Z         _ = T1
+pow  Z        _ = T1
 pow (S Z)     a = a
 pow (S (S n)) a = TProd (a :: a :: replicate n a)
 
 powN : Nat -> TNamed n -> TDef n
-powN n tn = pow n (TApp tn idVars)
+powN n tn = pow n (wrap tn)
 
 -- TODO add to stdlib?
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m

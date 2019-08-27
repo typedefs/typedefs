@@ -256,3 +256,33 @@ testSuite = spec $ do
                                                                 , text "nat" ])))
                         |+| semi
                       ])
+
+    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
+      generateDefs ReasonML listOfDefs
+        `shouldBe` (Just $ vsep2
+                      [ bitDoc
+                      , text "type" |++| text "nibble"
+                        |++| equals |++| tupled (replicate 4 (text "bit"))
+                        |+| semi
+                      , text "type" |++| text "byte"
+                        |++| equals |++| tupled (replicate 2 (text "nibble"))
+                        |+| semi
+                      , text "type" |++| text "char"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "hash"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "transitionId"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "data"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "previous"
+                        |++| equals |++| text "hash"
+                        |+| semi
+                      , text "type" |++| text "rootTx"
+                        |++| equals |++| tupled [text "data", text "previous"]
+                        |+| semi
+                      ])
