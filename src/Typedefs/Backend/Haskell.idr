@@ -77,9 +77,8 @@ Eq HsType where
   (HsArrow xl yl) == (HsArrow xr yr) = xl == xr && yl == yr
   _ == _ = False
 
-
-hsNamed : String -> HsType
-hsNamed = flip HsParam []
+hsNamed : Name -> HsType
+hsNamed n = HsParam n []
 
 private
 hsParam : Decl -> HsType

@@ -40,17 +40,36 @@ fileOutput = FileOutput <$> strOption (long "dest" . short 'd')
 parseOutput : Parser OutputFile
 parseOutput = fileOutput <|> stdOutput <|> pure StdOutput
 
+export
+data GenerateTarget = All
+                    | TypesOnly
+                    | TermsOnly
+Show GenerateTarget where
+  show All = "--all"
+  show TypesOnly = "--types"
+  show TermsOnly = "--terms"
+
+parseGenerateTarget : Parser GenerateTarget
+parseGenerateTarget = flag' All (long "all")
+                  <|> flag' TypesOnly (long "types")
+                  <|> flag' TermsOnly (long "terms")
+                  <|> pure All -- fallback on `All` if no argument is provided
+
+
 public export
 record TypedefOpts where
   constructor MkTypedefOpts
   input : InputFile
   output : OutputFile
+  generate : GenerateTarget
 
 public export
-data CommandLineOpts = Help | GenerateTDefOpt TypedefOpts | HelpFallback
+data CommandLineOpts = Help 
+                     | GenerateTDefOpt TypedefOpts 
+                     | HelpFallback
 
 Show TypedefOpts where
-  show (MkTypedefOpts i o) = "input : " ++ show i ++ "output : " ++ show o
+  show (MkTypedefOpts i o t) = "input : " ++ show i ++ "output : " ++ show o ++ " generate: " ++ show t
 
 export
 helpMessage : String
@@ -89,7 +108,7 @@ If this is your first time head to https://typedefs.com for more information or 
 """
 
 parseTDefOptions : Parser TypedefOpts
-parseTDefOptions = [| MkTypedefOpts parseInput parseOutput |]
+parseTDefOptions = [| MkTypedefOpts parseInput parseOutput parseGenerateTarget|]
 
 export
 parseProgramOptions : Parser CommandLineOpts
