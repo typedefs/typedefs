@@ -13,10 +13,10 @@ import Specdris.Spec
 
 %access public export
 
-roundtrip1 : (td : TDef 0) -> Ty [] td -> Maybe ((Ty [] td), Bytes)
+roundtrip1 : (td : TDefR 0) -> Ty [] td -> Maybe ((Ty [] td), Bytes)
 roundtrip1 td x = deserializeBinaryClosed td $ serializeBinaryClosed td x
 
-roundtrip2 : (td : TDef 0) -> Bytes -> Maybe Bytes
+roundtrip2 : (td : TDefR 0) -> Bytes -> Maybe Bytes
 roundtrip2 td b = map (serializeBinaryClosed td . fst) (deserializeBinaryClosed td b)
 
 

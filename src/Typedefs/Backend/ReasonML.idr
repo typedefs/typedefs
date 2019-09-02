@@ -4,6 +4,7 @@ import Typedefs.Names
 import Typedefs.Typedefs
 import Typedefs.Backend
 import Typedefs.Backend.Utils
+import Typedefs.Backend.Specialisation
 
 import Text.PrettyPrint.WL
 import Control.Monad.State
@@ -42,6 +43,9 @@ data ReasonML : Type where
   ||| and a number of constructors, each wrapping a ReasonML type.
   Variant : Decl -> Vect k (Name, RMLType) -> ReasonML
 
+Specialisation RMLType where
+  specialisedTypes = Data.SortedMap.empty
+
 -- ReasonML type variables start with an apostrophe and a lowercase letter.
 private
 freshEnv : Env n
@@ -55,7 +59,7 @@ ReasonDefM = MakeDefM RMLType
 
 ||| Given a name and a vector of arguments, render an application of the name to the arguments.
 renderApp : Name -> Vect n Doc -> Doc
-renderApp name params = 
+renderApp name params =
   text name |+| case params of
                   [] => empty
                   _  => tupled (toList params)
@@ -76,11 +80,11 @@ renderDef : ReasonML -> Doc
 renderDef (Alias   decl body)  = text "type" |++| renderDecl decl
                                  |++| equals |++| renderType body
                                  |+| semi
-renderDef (Variant decl cases) = 
+renderDef (Variant decl cases) =
   text "type" |++| renderDecl decl
   |+| case cases of
     [] => empty
-    _  => space |+| equals 
+    _  => space |+| equals
           |++| hsep (punctuate (text " |") (toList $ map renderConstructor cases))
   |+| semi
   where
@@ -102,7 +106,7 @@ makeType e    (TProd xs)  = RMLTuple <$> traverseEffect (assert_total $ makeType
 makeType e    (TVar v)    = pure $ either RMLVar rmlParam $ Vect.index v e
 makeType e td@(TMu cases) = pure $ RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
 makeType e    (TApp f xs) = RMLParam (name f) <$> (traverseEffect (assert_total $ makeType e) xs)
-makeType e    (TRef n)    = case lookup n !('Spec :- get) of
+makeType e    (FRef n)    = case lookup n !('Spec :- get) of
                               Just t => pure t
                               Nothing => raise $ RefNotFound n
 
@@ -119,7 +123,7 @@ mutual
     voidDef = TName "void" $ TMu []
   makeDefs T1             = pure (the (List ReasonML) [])
   makeDefs (TProd xs)     = concat <$> traverseEffect (assert_total makeDefs) xs
-  makeDefs (TSum xs)      = 
+  makeDefs (TSum xs)      =
     do res <- concat <$> traverseEffect (assert_total makeDefs) xs
        (++ res) <$> (assert_total $ makeDefs' eitherDef)
     where
@@ -127,30 +131,30 @@ mutual
     eitherDef = TName "either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
-  makeDefs    (TApp f xs) = 
+  makeDefs    (TApp f xs) =
     do res <- assert_total $ makeDefs' f
        res' <- concat <$> traverseEffect (assert_total makeDefs) xs
        pure (res ++ res')
-  makeDefs    (TRef n)    = raise $ RefNotFound n
+  makeDefs    (FRef n)    = raise $ RefNotFound n
 
   ||| Generate ReasonML type definitions for a `TNamed` and all of its dependencies.
   makeDefs' : TNamed n -> ReasonDefM (List ReasonML)
-  makeDefs' (TName name body) = ifNotPresent name $ 
+  makeDefs' (TName name body) = ifNotPresent name $
     let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
     case body of
-         TMu cases => -- Named `TMu`s are treated as ADTs. 
+         TMu cases => -- Named `TMu`s are treated as ADTs.
            do let newEnv = Right decl :: freshEnv
               args <- traverseEffect (makeCaseDef newEnv) cases
               res <- traverseEffect (\(_, bdy) => assert_total $ makeDefs bdy) cases
               pure $ (concat res) ++ [Variant decl args]
-         _ => 
+         _ =>
            -- All other named types are treated as synonyms.
            do res <- assert_total $ makeDefs body
               pure $ res ++ [Alias decl !(makeType freshEnv body)]
     where
       makeCaseDef : Env (S n) -> (Name, TDef (S n)) -> ReasonDefM (Name, RMLType)
       makeCaseDef env (n, def) = pure (n, !(subLookup $ makeType env def))
-      
+
 
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn

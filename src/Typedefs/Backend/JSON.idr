@@ -3,6 +3,7 @@ module Typedefs.Backend.JSON
 import Typedefs.Names
 import Typedefs.Typedefs
 import Typedefs.Backend
+import Typedefs.Backend.Specialisation
 import Typedefs.Backend.Utils
 
 import Language.JSON
@@ -22,6 +23,9 @@ import Effect.State
 JSONDef : Type
 JSONDef = (Name, JSON)
 
+Specialisation JSON where
+  specialisedTypes = empty
+
 ||| Given `"name"`, create `["name0", "name1", ..., "namen"]`
 nary : Name -> Vect n Name
 nary name = map ((name ++) . show . finToNat) range
@@ -36,8 +40,12 @@ JSONLookupM t = LookupM JSON t
 JSONMakeDefM : Type -> Type
 JSONMakeDefM t = MakeDefM JSON t
 
-makeSubSchema' : TNamed 0 -> JSON
+makeSubSchema' : TNamed' 0 b -> JSON
 makeSubSchema' = defRef . name
+
+jsonRefError : String -> CompilerError
+jsonRefError n = ReferencesNotSupported ("JSON doesn't support referencesm found ref: " ++ n)
+
 
 mutual
   makeSubSchema : TDef 0 -> JSONLookupM JSON
@@ -48,11 +56,11 @@ mutual
   makeSubSchema (TMu cs)    = pure $ defRef (nameMu cs)
   makeSubSchema (TApp f []) = pure $ defRef . name $ f
   makeSubSchema (TApp f xs) = pure $ defRef . name $ f `apN` xs
-  makeSubSchema (TRef n)    = raise $ RefNotFound n
-  
+  makeSubSchema (FRef n)    = raise $ jsonRefError n
+
   ||| Generate a schema that matches exactly one of the supplied schemas, which must be wrapped in its corresponding name.
   disjointSubSchema : Vect k (Name, TDef 0) -> JSONLookupM JSON
-  disjointSubSchema cases = 
+  disjointSubSchema cases =
     pure $ JObject [("oneOf", JArray . toList $ !(traverseEffect (assert_total makeCase) cases))]
     where
     isMu : TDef n -> Bool
@@ -81,13 +89,13 @@ mutual
   makeDefs : TDef 0 -> JSONMakeDefM (List JSONDef)
   makeDefs T0 = ifNotPresent "emptyType" $ pure [("emptyType", emptyType)]
     where
-    emptyType : JSON
-    emptyType = JObject 
-                [ ("type", JString "array")
-                , ("items", JObject [ ("type", JString "boolean") ])
-                , ("minItems", JNumber 3)
-                , ("uniqueItems", JBoolean True)
-                ]
+      emptyType : JSON
+      emptyType = JObject
+                  [ ("type", JString "array")
+                  , ("items", JObject [ ("type", JString "boolean") ])
+                  , ("minItems", JNumber 3)
+                  , ("uniqueItems", JBoolean True)
+                  ]
   makeDefs T1 = ifNotPresent "singletonType" $ pure [("singletonType", singletonType)]
       where
       singletonType : JSON
@@ -98,10 +106,10 @@ mutual
   makeDefs td@(TMu cases) = makeDefs' (TName (nameMu cases) td)
   makeDefs    (TApp f []) = makeDefs' f
   makeDefs    (TApp f xs) = makeDefs' (f `apN` xs)
-  makeDefs    (TRef n)    = raise $ RefNotFound n
+  makeDefs    (FRef n)    = raise $ jsonRefError n
 
   makeDefs' : TNamed 0 -> JSONMakeDefM (List JSONDef)
-  makeDefs' (TName name body) = ifNotPresent name $ 
+  makeDefs' (TName name body) = ifNotPresent name $
     case body of
       TMu cs => do -- Named `TMu`s are treated specially
         let cases = map (map (flattenMus name)) cs
@@ -111,7 +119,7 @@ mutual
         res <- assert_total $ makeDefs body
         pure $ (name, !(makeSubSchema body)) :: res
 
-||| Takes a schema and a list of helper definitions and puts them together into a top-level schema. 
+||| Takes a schema and a list of helper definitions and puts them together into a top-level schema.
 makeSchema : NEList JSON -> List JSONDef -> JSON
 makeSchema schema [] = JObject
                   [ ("$schema", JString "http://json-schema.org/draft-07/schema#")

@@ -2,6 +2,7 @@ module CLI.Main
 
 import Typedefs.Typedefs
 import Typedefs.Parse
+import Typedefs.Either
 import Typedefs.Backend
 import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell
@@ -29,8 +30,8 @@ getInput (StringInput x) = pure (Right x)
 getInput (FileInput x)   = readFile x
 
 parseAndGenerateTDef : String -> Either String String
-parseAndGenerateTDef tdef = (resultToEither $ parseTNameds tdef) >>= 
-  (maybeToEither "cannot handle free vars (shouldn't happen)" . map print . generateDefs Haskell)
+parseAndGenerateTDef tdef = (resultToEither $ parseTNameds tdef)
+                        >>= Either.bimap show Utils.print . generateDefs Haskell
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do

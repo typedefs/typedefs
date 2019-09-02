@@ -36,7 +36,7 @@ tnameInjName Refl = Refl
 tnameInjDef : {def, def' : TDef k} -> TName name def = TName name' def' -> def = def'
 tnameInjDef Refl = Refl
 
-trefInj : TRef n = TRef n' -> n = n'
+trefInj : (FRef r = FRef r') -> r = r'
 trefInj Refl = Refl
 
 -- inequality proofs
@@ -59,8 +59,11 @@ t0NotTMu Refl impossible
 t0NotTApp : T0 = TApp n a -> Void
 t0NotTApp Refl impossible
 
-t0NotTRef : T0 = TRef r -> Void
-t0NotTRef Refl impossible
+t0NotRRef : T0 = RRef r -> Void
+t0NotRRef Refl impossible
+
+t0NotFRef : T0 = FRef r -> Void
+t0NotFRef Refl impossible
 
 t1NotTSum : T1 = TSum a -> Void
 t1NotTSum Refl impossible
@@ -77,8 +80,11 @@ t1NotTMu Refl impossible
 t1NotTApp : T1 = TApp n a -> Void
 t1NotTApp Refl impossible
 
-t1NotTRef : T1 = TRef n -> Void
-t1NotTRef Refl impossible
+t1NotRRef : T1 = RRef r -> Void
+t1NotRRef Refl impossible
+
+t1NotFRef : T1 = FRef r -> Void
+t1NotFRef Refl impossible
 
 tSumNotTProd : TSum a = TProd b -> Void
 tSumNotTProd Refl impossible
@@ -92,8 +98,11 @@ tSumNotTMu Refl impossible
 tSumNotTApp : TSum a = TApp n b -> Void
 tSumNotTApp Refl impossible
 
-tSumNotTRef : TSum a = TRef n -> Void
-tSumNotTRef Refl impossible
+tSumNotRRef : TSum a = RRef r -> Void
+tSumNotRRef Refl impossible
+
+tSumNotFRef : TSum a = FRef r -> Void
+tSumNotFRef Refl impossible
 
 tProdNotTVar : TProd a = TVar b -> Void
 tProdNotTVar Refl impossible
@@ -104,8 +113,11 @@ tProdNotTMu Refl impossible
 tProdNotTApp : TProd a = TApp n b -> Void
 tProdNotTApp Refl impossible
 
-tProdNotTRef : TProd a = TRef n -> Void
-tProdNotTRef Refl impossible
+tProdNotRRef : TProd a = RRef r -> Void
+tProdNotRRef Refl impossible
+
+tProdNotFRef : TProd a = FRef r -> Void
+tProdNotFRef Refl impossible
 
 tVarNotTMu : TVar a = TMu b -> Void
 tVarNotTMu Refl impossible
@@ -113,17 +125,26 @@ tVarNotTMu Refl impossible
 tVarNotTApp : TVar a = TApp n b -> Void
 tVarNotTApp Refl impossible
 
-tVarNotTRef : TVar a = TRef n -> Void
-tVarNotTRef Refl impossible
+tVarNotRRef : TVar a = RRef r -> Void
+tVarNotRRef Refl impossible
+
+tVarNotFRef : TVar a = FRef r -> Void
+tVarNotFRef Refl impossible
 
 tMuNotTApp : TMu a = TApp n b -> Void
 tMuNotTApp Refl impossible
 
-tMuNotTRef : TMu a = TRef n -> Void
-tMuNotTRef Refl impossible
+tMuNotRRef : TMu a = RRef r -> Void
+tMuNotRRef Refl impossible
 
-tAppNotTRef : TApp n t = TRef r -> Void
-tAppNotTRef Refl impossible
+tMuNotFRef : TMu a = FRef r -> Void
+tMuNotFRef Refl impossible
+
+tAppNotRRef : TApp n t = RRef r -> Void
+tAppNotRRef Refl impossible
+
+tAppNotFRef : TApp n t = FRef r -> Void
+tAppNotFRef Refl impossible
 
 -- decidable equality proofs
 
@@ -156,65 +177,66 @@ mutual
           decEq (TApp {k} f xs) (TApp {k} f xs')     | Yes Refl | Yes Refl | No ctra  = No $ ctra . tappInjVect
         decEq (TApp {k} f xs) (TApp {k} f' xs')    | Yes Refl | No ctra  = No $ ctra . tappInjNamed
       decEq (TApp {k} f xs) (TApp {k=k2} f' xs') | No ctra  = No $ ctra . vectInj . tappInjVect
-    decEq (TRef n)        (TRef n')            with (decEq n n')
-      decEq (TRef r)        (TRef r)             | Yes Refl = Yes Refl
-      decEq (TRef r)        (TRef r')            | No ctra  = No $ ctra . trefInj
+    decEq (FRef r)        (FRef r')            with (decEq r r')
+      decEq (FRef r)        (FRef r)             | (Yes Refl) = Yes Refl
+      decEq (FRef r)        (FRef r')            | (No ctra) = No $ ctra . trefInj
     decEq T0              T1                   = No t0NotT1
     decEq T0              (TSum xs)            = No t0NotTSum
     decEq T0              (TProd xs)           = No t0NotTProd
     decEq T0              (TVar i)             = No t0NotTVar
     decEq T0              (TMu xs)             = No t0NotTMu
     decEq T0              (TApp x xs)          = No t0NotTApp
-    decEq T0              (TRef x)             = No t0NotTRef
+    decEq T0              (FRef _)             = No t0NotFRef
     decEq T1              T0                   = No $ negEqSym t0NotT1
     decEq T1              (TSum xs)            = No t1NotTSum
     decEq T1              (TProd xs)           = No t1NotTProd
     decEq T1              (TVar i)             = No t1NotTVar
     decEq T1              (TMu xs)             = No t1NotTMu
     decEq T1              (TApp x xs)          = No t1NotTApp
-    decEq T1              (TRef x)             = No t1NotTRef
+    decEq T1              (FRef x)             = No t1NotFRef
     decEq (TSum xs)       T0                   = No $ negEqSym t0NotTSum
     decEq (TSum xs)       T1                   = No $ negEqSym t1NotTSum
     decEq (TSum xs)       (TProd ys)           = No tSumNotTProd
     decEq (TSum xs)       (TVar i)             = No tSumNotTVar
     decEq (TSum xs)       (TMu ys)             = No tSumNotTMu
     decEq (TSum xs)       (TApp x ys)          = No tSumNotTApp
-    decEq (TSum xs)       (TRef x)             = No tSumNotTRef
+    decEq (TSum xs)       (FRef x)             = No tSumNotFRef
     decEq (TProd xs)      T0                   = No $ negEqSym t0NotTProd
     decEq (TProd xs)      T1                   = No $ negEqSym t1NotTProd
     decEq (TProd xs)      (TSum ys)            = No $ negEqSym tSumNotTProd
     decEq (TProd xs)      (TVar i)             = No tProdNotTVar
     decEq (TProd xs)      (TMu ys)             = No tProdNotTMu
     decEq (TProd xs)      (TApp x ys)          = No tProdNotTApp
-    decEq (TProd xs)      (TRef x)             = No tProdNotTRef
+    decEq (TProd xs)      (FRef x)             = No tProdNotFRef
     decEq (TVar i)        T0                   = No $ negEqSym t0NotTVar
     decEq (TVar i)        T1                   = No $ negEqSym t1NotTVar
     decEq (TVar i)        (TSum xs)            = No $ negEqSym tSumNotTVar
     decEq (TVar i)        (TProd xs)           = No $ negEqSym tProdNotTVar
     decEq (TVar i)        (TMu xs)             = No tVarNotTMu
     decEq (TVar i)        (TApp x xs)          = No tVarNotTApp
-    decEq (TVar i)        (TRef x)             = No tVarNotTRef
+    decEq (TVar i)        (FRef x)             = No tVarNotFRef
     decEq (TMu xs)        T0                   = No $ negEqSym t0NotTMu
     decEq (TMu xs)        T1                   = No $ negEqSym t1NotTMu
     decEq (TMu xs)        (TSum ys)            = No $ negEqSym tSumNotTMu
     decEq (TMu xs)        (TProd ys)           = No $ negEqSym tProdNotTMu
     decEq (TMu xs)        (TVar i)             = No $ negEqSym tVarNotTMu
     decEq (TMu xs)        (TApp x ys)          = No tMuNotTApp
-    decEq (TMu xs)        (TRef x)             = No tMuNotTRef
+    decEq (TMu xs)        (FRef x)             = No tMuNotFRef
     decEq (TApp x xs)     T0                   = No $ negEqSym t0NotTApp
     decEq (TApp x xs)     T1                   = No $ negEqSym t1NotTApp
     decEq (TApp x xs)     (TSum ys)            = No $ negEqSym tSumNotTApp
     decEq (TApp x xs)     (TProd ys)           = No $ negEqSym tProdNotTApp
     decEq (TApp x xs)     (TVar i)             = No $ negEqSym tVarNotTApp
     decEq (TApp x xs)     (TMu ys)             = No $ negEqSym tMuNotTApp
-    decEq (TApp x xs)     (TRef y)             = No tAppNotTRef
-    decEq (TRef x)        T0                   = No $ negEqSym t0NotTRef
-    decEq (TRef x)        T1                   = No $ negEqSym t1NotTRef
-    decEq (TRef x)        (TSum xs)            = No $ negEqSym tSumNotTRef
-    decEq (TRef x)        (TProd xs)           = No $ negEqSym tProdNotTRef
-    decEq (TRef x)        (TVar i)             = No $ negEqSym tVarNotTRef
-    decEq (TRef x)        (TMu xs)             = No $ negEqSym tMuNotTRef
-    decEq (TRef x)        (TApp y xs)          = No $ negEqSym tAppNotTRef
+    decEq (TApp x xs)     (FRef y)             = No tAppNotFRef
+    decEq (FRef x)      T0                     = No $ negEqSym t0NotFRef
+    decEq (FRef x)      T1                     = No $ negEqSym t1NotFRef
+    decEq (FRef x)      (TSum xs)              = No $ negEqSym tSumNotFRef
+    decEq (FRef x)      (TProd xs)             = No $ negEqSym tProdNotFRef
+    decEq (FRef x)      (TVar i)               = No $ negEqSym tVarNotFRef
+    decEq (FRef x)      (TMu xs)               = No $ negEqSym tMuNotFRef
+    decEq (FRef x)      (TApp y xs)            = No $ negEqSym tAppNotFRef
+    decEq _ _ = No $ believe_me
 
   DecEq (TNamed n) where
     decEq (TName name def) (TName name' def') with (decEq name name')

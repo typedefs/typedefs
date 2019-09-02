@@ -9,10 +9,10 @@ import Typedefs.Backend.ReasonML
 
 -- Example: bits
 
-bit : TDef Z
+bit : TDefR Z
 bit = TSum [T1, T1]
 
-byte : TDef Z
+byte : TDefR Z
 byte = pow 8 bit
 
 test : Type
@@ -20,7 +20,7 @@ test = Ty [] bit
 
 -- Example: maybe
 
-maybe : TDef 1
+maybe : TDefR 1
 maybe = TSum [T1, TVar 0]
 
 nothing : (a : Type) -> Ty [a] Main.maybe
@@ -29,7 +29,7 @@ nothing _ = Left ()
 just : (a : Type) -> a -> Ty [a] Main.maybe
 just a = Right
 
-maybe2 : TNamed 1
+maybe2 : TNamedR 1
 maybe2 = TName "Maybe" $ TMu [("Nothing", T1), ("Just", TVar 1)]
 
 nothing2 : (a : Type) -> Ty [a] (def Main.maybe2)
@@ -40,7 +40,7 @@ just2 a x = Inn (Right x)
 
 -- Example: either
 
-either : TDef 2
+either : TDefR 2
 either = TSum [TVar 0, TVar 1]
 
 left : {a : Type} -> {b : Type} -> a -> Ty [a,b] Main.either
@@ -49,7 +49,7 @@ left a = Left a
 right : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either
 right b = Right b
 
-either2 : TNamed 2
+either2 : TNamedR 2
 either2 = TName "Either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
 
 left2 : {a : Type} -> {b : Type} -> a -> Ty [a,b] (def Main.either2)
@@ -62,12 +62,12 @@ right2 x = Inn (Right x)
 
 %hide list
 
-||| `TDef 1` means the `list` type we're defining contains 1 type variable
-list : TNamed 1
+||| `TDefR 1` means the `list` type we're defining contains 1 type variable
+list : TNamedR 1
 list = TName "List" $ TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
 
 ||| The `Ty` function applied in the result type takes a typedef and constructs
-||| a corresponding Idris type. In this example, the typedef is `list : TDef 1`,
+||| a corresponding Idris type. In this example, the typedef is `list : TDefR 1`,
 ||| and the corresponding Idris type is a cons-list of `a`-elements. In order to
 ||| construct a value of this type - in this case the empty list `nil` - we need
 ||| to fix (i.e. choose) an Idris type `a`. We do so in the form of the `a :
@@ -90,42 +90,42 @@ cons a x xs = Inn $ Right (x, xs)
 
 -- Example: List Nat
 
-nat : TNamed 0
+nat : TNamedR 0
 nat = TName "Nat" $ TMu [("ZZ", T1), ("SS", TVar 0)]
 
-nat1 : TDef 1
+nat1 : TDefR 1
 nat1 = weakenTDef (def nat) 1 LTEZero
 
-listNat : TNamed 0
+listNat : TNamedR 0
 listNat = TName "ListNat" $ TMu [("NilN", T1), ("ConsN", TProd [nat1, TVar 0])]
 
-listNat2 : TNamed 0
+listNat2 : TNamedR 0
 listNat2 = TName "ListNat" $ TMu [("NilN", T1), ("ConsN", TProd [nat1, nat1, TVar 0])]
 
 -- Examples using `ap`
 
-maybeEitherAlpha : TDef 1
+maybeEitherAlpha : TDefR 1
 maybeEitherAlpha = maybe `ap` [either `ap` [TVar 0, TVar 0]]
 
-maybeEitherAlphaBeta : TDef 2
+maybeEitherAlphaBeta : TDefR 2
 maybeEitherAlphaBeta = maybe `ap` [either `ap` [TVar 0, TVar 1]]
 
-nullBit : TDef 0
+nullBit : TDefR 0
 nullBit = maybe `ap` [bit]
 
-listEitherAlpha : TDef 1
+listEitherAlpha : TDefR 1
 listEitherAlpha = (def list) `ap` [either `ap` [TVar 0, TVar 0]]
 
-listEitherAlphaBeta : TDef 2
+listEitherAlphaBeta : TDefR 2
 listEitherAlphaBeta = (def list) `ap` [either `ap` [TVar 0, TVar 1]]
 
-listBit : TDef 0
+listBit : TDefR 0
 listBit = (def list) `ap` [bit]
 
-listNullBit : TDef 0
+listNullBit : TDefR 0
 listNullBit = (def list) `ap` [nullBit]
 
-nestedMu : TNamed 0
+nestedMu : TNamedR 0
 nestedMu = TName "Foo" $ TMu [("Bar", nat1)]
 
 serializeTest : String
