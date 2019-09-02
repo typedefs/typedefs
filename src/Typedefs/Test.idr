@@ -4,7 +4,7 @@ import Typedefs.Typedefs
 import Typedefs.Names
 import Typedefs.Backend.Utils
 
-import Data.Vect 
+import Data.Vect
 import Data.NEList
 
 import Specdris.Spec
@@ -37,7 +37,7 @@ maybe2 = TName "Maybe2" $ TMu [("Nothing", T1), ("Just", TVar 1)]
 nat : TNamed 0
 nat = TName "Nat" $ TMu [("Z", T1), ("S", TVar 0)]
 
-listNat : TNamed 0 
+listNat : TNamed 0
 listNat = TName "ListNat" $ TMu [("NilN", T1), ("ConsN", TProd [weakenTDef (wrap nat) 1 LTEZero, TVar 0])]
 
 parametricSynonym : TNamed 1
@@ -95,34 +95,34 @@ singleConstructorMu : TNamed 0
 singleConstructorMu = TName "Foo" $ TMu [("Bar", TProd [wrap list, def maybe])]
 
 listOfDefs : NEList (n ** TNamed n)
-listOfDefs = MkNEList (0 ** bit') 
-                     [(0 ** nibble)
-                     ,(0 ** byte')
-                     ,(0 ** char)
-                     ,(0 ** hash)
-                     ,(0 ** transitionId)
-                     ,(0 ** data')
-                     ,(0 ** previous)
-                     ,(0 ** rootTx)
-                     ] 
+listOfDefs = MkNEList  (0 ** bit')
+                     [ (0 ** nibble)
+                     , (0 ** byte')
+                     , (0 ** char)
+                     , (0 ** hash)
+                     , (0 ** transitionId)
+                     , (0 ** data')
+                     , (0 ** previous)
+                     , (0 ** rootTx)
+                     ]
   where
   bit' : TNamed 0
   bit' = TName "bit" $ TSum [T1, T1]
-  nibble : TNamed 0 
+  nibble : TNamed 0
   nibble = TName "nibble" $ powN 4 bit'
-  byte' : TNamed 0 
+  byte' : TNamed 0
   byte' = TName "byte" $ TProd [wrap nibble, wrap nibble]
-  char : TNamed 0 
+  char : TNamed 0
   char = TName "char" $ wrap byte'
-  hash : TNamed 0 
+  hash : TNamed 0
   hash = TName "hash" $ wrap byte'
-  transitionId : TNamed 0 
+  transitionId : TNamed 0
   transitionId = TName "transitionId" $ wrap byte'
-  data' : TNamed 0 
-  data' = TName "data" $ wrap byte'  
-  previous : TNamed 0 
+  data' : TNamed 0
+  data' = TName "data" $ wrap byte'
+  previous : TNamed 0
   previous = TName "previous" $ wrap hash
-  rootTx : TNamed 0 
+  rootTx : TNamed 0
   rootTx = TName "rootTx" $ TProd [wrap data', wrap previous]
 
 largeTuple : TNamed 0

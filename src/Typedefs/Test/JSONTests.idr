@@ -133,16 +133,16 @@ nestedMu5Defs = [ dquotes "nestedMu5" |+| colon
                               , ("Cons", prodDef [ref "nestedMu5", ref "NilCons"]) ]
 
 listOfDefsJSON : List Doc
-listOfDefsJSON = [ dquotes "bit" |+| colon |++| sumDef [ unitRef, unitRef ]
+listOfDefsJSON = [ dquotes "bit"          |+| colon |++| sumDef [ unitRef, unitRef ]
                  , unitDef
-                 , dquotes "nibble" |+| colon |++| prodDef (replicate 4 $ ref "bit")
-                 , dquotes "byte" |+| colon |++| prodDef (replicate 2 $ ref "nibble")
-                 , dquotes "char" |+| colon |++| ref "byte"
-                 , dquotes "hash" |+| colon |++| ref "byte"
+                 , dquotes "nibble"       |+| colon |++| prodDef (replicate 4 $ ref "bit")
+                 , dquotes "byte"         |+| colon |++| prodDef (replicate 2 $ ref "nibble")
+                 , dquotes "char"         |+| colon |++| ref "byte"
+                 , dquotes "hash"         |+| colon |++| ref "byte"
                  , dquotes "transitionId" |+| colon |++| ref "byte"
-                 , dquotes "data" |+| colon |++| ref "byte"
-                 , dquotes "previous" |+| colon |++| ref "hash"
-                 , dquotes "rootTx" |+| colon |++| prodDef [ref "data", ref "previous"]
+                 , dquotes "data"         |+| colon |++| ref "byte"
+                 , dquotes "previous"     |+| colon |++| ref "hash"
+                 , dquotes "rootTx"       |+| colon |++| prodDef [ref "data", ref "previous"]
                  ]
 
 generalDoc : List Doc -> List Doc -> Doc
@@ -152,7 +152,7 @@ generalDoc types defs = subthing braces
   , dquotes "required"             |+| colon |++| subthing brackets [ dquotes "value" ]
   , dquotes "additionalProperties" |+| colon |++| text "false"
   , dquotes "definitions"          |+| colon |++| subthing braces defs
-  , dquotes "properties"           |+| colon |++| subthing braces 
+  , dquotes "properties"           |+| colon |++| subthing braces
     [ dquotes "value" |+| colon |++| subthing braces [dquotes "oneOf" |+| colon |++| subthing brackets types] ]
   ]
 
@@ -197,7 +197,7 @@ testSuite = spec $ do
       generate nestedMu3
         `shouldBe` (Just $ generalDoc [ref "nestedMu3"] nestedMu3Defs)
 
-    it "nested mu 5: AnonList(Mu)" $ 
+    it "nested mu 5: AnonList(Mu)" $
       generate nestedMu5
         `shouldBe` (Just $ generalDoc [ref "nestedMu5"] nestedMu5Defs)
 
@@ -211,5 +211,5 @@ testSuite = spec $ do
                                       , ref "transitionId"
                                       , ref "data"
                                       , ref "previous"
-                                      , ref "rootTx"] 
-                                      listOfDefsJSON)     
+                                      , ref "rootTx"]
+                                      listOfDefsJSON)

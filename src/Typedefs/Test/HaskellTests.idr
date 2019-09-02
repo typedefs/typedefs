@@ -91,7 +91,7 @@ testSuite = spec $ do
       generate parametricSynonym
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , parametricDoc 
+                      , parametricDoc
                       ])
 
 
@@ -99,7 +99,7 @@ testSuite = spec $ do
       generate parametricSynonym2
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , parametric2Doc 
+                      , parametric2Doc
                       ])
 
 
@@ -107,7 +107,7 @@ testSuite = spec $ do
       generate aplusbpluscplusd
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , aplusbpluscplusdDoc 
+                      , aplusbpluscplusdDoc
                       ])
 
 
@@ -115,7 +115,7 @@ testSuite = spec $ do
       generate oneoneoneone
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , oneoneoneoneDoc 
+                      , oneoneoneoneDoc
                       ])
 
 
@@ -123,7 +123,7 @@ testSuite = spec $ do
       generate unusedFreeVars
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , unusedFreeVarsDoc 
+                      , unusedFreeVarsDoc
                       ])
 
 
@@ -131,7 +131,7 @@ testSuite = spec $ do
       generate voidOrUnit
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , voidOrUnitDoc 
+                      , voidOrUnitDoc
                       ])
 
 
@@ -147,7 +147,7 @@ testSuite = spec $ do
       generate listAlphaOrBeta
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , listAlphaOrBetaDoc 
+                      , listAlphaOrBetaDoc
                       ])
 
 
@@ -155,7 +155,7 @@ testSuite = spec $ do
       generate listBitOrByte
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , listBitOrByteDoc 
+                      , listBitOrByteDoc
                       ])
 
 
@@ -171,7 +171,7 @@ testSuite = spec $ do
       generate nestedMu2
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , nestedMu2Doc 
+                      , nestedMu2Doc
                       ])
 
 
@@ -179,7 +179,7 @@ testSuite = spec $ do
       generate nestedMu3
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , nestedMu3Doc 
+                      , nestedMu3Doc
                       ])
 
 
@@ -195,7 +195,7 @@ testSuite = spec $ do
       generate nestedMu5
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , nestedMu5Doc 
+                      , nestedMu5Doc
                       ])
 
 
@@ -203,24 +203,24 @@ testSuite = spec $ do
       generate singleConstructorMu
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , singleConstructorMuDoc 
+                      , singleConstructorMuDoc
                       ])
 
-    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $ 
-      generateDefs Haskell listOfDefs 
+    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
+      generateDefs Haskell listOfDefs
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , listOfDefsDoc 
+                      , listOfDefsDoc
                       ])
 
-{- 
+{-
     it "large tuple" $
       generate largeTuple
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
-                      , largeTupleDoc 
+                      , largeTupleDoc
                       ])
-                    
+
   describe "Haskell specialised types tests:" $ do
 
     let boolForBitDoc = text "type" |++| text "Byte"
