@@ -679,6 +679,103 @@ decodeFoo = do
                         _ -> failDecode
               return (Bar x x0)"""
 
+listOfDefsDoc : Doc 
+listOfDefsDoc = text """type Bit = Either () ()
+
+type Nibble = (Bit,Bit,Bit,Bit)
+
+type Byte = (Nibble,Nibble)
+
+type Char = Byte
+
+type Hash = Byte
+
+type TransitionId = Byte
+
+type Data = Byte
+
+type Previous = Hash
+
+type RootTx = (Data,Previous)
+
+encodeBit :: Serialiser Bit
+encodeBit x = case x of
+                Left z -> word8 (fromIntegral 0)
+                Right z -> word8 (fromIntegral 1)
+
+decodeBit :: Deserialiser Bit
+decodeBit = do
+              i <- deserialiseInt
+              case i of
+                0 -> return (Left ())
+                1 -> return (Right ())
+                _ -> failDecode
+
+encodeNibble :: Serialiser Nibble
+encodeNibble x = case x of
+                   (y,y0,y1,y2) -> mconcat [(encodeBit y)
+                                           ,(encodeBit y0)
+                                           ,(encodeBit y1)
+                                           ,(encodeBit y2)]
+
+decodeNibble :: Deserialiser Nibble
+decodeNibble = do
+                 x <- decodeBit
+                 x0 <- decodeBit
+                 x1 <- decodeBit
+                 x2 <- decodeBit
+                 return (x,x0,x1,x2)
+
+encodeByte :: Serialiser Byte
+encodeByte x = case x of
+                 (y,y0) -> mconcat [(encodeNibble y),(encodeNibble y0)]
+
+decodeByte :: Deserialiser Byte
+decodeByte = do
+               x <- decodeNibble
+               x0 <- decodeNibble
+               return (x,x0)
+
+encodeChar :: Serialiser Char
+encodeChar x = encodeByte x
+
+decodeChar :: Deserialiser Char
+decodeChar = decodeByte
+
+encodeHash :: Serialiser Hash
+encodeHash x = encodeByte x
+
+decodeHash :: Deserialiser Hash
+decodeHash = decodeByte
+
+encodeTransitionId :: Serialiser TransitionId
+encodeTransitionId x = encodeByte x
+
+decodeTransitionId :: Deserialiser TransitionId
+decodeTransitionId = decodeByte
+
+encodeData :: Serialiser Data
+encodeData x = encodeByte x
+
+decodeData :: Deserialiser Data
+decodeData = decodeByte
+
+encodePrevious :: Serialiser Previous
+encodePrevious x = encodeHash x
+
+decodePrevious :: Deserialiser Previous
+decodePrevious = decodeHash
+
+encodeRootTx :: Serialiser RootTx
+encodeRootTx x = case x of
+                   (y,y0) -> mconcat [(encodeData y),(encodePrevious y0)]
+
+decodeRootTx :: Deserialiser RootTx
+decodeRootTx = do
+                 x <- decodeData
+                 x0 <- decodePrevious
+                 return (x,x0)"""
+
 largeTupleDoc : Doc
 largeTupleDoc = text """type LargeTuple = (Either () ()
                   ,Either () ()

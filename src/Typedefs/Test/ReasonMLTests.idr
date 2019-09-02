@@ -149,7 +149,7 @@ testSuite = spec $ do
 
     it "unusedFreeVars" $
       generate unusedFreeVars
-        `shouldBe` (Just $ vsep2 
+        `shouldBe` (Just $ vsep2
                       [ preamble {def = ReasonML}
                       , text "type" |++| text "id" |+| parens x0
                         |++| equals |++| x0
@@ -169,7 +169,7 @@ testSuite = spec $ do
 
     it "nonlinear variable usage" $
       generate nonlinear
-        `shouldBe` (Just $ vsep2 
+        `shouldBe` (Just $ vsep2
                      [ preamble {def = ReasonML}
                      , text "type" |++| text "nonlinear" |+| parens x0
                        |++| equals |++| tupled [x0, x0]
@@ -216,7 +216,7 @@ testSuite = spec $ do
         , text "type" |++| text "nestedMu4" |+| parens x0
           |++| equals |++| text "Foobar"
                            |+| parens (text "list"
-                                |+| parens (text "either" 
+                                |+| parens (text "either"
                                      |+| tupled [ text "nestedMu4" |+| parens x0
                                                 , x0 ]))
           |+| semi
@@ -225,11 +225,11 @@ testSuite = spec $ do
     it "nested Mu 4: List(Either (Mu, Alpha))" $
       generate nestedMu4 `shouldBe` (Just $ vsep2 [preamble {def = ReasonML}, nestedMu4Doc])
 
-    it "Nested mu 5: AnonList(Mu)" $ 
+    it "Nested mu 5: AnonList(Mu)" $
       generate nestedMu5
         `shouldBe` (Just $ vsep2
                       [ preamble {def = ReasonML}, text "type" |++| text "nilCons" |+| parens x0
-                        |++| equals |++| text "Nil" 
+                        |++| equals |++| text "Nil"
                         |++| pipe   |++| text "Cons"
                                          |+| tupled [ x0
                                                     , text "nilCons" |+| parens x0 ]
@@ -254,5 +254,35 @@ testSuite = spec $ do
                                                  |+| parens (text "either"
                                                      |+| tupled [ x0
                                                                 , text "nat" ])))
+                        |+| semi
+                      ])
+
+    it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
+      generateDefs ReasonML listOfDefs
+        `shouldBe` (Just $ vsep2
+                      [ bitDoc
+                      , text "type" |++| text "nibble"
+                        |++| equals |++| tupled (replicate 4 (text "bit"))
+                        |+| semi
+                      , text "type" |++| text "byte"
+                        |++| equals |++| tupled (replicate 2 (text "nibble"))
+                        |+| semi
+                      , text "type" |++| text "char"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "hash"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "transitionId"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "data"
+                        |++| equals |++| text "byte"
+                        |+| semi
+                      , text "type" |++| text "previous"
+                        |++| equals |++| text "hash"
+                        |+| semi
+                      , text "type" |++| text "rootTx"
+                        |++| equals |++| tupled [text "data", text "previous"]
                         |+| semi
                       ])

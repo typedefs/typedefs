@@ -8,10 +8,12 @@ modules = Typedefs.Names
         , Typedefs.TermWrite
         , Typedefs.Provider
         , Typedefs.Backend
+        , Typedefs.Backend.Utils
         , Typedefs.Backend.Haskell
         , Typedefs.Backend.JSON
         , Typedefs.Backend.ReasonML
-        , Typedefs.Backend.Utils
+
+        , Typedefs.Test
         , Typedefs.Test.TypedefsSuite
         , Typedefs.Test.HaskellTests
         , Typedefs.Test.JSONTests
