@@ -40,9 +40,9 @@ fromVMax {m} vm = go lteRefl vm
   go lte (VMConsMore s ps vs prf) = (s**(lte, ps)) :: go (lteTransitive prf lte) vs
 
 PState : Type
-PState = SortedMap Name (DPair Nat TDef)
+PState = SortedMap Name (n ** TDef n)
 
-Pointed PState where
+Pointed (SortedMap Name a) where
   point = empty
 
 data Error : Type where
@@ -56,7 +56,7 @@ Show Error where
 Eq Error where
   (ParseError e1) == (ParseError e2) = e1 == e2
   RunError        == RunError        = True
-  _               == _               = False  
+  _               == _               = False
 
 Subset (Position, List Void) Error where
   into = ParseError . fst
@@ -103,7 +103,7 @@ tdefRef = guardM
 tdefName : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
 tdefName rec = guardM
   {a=((m**TNamed m), NEList (n**TDef n))}
-  (\(f,xs) => 
+  (\(f,xs) =>
       let (mx**vx) = toVMax (toVect xs)
        in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
   )
@@ -125,10 +125,10 @@ tdefNary rec sym con =
          (map2 {a=Parser' _} {b=Parser' _}
                (\p, q => commit $ and p q)
                (map {a=Parser' _} (ignoreSpaces . commit) rec)
-               (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))               
+               (map {a=Parser' _} (commit . nelist . ignoreSpaces) rec)))
 
 tdefVar : All (Parser' (n ** TDef n))
-tdefVar = map (\n => (S n ** TVar $ last {n})) $
+tdefVar = map {b=(n ** TDef n)} (\n => (S n ** TVar $ last {n})) $
             parens $ rand (ignoreSpaces $ string "var") (ignoreSpaces $ commit $ decimalNat)
 
 tdefMu : All (Box (Parser' (n ** TDef n)) :-> Parser' (n ** TDef n))
@@ -146,14 +146,20 @@ tdefMu rec = Combinators.map {a=NEList (String, (n : Nat ** TDef n))}
   (parens (rand (ignoreSpaces (string "mu"))
                 (Nat.map {a=Parser' _} (\t => commit $ nelist $ ignoreSpaces $ parens $ and (ignoreSpaces alphas) t) rec)))
 
+tdefZero : All (Parser' (n ** TDef n))
+tdefZero = cmap (the (n ** TDef n) (Z ** T0)) $ char '0'
+
+tdefOne : All (Parser' (n ** TDef n))
+tdefOne = cmap (the (n ** TDef n) (Z ** T1)) $ char '1'
+
 tdef : All (Parser' (n ** TDef n))
 tdef =
    fix (Parser' (n ** TDef n)) $ \rec =>
    ignoreSpaces $
    alts [ tdefRef
         , tdefName rec
-        , cmap (Z ** T0) $ char '0'
-        , cmap (Z ** T1) $ char '1'
+        , tdefZero
+        , tdefOne
         , tdefNary rec '*' TProd
         , tdefNary rec '+' TSum
         , tdefVar
@@ -164,10 +170,9 @@ tnamed : All (Parser' (n ** TNamed n))
 tnamed =
   ignoreSpaces $
   randbindm
-    (parens $ rand (ignoreSpaces $ string "name") 
+    (parens $ rand (ignoreSpaces $ string "name")
                    (and (ignoreSpaces alphas) (ignoreSpaces tdef)))
     (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
-
 
 ||| Parse a sequence of TDefs and return the last one that parsed, accumulating
 ||| and substituting named entries in the process

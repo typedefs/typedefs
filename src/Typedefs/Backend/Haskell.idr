@@ -4,6 +4,7 @@ import Typedefs.Names
 import Typedefs.Typedefs
 
 import Typedefs.Backend
+import Typedefs.Backend.Specialisation
 import Typedefs.Backend.Utils
 
 import Text.PrettyPrint.WL
@@ -23,6 +24,7 @@ import Effect.Exception
 -- Representing Haskell source code -----
 
 ||| The syntactic structure of Haskell types.
+public export
 data HsType : Type where -- TODO could be interesting to index this by e.g. used variable names?
   ||| The `Void` (i.e. empty) type.
   HsVoid  :                                HsType
@@ -45,6 +47,9 @@ data HsType : Type where -- TODO could be interesting to index this by e.g. used
   ||| A function type (only used for top-level type of termdef
   ||| decoders and encoders)
   HsArrow :         HsType -> HsType    -> HsType
+
+hsNamed : String -> HsType
+hsNamed = flip HsParam []
 
 private
 hsParam : Decl -> HsType
@@ -109,6 +114,14 @@ data Haskell : Type where
   ||| clauses of the form ((arg1, ..., argk), rhs).
   FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
+specialisedMap : SortedMap String HsType
+specialisedMap = insert "Int"  (hsNamed "Int")
+               $ insert "Bool" (hsNamed "Bool")
+               $ empty
+
+Specialisation HsType where
+  specialisedTypes = specialisedMap
+
 -- Effects -----
 
 ||| Environment, contains currently used variables and names
@@ -137,7 +150,7 @@ runTermGen env mx = runInit (initialState env) mx
       , STATE (LRes 'Spec (SortedMap String HsType))
       , EXCEPTION CompilerError
       ]
-    initialState env = ['Env := (empty, env), 'Spec := empty, default]
+    initialState env = ['Env := (empty, env), 'Spec := specialisedMap, default]
 
 HaskellDefM : Type -> Type
 HaskellDefM = MakeDefM HsType
@@ -412,9 +425,10 @@ makeType e    (TVar v)    = pure $ Vect.index v e
 makeType e td@(TMu cases) = pure $ HsParam (nameMu cases) $ getUsedVars e td
 makeType e    (TApp f xs) = do ys <- (traverseEffect (assert_total (makeType e)) xs)
                                pure $ HsParam (name f) ys
-makeType e    (TRef n)    = case lookup n !('Spec :- get) of
-                              Just t => pure t
-                              Nothing => raise $ RefNotFound n
+makeType e    (FRef n)    = do specMap <- 'Spec :- get
+                               case lookup n specMap of
+                                 Just t => pure t
+                                 Nothing => raise $ RefNotFound ("could not find " ++ n ++ " in " ++ (show $ keys specMap))
 
 ||| Generate a Haskell type from a `TNamed`.
 makeType' : Vect n HsType -> TNamed n -> HaskellLookupM HsType
@@ -430,7 +444,7 @@ mutual
   makeDefs    (TSum xs)   = concat <$> traverseEffect (assert_total makeDefs) xs
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
-  makeDefs    (TRef n)    = pure []
+  makeDefs    (FRef _)    = pure []
   makeDefs    (TApp f xs) =
     do res <- assert_total $ makeDefs' f
        res' <- concat <$> traverseEffect (assert_total makeDefs) xs
@@ -616,8 +630,8 @@ dependencies env td =
     go     env   (TProd xs)                      = traverseRec env xs
     go     env   (TVar v)                        = pure []
     go {n} env t@(TMu tds)                       = pure $ (n ** TName (nameMu tds) t) :: !(goMu env tds)
-    -- TRefs are not followed through the dependencies of the type they point to.
-    go     env   (TRef n)                        = pure []
+    -- FRefs are not followed through the dependencies of the type they point to.
+    go     env   (FRef _)                      = pure []
     go     env   (TApp {k} t@(TName name td) xs) = do
         envxs <- traverseEffect (makeType env) xs
         -- dependencies of the actual td
@@ -664,15 +678,12 @@ encode   (TProd {k} td) t =
      factors <- traverseWithIndex (\ i, t' => assert_total $ encode (index i td) t') freshPVs
      pure $ HsCase t [(HsTupC freshPVs, HsConcat (toList factors))]
 encode   (TVar i)       t =
-  do encoders <- envTerms
-     pure $ HsApp (index i encoders) [t]
+     pure $ HsApp (index i !envTerms) [t]
 encode t@(TMu tds)      y =
-  do eTerm <- encoderTerm t
-     pure $ HsApp eTerm [y] -- assumes the def of eTerm is generated elsewhere
+     pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
 encode t@(TApp f xs)    y =
-  do eTerm <- encoderTerm t
-     pure $ HsApp eTerm [y] -- assumes the def of eTerm is generated elsewhere
-encode   (TRef n)       y = raise $ RefNotFound n
+     pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
+encode   (FRef n)       t = raise $ ReferencesNotSupported "Haskell term encoder"
 
 ||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
@@ -703,11 +714,10 @@ decode   (TProd {k} xs) =
     traverseIndexDecode : Vect (2 + k) HsTerm -> Fin (2 + k) -> TDef n -> TermGen n (Maybe HsTerm, HsTerm)
     traverseIndexDecode vars i tdef = pure (Just $ index i vars, !(assert_total $ decode tdef))
 decode   (TVar i)       =
-  do decoders <- envTerms
-     pure $ index i decoders
+     pure $ index i !envTerms
 decode t@(TMu tds)      = decoderTerm t -- assumes the def of this is generated elsewhere
 decode t@(TApp f xs)    = decoderTerm t -- assumes the def of this is generated elsewhere
-decode   (TRef n)       = raise $ RefNotFound n
+decode   (FRef n)       = raise $ ReferencesNotSupported "Haskell term decoder"
 
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.

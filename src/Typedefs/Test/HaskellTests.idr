@@ -18,7 +18,7 @@ import Data.Vect
 %access public export
 
 generate : TNamed n -> Maybe Doc
-generate {n} tn = generateDefs Haskell $ singleton (n ** tn)
+generate {n} tn = eitherToMaybe $ generateDefs Haskell $ singleton (n ** tn)
 
 {-
 boolForBit : SpecialiseEntry
@@ -207,7 +207,7 @@ testSuite = spec $ do
                       ])
 
     it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
-      generateDefs Haskell listOfDefs
+      (eitherToMaybe $ generateDefs Haskell listOfDefs)
         `shouldBe` (Just $ vsep2
                       [ preamble {def = Haskell}
                       , listOfDefsDoc

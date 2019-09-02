@@ -25,6 +25,10 @@ fromSigma True  (n  **pn) = Just $ Unbounded $ pn
 fromSigma False (Z  **pz) = Just $ Zero $ pz
 fromSigma False (S _** _) = Nothing
 
+fromSigmaEither : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Either CompilerError (ZeroOrUnbounded p b)
+fromSigmaEither b n = maybe (Left $ RefNotFound "oahdahsdjh") Right $ fromSigma b n
+
+
 ||| Interface for interpreting type definitions as ASTs.
 ||| @def      the type representing definitions.
 ||| @type     the type representing types.
@@ -56,17 +60,17 @@ interface CodegenIndep def type | def where
   preamble : Doc
 
 ||| Use the given backend to generate code for a list of type definitions.
-generateDefs : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
-generateDefs {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
+generateDefs : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Either CompilerError Doc
+generateDefs {fv} def tns = (traverse (fromSigmaEither fv) tns) >>= generateDefinitions
   where
-    generateDefinitions : NEList (ZeroOrUnbounded TNamed fv) -> Maybe Doc
-    generateDefinitions nel = do defs <- eitherToMaybe $ generateTyDefs {def} nel
-                                 terms <- eitherToMaybe $ generateTermDefs {def} nel
+    generateDefinitions : NEList (ZeroOrUnbounded TNamed fv) -> Either CompilerError Doc
+    generateDefinitions nel = do defs <- generateTyDefs {def} nel
+                                 terms <- generateTermDefs {def} nel
                                  pure $ vsep2 $ (preamble {def}) :: (defSource <$> defs ++ terms)
 
 ||| Use the given backend to generate code for a list of type signatures.
 generateType : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
-generateType {fv} def tns = 
+generateType {fv} def tns =
   typeSource {def} <$> (concatMap (eitherToMaybe . msgType {def})) !(traverse (fromSigma fv) tns)
 
 ||| Interface for code generators that need to generate code for type definitions and
