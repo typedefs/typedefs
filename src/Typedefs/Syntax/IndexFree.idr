@@ -26,9 +26,45 @@ parseWithArgs =  map (uncurry MkDefName) $ alphas `and` (map NEList.toList $ nel
 parseDefName : All (Parser' DefName)
 parseDefName = parseNoArg `alt` parseWithArgs
 
-parseAnon : All (Parser' AnonymousDef)
+-- parseZero : All (Parser' Expr)
+-- parseZero = cmap Zero $ char '0'
+--
+-- parseOne : All (Parser' Expr)
+-- parseOne = cmap One $ char '1'
 
-nameColType : All (Parser' (String, AnonymousDef))
+parseIdent : All (Parser' Expr)
+parseIdent = map Ref alphas
+
+parseInfix : Char -> f -> All (Parser' f)
+parseInfix c f = cmap f $ char c
+
+parsePower : All (Parser' Power)
+parsePower = map PLit decimalNat `alt`
+             ?useFix
+
+
+parseFactor : All (Parser' Factor)
+parseFactor = hchainl (map FEmb parsePower) (parseInfix '^' FPow) parsePower
+
+parseTerm : All (Parser' Term)
+parseTerm = hchainl (map TEmb parseFactor) (parseInfix '*' TMul) parseFactor
+
+parsePlus : All (Parser' (Expr -> Term -> Expr))
+parsePlus = parseInfix '+' ESum
+
+parseExpr : All (Parser' Expr)
+parseExpr = hchainl (map EEmb parseTerm) parsePlus parseTerm
+
+
+parseAnon : All (Parser' Expr)
+parseAnon = alts
+  [ parseExpr
+  , parseIdent
+  ]
+
+
+
+nameColType : All (Parser' (String, Expr))
 nameColType = separator (char ':') alphas parseAnon
 
 parseSimple : All (Parser' Definition)

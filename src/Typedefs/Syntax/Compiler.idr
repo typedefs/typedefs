@@ -1,0 +1,195 @@
+module Typedefs.Syntax.Compiler
+
+import Data.Vect
+
+import Effects
+import Effect.Exception
+import Effect.State
+
+import Typedefs.Typedefs
+import Typedefs.Syntax.AST
+import Typedefs.Names
+
+%default total
+
+natMax : Nat -> Nat -> Nat
+natMax Z n = n
+natMax n Z = n
+natMax (S k) (S l) = S (natMax k l)
+
+natMaxSym : (a, b : Nat) -> natMax a b = natMax b a
+natMaxSym Z Z = Refl
+natMaxSym Z (S k) = Refl
+natMaxSym (S k) Z = Refl
+natMaxSym (S k) (S j) = cong $ natMaxSym k j
+
+natMaxSucc : (a, b : Nat) -> natMax (S a) (S b) = S (natMax a b)
+natMaxSucc Z Z = Refl
+natMaxSucc Z (S k) = Refl
+natMaxSucc (S k) Z = Refl
+natMaxSucc (S k) (S j) = cong $ natMaxSucc k j
+
+magicProof : (n, m : Nat) -> n `LTE` (natMax n m)
+magicProof Z _ = LTEZero
+magicProof Z (S k) = LTEZero
+magicProof (S k) Z = lteRefl
+magicProof (S k) (S j) = LTESucc $ magicProof k j
+
+weakenMax : (n, m : Nat) -> TDef n -> (TDef (natMax n m))
+weakenMax n m tdef = weakenTDef tdef (natMax n m) (magicProof n m)
+
+postulate weakenMax' : (n, m : Nat) -> TDef m -> (TDef (natMax n m))
+
+CompilerM : Type -> Type
+CompilerM t = Eff t [EXCEPTION String]
+
+fromNat : Nat -> TDef Z
+fromNat Z = T0
+fromNat (S Z) = T1
+fromNat (S (S n)) = TSum (replicate (S (S n)) T1)
+
+mutual
+  compilePower : AST.Power -> CompilerM (Either Nat (TDef Z))
+  compilePower (PLit n) = pure (Left n)
+  compilePower (PEmb x) = pure (Right !(compileFactor x))
+
+  compileFactor : AST.Factor -> CompilerM (TDef Z)
+  compileFactor (FEmb x) = do Left n <- compilePower x
+                                | Right def => pure def
+                              pure (fromNat n)
+  compileFactor (FPow x y) = do
+    f <- compileFactor x
+    case !(compilePower y) of
+         Left p => pure $ (Typedefs.pow p f)
+         Right def => pure def
+
+compileTerm : AST.Term -> CompilerM (TDef Z)
+compileTerm (TEmb x) = compileFactor x
+compileTerm (TMul x y) = do t <- compileTerm x
+                            f <- compileFactor y
+                            pure $ (TProd [t, f])
+
+compileExpr : AST.Expr -> CompilerM (TDef Z)
+compileExpr (EEmb x) = compileTerm x
+compileExpr (ESum x y) = do (e) <- compileExpr x
+                            (t) <- compileTerm y
+                            pure $ TSum [e, t]
+compileExpr (Ref x) = pure $ (TRef x)
+
+plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
+plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
+
+flattenSum : TDef Z -> (n ** Vect (S n) (TDef Z))
+flattenSum (TSum [l, r]) = let (li ** left) = flattenSum l
+                               (ri ** right) = flattenSum r
+                               vect = (left ++ right)
+                            in (li + (S ri) ** vect)
+flattenSum tdef = (Z ** [tdef])
+
+flattenMult : TDef Z -> (n ** Vect (S n) (TDef Z))
+flattenMult (TProd [l, r]) = let (li ** left) = flattenMult l
+                                 (ri ** right) = flattenMult r
+                              in (li + (S ri) ** (left ++ right))
+flattenMult tdef = (Z ** [tdef])
+
+flattenExpressionTree : TDef Z -> TDef Z
+flattenExpressionTree (TSum [l, r]) =
+  let (li ** left) = flattenSum l
+      (ri ** right) = flattenSum r
+      plusProof = cong {f=S} $ sym $ plusSuccRightSucc li ri
+      prf = cong {f = \x => Vect x (TDef Z)} $ plusProof
+      prd2 = replace {P=id} prf (left ++ right)
+   in TSum prd2
+flattenExpressionTree (TProd [l, r]) =
+  let (li ** left) = flattenMult l
+      (ri ** right) = flattenMult r
+      prf = cong {f = \x => Vect x (TDef Z)} $ plusSuccSucc li ri
+      prd2 = replace {P=id} prf (left ++ right)
+   in TProd prd2
+flattenExpressionTree tdef = tdef
+
+ComputeEffect : {a : Nat -> Type} -> (n ** a n) -> List EFFECT
+ComputeEffect (l ** _) = [EXCEPTION String, STATE (Vect l String)]
+
+succPlus : (n : Nat) -> S n = n + 1
+succPlus Z = Refl
+succPlus (S k) = cong {f=S} $ succPlus k
+
+trivialLTE : (m : Nat) -> m `LTE` (S m)
+trivialLTE Z = LTEZero
+trivialLTE (S k) = LTESucc (trivialLTE k)
+
+||| return the index of the given element in the context, extend accordingly
+||| More precisely: Given a list of elements, a context as a vector and an
+||| element, return the index of the element inside the context. If it cannot
+||| be found this function will raise an error. If it cannot be found in context
+||| but can be found in the list then extend the context with the missing element.
+mkVariableCtx : Show a => Eq a => (ls : List a) -> (e : a) -> (state : Vect m a)
+             -> CompilerM (n ** (m `LTE` (S n), Fin (S n), Vect (S n) a))
+mkVariableCtx ls e state {m} with (Vect.findIndex (== e) state)
+  mkVariableCtx ls e state {m}     | Nothing with (find (== e) ls)
+    mkVariableCtx ls e state {m}   | Nothing | Nothing  = raise $ "not found: " ++ show e
+    mkVariableCtx ls e state {m}   | Nothing | (Just x) = pure (m ** ( trivialLTE m
+                                                                     , last
+                                                                     , rewrite succPlus m in state ++ [x]))
+  mkVariableCtx ls e state {m=S m} | Just i  = pure (m ** (LTESucc lteRefl, i, state))
+
+mutual
+  ||| Fold over a dependent type. The result are both a TDef and its context.
+  ||| The TDef is weakened accordingly when the context grows which is why we
+  ||| need the `LTE` proof.
+  foldIndexify : List String -> {m, k : Nat} -> (acc : (Vect k (TDef m))) -> (ctx : Vect m String)
+              -> Vect l (TDef Z)
+              -> CompilerM (n ** (m `LTE` n, Vect l (TDef n), Vect n String))
+  foldIndexify names acc ctx [] {m} = pure (m ** (lteRefl, [], ctx))
+  foldIndexify names acc ctx (def :: defs) = do
+    (a ** (lteprf, newdef, newctx)) <- indexify names ctx def
+    let weak = map (\tdef => weakenTDef tdef a lteprf) acc
+    (b ** (lteprf', restDefs, newctx')) <- foldIndexify names (newdef :: weak) newctx defs
+    pure (b ** (lteTransitive lteprf lteprf', weakenTDef newdef b lteprf' :: restDefs, newctx'))
+
+  ||| Give index to all free references
+  ||| More specifically it will:
+  |||  - Replace all TRef by a TVar pointing to its index in the context
+  |||  - update the context with new variables when they are not in context
+  |||  - throw when a variable cannot be found
+  indexify : List String -> (ctx : Vect m String) -> TDef Z
+          -> CompilerM (n ** (m `LTE` n, TDef n, Vect n String))
+  indexify names ctx T0 {m} = pureM (m ** (lteRefl, T0, ctx))
+  indexify names ctx T1 {m} = pureM (m ** (lteRefl, T1, ctx))
+  indexify names ctx (TSum xs) {m} = do
+    (a ** (prf, args, newctx)) <- foldIndexify names [] ctx xs
+    pure (a ** (prf, TSum args, newctx))
+  indexify names ctx (TProd xs) {m} = do
+    (a ** (prf, args, newctx)) <- foldIndexify names [] ctx xs
+    pure (a ** (prf, TProd args, newctx))
+  indexify names ctx (TRef name) = do (l ** (prf, index, newCtx)) <- mkVariableCtx names name ctx
+                                      pure (S l ** (prf, TVar index, newCtx))
+  indexify names ctx _ = raise "shouldn't happen, lol typechecking amirite"
+
+indexEnum : (name : String) -> (args : List String)
+         -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
+indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args ["b"] tdef
+                              pure (n ** newTDef)
+
+||| Compile an enum syntax down to a TMu
+||| @name the name given to the type
+||| @args the names used as type parameters
+||| @constructors the list of constructors for each value
+compileEnum : (name : String) -> (args : List String)
+           -> (constructors : List (String, TDef Z))
+           -> CompilerM (n ** TNamed n)
+compileEnum name args constructors = do
+  let asVect = fromList $ map (map $ indexEnum name args) constructors
+  pure $ ?what
+
+compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
+compileDef (MkTopLevelDef (MkDefName n (x :: xs)) (Simple y)) =
+  raise "anonymous definition can't have arguments"
+compileDef (MkTopLevelDef (MkDefName defn []) (Simple x)) = do
+  c <- compileExpr x
+  pure (Z ** TName defn c)
+compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) =
+  compileEnum n args (map (map ?todef) xs)
+compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at this time"
+
