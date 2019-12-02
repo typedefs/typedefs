@@ -2,6 +2,7 @@ module Typedefs.Syntax.IndexFree
 
 import Typedefs.Syntax.AST
 import TParsec
+import TParsec.Running
 import Data.NEList
 
 separator : (Alternative mn, Monad mn) =>
@@ -17,6 +18,13 @@ sepBy parser sep = map (flip MkNEList []) parser
 Parser' : Type -> Nat -> Type
 Parser' = Parser (TParsecT () Void Maybe) chars
 
+record Language (n : Nat) where
+  constructor MkLanguage
+  _expr   : Parser' Expr n
+  _term   : Parser' Term n
+  _factor : Parser' Factor n
+  _power  : Parser' Power n
+
 parseNoArg : All (Parser' DefName)
 parseNoArg = map (flip MkDefName []) alphas
 
@@ -26,49 +34,33 @@ parseWithArgs =  map (uncurry MkDefName) $ alphas `and` (map NEList.toList $ nel
 parseDefName : All (Parser' DefName)
 parseDefName = parseNoArg `alt` parseWithArgs
 
--- parseZero : All (Parser' Expr)
--- parseZero = cmap Zero $ char '0'
---
--- parseOne : All (Parser' Expr)
--- parseOne = cmap One $ char '1'
-
 parseIdent : All (Parser' Expr)
 parseIdent = map Ref alphas
 
 parseInfix : Char -> f -> All (Parser' f)
 parseInfix c f = cmap f $ char c
 
-parsePower : All (Parser' Power)
-parsePower = map PLit decimalNat `alt`
-             ?useFix
-
-
-parseFactor : All (Parser' Factor)
-parseFactor = hchainl (map FEmb parsePower) (parseInfix '^' FPow) parsePower
-
-parseTerm : All (Parser' Term)
-parseTerm = hchainl (map TEmb parseFactor) (parseInfix '*' TMul) parseFactor
-
 parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
 
-parseExpr : All (Parser' Expr)
-parseExpr = hchainl (map EEmb parseTerm) parsePlus parseTerm
+language : All (Language)
+language = fix (Language) $ \rec => let 
+  parsePower = map PLit decimalNat `alt` map PEmb (parens (Nat.map {a=Language} _expr rec))
 
+  parseFactor = hchainl (map FEmb (parsePower)) (parseInfix '^' FPow) parsePower
 
-parseAnon : All (Parser' Expr)
-parseAnon = alts
-  [ parseExpr
-  , parseIdent
-  ]
+  parseTerm = hchainl (map TEmb (parseFactor)) (parseInfix '*' TMul) parseFactor
 
+  parseExpr = hchainl (map EEmb (parseTerm)) parsePlus parseTerm
+
+  in MkLanguage (parseExpr) (parseTerm) (parseFactor) (parsePower)
 
 
 nameColType : All (Parser' (String, Expr))
-nameColType = separator (char ':') alphas parseAnon
+nameColType = separator (char ':') alphas (_expr language)
 
 parseSimple : All (Parser' Definition)
-parseSimple = map Simple parseAnon
+parseSimple = map Simple (_expr language)
 
 parseEnum : All (Parser' Definition)
 parseEnum = map (Enum . NEList.toList) $ nameColType `sepBy` char '|'
