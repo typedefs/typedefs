@@ -20,7 +20,7 @@ mutual
   -- Strongest priority
   data Power : Type where
     PLit : Nat -> Power
-    PEmb : Factor -> Power
+    PEmb : Expr -> Power
 
 
 record DefName where

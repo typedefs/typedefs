@@ -9,6 +9,8 @@ import Effect.State
 import Typedefs.Typedefs
 import Typedefs.Syntax.AST
 import Typedefs.Names
+import Typedefs.Backend.Utils
+import Typedefs.Parse
 
 %default total
 
@@ -51,7 +53,7 @@ fromNat (S (S n)) = TSum (replicate (S (S n)) T1)
 mutual
   compilePower : AST.Power -> CompilerM (Either Nat (TDef Z))
   compilePower (PLit n) = pure (Left n)
-  compilePower (PEmb x) = pure (Right !(compileFactor x))
+  compilePower (PEmb x) = pure (Right !(compileExpr x))
 
   compileFactor : AST.Factor -> CompilerM (TDef Z)
   compileFactor (FEmb x) = do Left n <- compilePower x
@@ -63,18 +65,18 @@ mutual
          Left p => pure $ (Typedefs.pow p f)
          Right def => pure def
 
-compileTerm : AST.Term -> CompilerM (TDef Z)
-compileTerm (TEmb x) = compileFactor x
-compileTerm (TMul x y) = do t <- compileTerm x
-                            f <- compileFactor y
-                            pure $ (TProd [t, f])
+  compileTerm : AST.Term -> CompilerM (TDef Z)
+  compileTerm (TEmb x) = compileFactor x
+  compileTerm (TMul x y) = do t <- compileTerm x
+                              f <- compileFactor y
+                              pure $ (TProd [t, f])
 
-compileExpr : AST.Expr -> CompilerM (TDef Z)
-compileExpr (EEmb x) = compileTerm x
-compileExpr (ESum x y) = do (e) <- compileExpr x
-                            (t) <- compileTerm y
-                            pure $ TSum [e, t]
-compileExpr (Ref x) = pure $ (TRef x)
+  compileExpr : AST.Expr -> CompilerM (TDef Z)
+  compileExpr (EEmb x) = compileTerm x
+  compileExpr (ESum x y) = do (e) <- compileExpr x
+                              (t) <- compileTerm y
+                              pure $ TSum [e, t]
+  compileExpr (Ref x) = pure $ (TRef x)
 
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
@@ -167,21 +169,34 @@ mutual
                                       pure (S l ** (prf, TVar index, newCtx))
   indexify names ctx _ = raise "shouldn't happen, lol typechecking amirite"
 
+||| Given the name of an enum and the name of its argument construct a correctly indexed TDef
 indexEnum : (name : String) -> (args : List String)
          -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
 indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args ["b"] tdef
                               pure (n ** newTDef)
+
+checkDefs : Vect n a -> CompilerM (k ** Vect (2 + k) a)
+checkDefs [x, y] = pure (Z ** [x, y])
+checkDefs (x :: xs) = do (n ** ns) <- checkDefs xs
+                         pure (S n ** x :: ns)
+checkDefs _ = raise "enum doesn't have at least two constructors"
+
+maximize : Vect (S k) (n ** TDef n) -> (m ** Vect (S k) (TDef m))
+maximize vect = let (n ** max) = toVMax vect in
+                    (n ** map (\(_ ** (lte, td)) => weakenTDef td n lte) (fromVMax max))
 
 ||| Compile an enum syntax down to a TMu
 ||| @name the name given to the type
 ||| @args the names used as type parameters
 ||| @constructors the list of constructors for each value
 compileEnum : (name : String) -> (args : List String)
-           -> (constructors : List (String, TDef Z))
+           -> (constructors : Vect m (String, TDef Z))
            -> CompilerM (n ** TNamed n)
 compileEnum name args constructors = do
-  let asVect = fromList $ map (map $ indexEnum name args) constructors
-  pure $ ?what
+  (k ** checkedDefs) <- checkDefs (constructors)
+  defs <- traverseEffect (\(n, def) => indexEnum name args def ) checkedDefs
+  let (i ** maximized) = maximize $ defs
+  pure $ (i ** TName name $ TSum {k} maximized)
 
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName n (x :: xs)) (Simple y)) =
@@ -189,7 +204,17 @@ compileDef (MkTopLevelDef (MkDefName n (x :: xs)) (Simple y)) =
 compileDef (MkTopLevelDef (MkDefName defn []) (Simple x)) = do
   c <- compileExpr x
   pure (Z ** TName defn c)
-compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) =
-  compileEnum n args (map (map ?todef) xs)
+compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) = do
+  exprdef <- traverseEffect (\(n, d) => MkPair n <$> (compileExpr d)) (fromList xs)
+  compileEnum n args exprdef
 compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at this time"
 
+
+compileEither : AST.TopLevelDef -> Either String (n ** TNamed n)
+compileEither ast = run (compileDef ast)
+
+listDef : AST.TopLevelDef
+listDef = MkTopLevelDef (MkDefName "List" ["a"])
+  (Enum [ ("Nil", EEmb $ TEmb $ FEmb $ PLit 1)
+        , ("Cons", EEmb $ TMul (TEmb $ FEmb $ PEmb $ Ref "a")
+                                      (FEmb $ PEmb $ Ref "List"))])
