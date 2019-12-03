@@ -33,5 +33,3 @@ testSuite = spec $ do
       Right (2 **
                ( the (TDefR 2) (TSum [RRef FZ, RRef (FS FZ)])
                , [HsParam "Bool" [], HsParam "Int" []]))
-
-

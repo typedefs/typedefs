@@ -3,6 +3,7 @@ module Typedefs.Backend.Utils
 import Typedefs.Typedefs
 import Typedefs.Backend.Specialisation
 import Typedefs.Names
+import Typedefs.Either
 
 import Control.Monad.State
 import Data.Vect
@@ -38,7 +39,6 @@ freshEnv var = map (\ix => Left (var ++ show (finToInteger ix))) range
 getFreeVars : (e : Env n) -> Vect (fst (Vect.filter Either.isLeft e)) String
 getFreeVars e with (filter isLeft e)
   | (p ** v) = map (either id (const "")) v
-
 
 -- TODO implementation in base was erroneous, this has been merged but is not in a version yet.
 foldr1' : (a -> a -> a) -> Vect (S n) a -> a
@@ -78,7 +78,7 @@ flattenMus muName = flattenMu [muName]
   flattenMu names (FRef i) {a = True } = FRef i
 
 traverseEffect : (a -> Eff b e) -> Vect k a -> Eff (Vect k b) e
-traverseEffect f [] = pure []
+traverseEffect f []        = pure []
 traverseEffect f (x :: xs) = do v <- f x
                                 vs <- traverseEffect f xs
                                 pure $ v :: vs
@@ -121,7 +121,7 @@ MakeDefM : Type -> Type -> Type
 MakeDefM target t = Eff t [NAMES, SPECIALIZED target, ERR]
 
 toEff : Either CompilerError a -> Eff a [ERR]
-toEff (Left err) = raise err
+toEff (Left err)  = raise err
 toEff (Right val) = pure val
 
 runMakeDefM : Specialisation t => MakeDefM t a -> Either CompilerError a
@@ -130,10 +130,6 @@ runMakeDefM m = runInit ['Names := [], 'Spec := specialisedTypes, default] m
 -- idk why this is necessary sometimes
 subLookup : LookupM target value -> MakeDefM target value
 subLookup m = m
-
-mapLeft : (a -> b) -> Either a k -> Either b k
-mapLeft f (Left v) = Left (f v)
-mapLeft f (Right v) = Right v
 
 ||| Only perform an action if a name is not already present in the state. If the action is performed, the name will be added.
 ifNotPresent : {t : Type} -> Name -> MakeDefM t (List def) -> MakeDefM t (List def)

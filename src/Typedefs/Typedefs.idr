@@ -5,6 +5,7 @@ import Data.Vect
 import Data.NEList
 
 import Typedefs.Names
+import Typedefs.Strings
 
 %default total
 %access public export
@@ -12,7 +13,7 @@ import Typedefs.Names
 mutual
   ||| Type definition
   ||| @n The number of type variables in the type
-  ||| @b If the TDef contains unknoen references or not
+  ||| @b A flag to indicate whether the TDef contains unknown references
   data TDef' : (n : Nat) -> (b : Bool) -> Type where
     ||| The empty type
     T0    :                                                TDef' n b
@@ -36,7 +37,7 @@ mutual
     ||| Application of a named type to a vector of arguments.
     TApp  : TNamed' k b -> Vect k (TDef' n b)           -> TDef' n b
 
-    ||| A resolved reference to an unknown typedefs
+    ||| A resolved reference to an unknown typedef
     RRef  : Fin (S n)                                   -> TDef' (S n) False
 
     ||| A free reference to an unknown typedef
@@ -61,7 +62,7 @@ SpecType' n False = Fin n
 TDef : Nat -> Type
 TDef n = TDef' n True
 
-||| TDef with variables
+||| TNamed with variables
 TNamed : Nat -> Type
 TNamed n = TNamed' n True
 
@@ -69,7 +70,7 @@ TNamed n = TNamed' n True
 TDefR : Nat -> Type
 TDefR n = TDef' n False
 
-||| Resolved TName
+||| Resolved TNamed
 TNamedR : Nat -> Type
 TNamedR n = TNamed' n False
 
@@ -92,21 +93,6 @@ wrap tn = TApp tn idVars
 alias : Name -> TNamed n -> TNamed n
 alias name tn = TName name (wrap tn)
 
-parens : String -> String
-parens "" = ""
-parens s = "(" ++ s ++ ")"
-
-parens' : String -> String
-parens' s = if " " `isInfixOf` s then "(" ++ s ++ ")" else s
-
-curly : String -> String
-curly "" = ""
-curly s = "{" ++ s ++ "}"
-
-square : String -> String
-square "" = ""
-square s = "[" ++ s ++ "]"
-
 ||| Generate the canonical name of a closed type.
 makeName : TDef' 0 b -> Name
 makeName T0          = "void"
@@ -121,15 +107,15 @@ makeName (FRef i)    {b = True } = "ref"
 ||| Add 1 to all de Bruijn-indices in a `TDef`.
 ||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
 shiftVars : TDef' n a -> TDef' (S n) a
-shiftVars T0          {a = a    } = T0
-shiftVars T1          {a = a    } = T1
-shiftVars (TSum ts)   {a = a    } = assert_total $ TSum $ map shiftVars ts
-shiftVars (TProd ts)  {a = a    } = assert_total $ TProd $ map shiftVars ts
-shiftVars (TMu cs)    {a = a    } = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs) {a = a    } = assert_total $ TApp f $ map shiftVars xs
+shiftVars T0                      = T0
+shiftVars T1                      = T1
+shiftVars (TSum ts)               = assert_total $ TSum $ map shiftVars ts
+shiftVars (TProd ts)              = assert_total $ TProd $ map shiftVars ts
+shiftVars (TMu cs)                = assert_total $ TMu $ map (map shiftVars) cs
+shiftVars (TApp f xs)             = assert_total $ TApp f $ map shiftVars xs
 shiftVars (RRef i)    {a = False} = RRef $ shift 1 i
-shiftVars (TVar v)    {a = a    } = TVar $ shift 1 v
-shiftVars (FRef i)    {a = True } = FRef i
+shiftVars (TVar v)                = TVar $ shift 1 v
+shiftVars (FRef i)    {a = True}  = FRef i
 
 ||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
 ||| /!\ TDefR n will count resolved references as variables /!\
@@ -207,14 +193,14 @@ mutual
 -- `showTy` just needs a little nudge in the right direction
 %inline
 convertTy : Ty v (TApp (TName n def) xs) -> Ty v (def `ap` xs)
-convertTy x {def = T0         } = x
-convertTy x {def = T1         } = x
-convertTy x {def = (TSum xs)  } = x
-convertTy x {def = (TProd xs) } = x
-convertTy x {def = (TVar i)   } = x
-convertTy x {def = (TMu xs)   } = x
-convertTy x {def = (TApp y xs)} = x
-convertTy x {def = (RRef y)   } = x
+convertTy x {def = T0       } = x
+convertTy x {def = T1       } = x
+convertTy x {def = TSum xs  } = x
+convertTy x {def = TProd xs } = x
+convertTy x {def = TVar i   } = x
+convertTy x {def = TMu xs   } = x
+convertTy x {def = TApp y xs} = x
+convertTy x {def = RRef y   } = x
 
 -- Show and Eq instances
 
@@ -223,15 +209,28 @@ mutual
   showMu : (tvars : Vect n (a : Type ** a -> String)) -> (td : TDef' (S n) b) -> Mu (map DPair.fst tvars) td -> String
   showMu tvars td (Inn x) = "Inn " ++ parens' (showTy ((Mu (map DPair.fst tvars) td ** assert_total $ showMu tvars td)::tvars) td x)
 
-  showTy : (tvars : Vect n (a : Type ** a -> String)) -> (td : TDef n) -> Ty (map DPair.fst tvars) td -> String
-  showTy tvars T0                    x         impossible
-  showTy tvars T1                    x         = show x
-  showTy tvars (TSum [a,b])          (Left x)  = "Left " ++ parens' (showTy tvars a x)
-  showTy tvars (TSum [a,b])          (Right x) = "Right " ++ parens' (showTy tvars b x)
-  showTy tvars (TSum (a::b::c::xs))  (Left x)  = "Left " ++ parens' (showTy tvars a x)
-  showTy tvars (TSum (a::b::c::xs))  (Right x) = "Right " ++ parens' (assert_total $ showTy tvars (TSum (b::c::xs))  x)
-  showTy {n = n} tvars (TProd xs)    x         = parens (concat (List.intersperse ", " (showProd xs x)))
-    where showProd : (ys : Vect (2 + k) (TDef n)) -> Tnary (map DPair.fst tvars) ys Pair -> List String
+  ||| Print the content of a TDef provided functions to display Types as strings
+  ||| @tvars a vector of n functions that map types to their string representation
+  ||| @td the tdef to show
+  ||| @x the idris type represented by `td` using `tvars` for free variables
+  showTy : (tvars : Vect n (a : Type ** a -> String))
+        -> (td : TDefR n)
+        -> (x : Ty (map DPair.fst tvars) td)
+        -> String
+  showTy                  tvars  T0                          x        impossible
+  showTy                  tvars  T1                          x        = show x
+  showTy                  tvars  (TSum [a,b])               (Left x)  = "Left " ++ parens' (showTy tvars a x)
+  showTy                  tvars  (TSum [a,b])               (Right x) = "Right " ++ parens' (showTy tvars b x)
+  showTy                  tvars  (TSum (a::b::c::xs))       (Left x)  = "Left " ++ parens' (showTy tvars a x)
+  showTy                  tvars  (TSum (a::b::c::xs))       (Right x) = "Right " ++ parens' (assert_total $ showTy tvars (TSum (b::c::xs)) x)
+  showTy   ((a ** showA)::tvars) (TVar FZ)                   x        = showA x
+  showTy {n=S (S n')} (_::tvars) (TVar (FS i))               x        = showTy {n = S n'} tvars (TVar i) x
+  showTy                  tvars  (TMu m)                     x        = showMu tvars (args m) x
+  showTy   ((a ** showA)::tvars) (RRef FZ)                   x        = showA x
+  showTy {n=S (S n')} (_::tvars) (RRef (FS i))               x        = showTy {n = S n'} tvars (RRef i) x
+  showTy                  tvars  (TApp (TName name def) xs)  x        = assert_total $ showTy tvars (def `ap` xs) (convertTy x)
+  showTy {n}              tvars  (TProd xs)                  x        = parens $ concat $ List.intersperse ", " (showProd xs x)
+    where showProd : (ys : Vect (2 + k) (TDefR n)) -> Tnary (map DPair.fst tvars) ys Pair -> List String
           showProd [a, b]        (x, y) = (showTy tvars a x)::[showTy tvars b y]
           showProd (a::b::c::ys) (x, y) = (showTy tvars a x)::showProd (b::c::ys) y
 
@@ -288,12 +287,12 @@ minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
                             cong $ minusPlus n m (fromLteSucc lte)
 
+-- TODO add to stdlib
 weakenLTE : Fin n -> LTE n m -> Fin m
-weakenLTE FZ LTEZero impossible
-weakenLTE (FS _) LTEZero impossible
-weakenLTE FZ (LTESucc y) = FZ
+weakenLTE  FZ     LTEZero impossible
+weakenLTE (FS _)  LTEZero impossible
+weakenLTE  FZ    (LTESucc y) = FZ
 weakenLTE (FS x) (LTESucc y) = FS $ weakenLTE x y
-
 
 mutual
   ||| Increase the type index representing the number of variables accessible
