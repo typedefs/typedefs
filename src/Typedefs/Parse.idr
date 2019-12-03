@@ -39,9 +39,6 @@ fromVMax {m} vm = go lteRefl vm
   go lte (VMConsLess x px vs prf) = (x**(lteTransitive prf lte, px)) :: go lte vs
   go lte (VMConsMore s ps vs prf) = (s**(lte, ps)) :: go (lteTransitive prf lte) vs
 
-PState : Type
-PState = SortedMap Name (n ** TDef n)
-
 Pointed (SortedMap Name a) where
   point = empty
 
@@ -62,7 +59,7 @@ Subset (Position, List Void) Error where
   into = ParseError . fst
 
 TPState : Type -> Type
-TPState = TParsecT Error Void (State PState)
+TPState = TParsecT Error Void (State $ SortedMap Name (n ** TDef n))
 
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState chars

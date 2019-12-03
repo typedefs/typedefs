@@ -36,8 +36,8 @@ tnameInjName Refl = Refl
 tnameInjDef : {def, def' : TDef k} -> TName name def = TName name' def' -> def = def'
 tnameInjDef Refl = Refl
 
-trefInj : (FRef r = FRef r') -> r = r'
-trefInj Refl = Refl
+frefInj : (FRef r = FRef r') -> r = r'
+frefInj Refl = Refl
 
 -- inequality proofs
 
@@ -179,7 +179,7 @@ mutual
       decEq (TApp {k} f xs) (TApp {k=k2} f' xs') | No ctra  = No $ ctra . vectInj . tappInjVect
     decEq (FRef r)        (FRef r')            with (decEq r r')
       decEq (FRef r)        (FRef r)             | (Yes Refl) = Yes Refl
-      decEq (FRef r)        (FRef r')            | (No ctra) = No $ ctra . trefInj
+      decEq (FRef r)        (FRef r')            | (No ctra) = No $ ctra . frefInj
     decEq T0              T1                   = No t0NotT1
     decEq T0              (TSum xs)            = No t0NotTSum
     decEq T0              (TProd xs)           = No t0NotTProd

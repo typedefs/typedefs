@@ -12,9 +12,9 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
---TODO added to TParsec
-Traversable NEList where
-  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
+--TODO remove, added to TParsec
+--Traversable NEList where
+--  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
 
 data ZeroOrUnbounded : (Nat -> Type) -> Bool -> Type where
   Unbounded : p n -> ZeroOrUnbounded p True
@@ -27,7 +27,6 @@ fromSigma False (S _** _) = Nothing
 
 fromSigmaEither : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Either CompilerError (ZeroOrUnbounded p b)
 fromSigmaEither b n = maybe (Left $ RefNotFound "oahdahsdjh") Right $ fromSigma b n
-
 
 ||| Interface for interpreting type definitions as ASTs.
 ||| @def      the type representing definitions.

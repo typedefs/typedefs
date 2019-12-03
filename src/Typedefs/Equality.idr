@@ -1,7 +1,5 @@
 module Typedefs.Equality
 
-
-
 %access public export
 
 (DecEq a, (y : a) -> DecEq (p y)) => DecEq (DPair a p) where

@@ -9,7 +9,6 @@ import Typedefs.Names
 import Effects
 
 %default total
-
 %access export
 
 public export
@@ -45,7 +44,6 @@ nubLTE = nubBy' [] (==)
       | False with (nubBy' (x::acc) p xs)
         | (_ ** (tail, prf)) = (_ ** (x::tail, (LTESucc prf)))
 
-
 ||| extract all variables from a TDef
 ||| /!\ TDefR n will count resolved references as variables /!\
 allVars : (tdef : TDef' n a) -> (m ** Vect m (Fin n))
@@ -70,20 +68,19 @@ buildVect tdef m = let (l ** refs) = noDupRefs tdef
                     in MkDPair l <$> traverse (flip pairLookup m) refs
 
 traverseRefs : Applicative f => (String -> f (Fin k)) -> n `LTE` k -> TDef n -> f (TDef' k False)
-traverseRefs fn prf         T0                   = pure T0
-traverseRefs fn prf         T1                   = pure T1
-traverseRefs fn prf         (TSum xs)            = TSum <$> traverse (assert_total $ traverseRefs fn prf) xs
-traverseRefs fn prf         (TProd xs)           = TProd <$> traverse (assert_total $ traverseRefs fn prf) xs
-traverseRefs _  LTEZero     (TVar _) {k = Z    } impossible
-traverseRefs _  (LTESucc _) (TVar _) {k = Z    } impossible
-traverseRefs fn prf         (TVar i) {k = (S k)} = pure $ TVar (weakenLTE i prf)
-traverseRefs fn prf         (TApp x xs)          = assert_total $ traverseRefs fn prf (def x `ap` xs)
-traverseRefs fn prf         (FRef x) {k = Z    } = absurd <$> fn x
-traverseRefs fn prf         (FRef x) {k = (S k)} = RRef <$> fn x
-traverseRefs fn prf         (TMu xs) {n}         = TMu <$>
+traverseRefs fn prf         T0                 = pure T0
+traverseRefs fn prf         T1                 = pure T1
+traverseRefs fn prf         (TSum xs)          = TSum <$> traverse (assert_total $ traverseRefs fn prf) xs
+traverseRefs fn prf         (TProd xs)         = TProd <$> traverse (assert_total $ traverseRefs fn prf) xs
+traverseRefs _  LTEZero     (TVar _) {k = Z  } impossible
+traverseRefs _  (LTESucc _) (TVar _) {k = Z  } impossible
+traverseRefs fn prf         (TVar i) {k = S k} = pure $ TVar (weakenLTE i prf)
+traverseRefs fn prf         (TApp x xs)        = assert_total $ traverseRefs fn prf (def x `ap` xs)
+traverseRefs fn prf         (FRef x) {k = Z  } = absurd <$> fn x
+traverseRefs fn prf         (FRef x) {k = S k} = RRef <$> fn x
+traverseRefs fn prf         (TMu xs) {n}       = TMu <$>
   traverse (\(n, tdef) => MkPair n <$> (assert_total $ traverseRefs (map FS . fn) (LTESucc prf) tdef)) xs
   -- ^ this is a nightmare lambda but I couldn't lift it
-
 
 elemIndexVal : Eq a => a -> Vect m a -> Either a (Fin m)
 elemIndexVal x xs = maybeToEither x $ elemIndex x xs
@@ -98,6 +95,3 @@ extendContext : TDef n -> SortedMap String b -> Vect n b ->
 extendContext def m c = do (r ** refs) <- buildVect def m
                            replaced <- replaceRefs def (map fst refs)
                            pure (r ** (replaced, c ++ (map snd refs)))
-
-
-
