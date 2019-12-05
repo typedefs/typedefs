@@ -20,13 +20,10 @@ data ZeroOrUnbounded : (Nat -> Type) -> Bool -> Type where
   Unbounded : p n -> ZeroOrUnbounded p True
   Zero : p Z -> ZeroOrUnbounded p False
 
-fromSigma : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Maybe (ZeroOrUnbounded p b)
-fromSigma True  (n  **pn) = Just $ Unbounded $ pn
-fromSigma False (Z  **pz) = Just $ Zero $ pz
-fromSigma False (S _** _) = Nothing
-
-fromSigmaEither : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Either CompilerError (ZeroOrUnbounded p b)
-fromSigmaEither b n = maybe (Left $ RefNotFound "oahdahsdjh") Right $ fromSigma b n
+fromSigma : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Either CompilerError (ZeroOrUnbounded p b)
+fromSigma True  (n  **pn) = Right $ Unbounded $ pn
+fromSigma False (Z  **pz) = Right $ Zero $ pz
+fromSigma False (S _** _) = Left $ UnknownError "Inconsisten sigma"
 
 ||| Interface for interpreting type definitions as ASTs.
 ||| @def      the type representing definitions.
@@ -60,7 +57,7 @@ interface CodegenIndep def type | def where
 
 ||| Use the given backend to generate code for a list of type definitions.
 generateDefs : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Either CompilerError Doc
-generateDefs {fv} def tns = (traverse (fromSigmaEither fv) tns) >>= generateDefinitions
+generateDefs {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
   where
     generateDefinitions : NEList (ZeroOrUnbounded TNamed fv) -> Either CompilerError Doc
     generateDefinitions nel = do defs <- generateTyDefs {def} nel
@@ -68,9 +65,14 @@ generateDefs {fv} def tns = (traverse (fromSigmaEither fv) tns) >>= generateDefi
                                  pure $ vsep2 $ (preamble {def}) :: (defSource <$> defs ++ terms)
 
 ||| Use the given backend to generate code for a list of type signatures.
+generateType' : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Either CompilerError Doc
+generateType' {fv} def tns =
+  typeSource {def} <$> (concatMap (msgType {def})) !(traverse (fromSigma fv) tns)
+
+
+||| Here for compatiblity purposes with tests
 generateType : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamed n) -> Maybe Doc
-generateType {fv} def tns =
-  typeSource {def} <$> (concatMap (eitherToMaybe . msgType {def})) !(traverse (fromSigma fv) tns)
+generateType {fv} def tns = eitherToMaybe $ generateType' def tns
 
 ||| Interface for code generators that need to generate code for type definitions and
 ||| type signatures at the same time, for example the JSON schema backend.
@@ -81,14 +83,18 @@ interface CodegenInterdep def type where
   sourceCode   : NEList type -> List def -> Doc
 
 ||| Use the given backend to generate code for a list of type definitions.
-generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
-generate {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
+generate' : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Either CompilerError Doc
+generate' {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
   where
-    generateDefinitions : NEList (ZeroOrUnbounded TNamed fv) -> Maybe Doc
-    generateDefinitions nel = do types <- traverse (eitherToMaybe . msgType {def}) nel
-                                 defs <- eitherToMaybe $ generateTyDefs {def} nel
-                                 terms <- eitherToMaybe $ generateTermDefs {def} nel
+    generateDefinitions : NEList (ZeroOrUnbounded TNamed fv) -> Either CompilerError Doc
+    generateDefinitions nel = do types <- traverse (msgType {def}) nel
+                                 defs <- generateTyDefs {def} nel
+                                 terms <- generateTermDefs {def} nel
                                  pure $ sourceCode types (defs ++ terms)
+
+||| Here for test compatibilty purpopses with tests
+generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamed n) -> Maybe Doc
+generate {fv} def tns = eitherToMaybe $ generate' def tns
 
 {-
 record SpecialiseEntry where

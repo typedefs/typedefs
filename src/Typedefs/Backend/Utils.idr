@@ -86,10 +86,19 @@ traverseEffect f (x :: xs) = do v <- f x
 ||| Errors that the compiler can throw
 data CompilerError = RefNotFound String
                    | ReferencesNotSupported String
+                   | UnknownError String
+
+Semigroup (Either CompilerError a) where
+  (Left err) <+> m = m
+  (Right v)  <+> _ = Right v
+
+Monoid (Either CompilerError a) where
+  neutral = Left $ UnknownError "neutral"
 
 Show CompilerError where
   show (RefNotFound s) = "Could not find reference " ++ s
   show (ReferencesNotSupported s) = "References are not supported : " ++ s
+  show (UnknownError s) = "Unknown error: " ++ s
 
 Eq CompilerError where
   (RefNotFound s) == (RefNotFound s') = s == s'
