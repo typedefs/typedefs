@@ -73,8 +73,8 @@ mutual
 
   compileExpr : AST.Expr -> CompilerM (TDef Z)
   compileExpr (EEmb x) = compileTerm x
-  compileExpr (ESum x y) = do (e) <- compileExpr x
-                              (t) <- compileTerm y
+  compileExpr (ESum x y) = do e <- compileExpr x
+                              t <- compileTerm y
                               pure $ TSum [e, t]
   compileExpr (Ref x) = pure $ (TRef x)
 
@@ -185,6 +185,37 @@ maximize : Vect (S k) (n ** TDef n) -> (m ** Vect (S k) (TDef m))
 maximize vect = let (n ** max) = toVMax vect in
                     (n ** map (\(_ ** (lte, td)) => weakenTDef td n lte) (fromVMax max))
 
+||| Given a name and a vector of TDef, replace references pointing to the name with `Var 0`
+||| This also either weakens or increments all references
+findRecusion : String -> Vect n (TDef i) -> Vect n (TDef (S i))
+findRecusion name xs = if any (containsRef' name) xs
+                          then map (replaceRef name) xs
+                          else weakenAll xs
+  where
+    weakenAll : Vect n (TDef i) -> Vect n (TDef (S i))
+    weakenAll vect {i} = map (\x => weakenTDef {n=i} x (S i) (trivialLTE i)) vect
+
+    containsRef' : String -> TDef i -> Bool
+    containsRef' x T0 = False
+    containsRef' x T1 = False
+    containsRef' x (TSum ys) = any (assert_total $ containsRef' x) ys
+    containsRef' x (TProd ys) = any (assert_total $ containsRef' x) ys
+    containsRef' x (TVar i) = False
+    containsRef' x (TMu ys) = any (assert_total $ containsRef' x) (map snd ys)
+    containsRef' x (TApp y ys) = False
+    containsRef' x (TRef y) = x == y
+
+    replaceRef : String -> TDef i -> TDef (S i)
+    replaceRef x T0 = T0
+    replaceRef x T1 = T1
+    replaceRef x (TSum ys) = ?replaceRef_rhs_3
+    replaceRef x (TProd ys) = ?replaceRef_rhs_4
+    replaceRef x (TVar n) = TVar (FS n)
+    replaceRef x (TMu ys) = ?replaceRef_rhs_6
+    replaceRef x (TApp y ys) = ?replaceRef_rhs_7
+    replaceRef x (TRef y) = if x == y then TVar FZ else TRef y
+
+
 ||| Compile an enum syntax down to a TMu
 ||| @name the name given to the type
 ||| @args the names used as type parameters
@@ -193,10 +224,12 @@ compileEnum : (name : String) -> (args : List String)
            -> (constructors : Vect m (String, TDef Z))
            -> CompilerM (n ** TNamed n)
 compileEnum name args constructors = do
-  (k ** checkedDefs) <- checkDefs (constructors)
-  defs <- traverseEffect (\(n, def) => indexEnum name args def ) checkedDefs
+  (k ** checkedDefs) <- checkDefs constructors
+  defs <- traverseEffect (\(n, def) => indexEnum name args def) checkedDefs
   let (i ** maximized) = maximize $ defs
-  pure $ (i ** TName name $ TSum {k} maximized)
+  let recursed = findRecusion name maximized
+  let named = zip (map fst checkedDefs) recursed
+  pure $ (i ** TName name $ TMu {k = S (S k)} named)
 
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName n (x :: xs)) (Simple y)) =
