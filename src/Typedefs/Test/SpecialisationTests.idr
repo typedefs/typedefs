@@ -28,7 +28,7 @@ testSuite = spec $ do
       ((unwords . map (toString . renderDef)) <$> generateTyDefs {def=Haskell} {type=HsType} (MkNEList (Unbounded eitherBool) []))
         `shouldBe`
       (pure "type A = Either Bool Bool")
-    it "should aosudhf" $
+    it "should extend the context approriately" $
       extendContext (def eitherBoolInt) specialisedTypes [] `shouldBe`
       Right (2 **
                ( the (TDefR 2) (TSum [RRef FZ, RRef (FS FZ)])
