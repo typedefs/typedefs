@@ -44,7 +44,7 @@ makeSubSchema' : TNamed' 0 b -> JSON
 makeSubSchema' = defRef . name
 
 jsonRefError : String -> CompilerError
-jsonRefError n = ReferencesNotSupported ("JSON doesn't support referencesm found ref: " ++ n)
+jsonRefError n = ReferencesNotSupported ("JSON doesn't support references, but found ref: " ++ n)
 
 
 mutual
