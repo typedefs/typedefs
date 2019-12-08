@@ -31,7 +31,7 @@ getInput (FileInput x)   = readFile x
 
 parseAndGenerateTDef : String -> Either String String
 parseAndGenerateTDef tdef = (resultToEither $ parseTNameds tdef)
-                        >>= Either.bimap show Utils.print . generateDefs Haskell
+                        >>= printOrShowError . generateDefs Haskell
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts input output) = do

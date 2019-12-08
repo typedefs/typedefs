@@ -49,6 +49,10 @@ foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 print : Doc -> String
 print = toString 1 80
 
+||| Map both sides of an either to a string, the left side traditionally represents an error
+printOrShowError : (Show err) => Either err Doc -> Either String String
+printOrShowError = bimap show print
+
 ||| Vertically concatenate a list of documents with two newlines (i.e. one empty line) as separator.
 vsep2 : List Doc -> Doc
 vsep2 = vsep . punctuate line
