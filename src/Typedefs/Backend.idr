@@ -16,14 +16,20 @@ import Text.PrettyPrint.WL
 Traversable NEList where
   traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
 
+||| Proof that a type constuctor indexed on Nat is indexed on Z or if its unbounded
+|||
+||| `ZeroOrUnbounded p True` means `p` is unbounded
+||| `ZeroOrUnbounded p False` means `p` is indexed with `Z`
 data ZeroOrUnbounded : (Nat -> Type) -> Bool -> Type where
   Unbounded : p n -> ZeroOrUnbounded p True
   Zero : p Z -> ZeroOrUnbounded p False
 
-fromSigma : {p : Nat -> Type} -> (b : Bool) -> (n ** p n) -> Either CompilerError (ZeroOrUnbounded p b)
+||| Checks if the bound assumed on an indexed type is the correct one
+fromSigma : {p : Nat -> Type} -> (bounded : Bool) -> (n ** p n)
+         -> Either CompilerError (ZeroOrUnbounded p bounded)
 fromSigma True  (n  **pn) = Right $ Unbounded $ pn
 fromSigma False (Z  **pz) = Right $ Zero $ pz
-fromSigma False (S _** _) = Left $ UnknownError "Inconsisten sigma"
+fromSigma False (S _** _) = Left $ UnknownError "Inconsistent bound"
 
 ||| Interface for interpreting type definitions as ASTs.
 ||| @def      the type representing definitions.
