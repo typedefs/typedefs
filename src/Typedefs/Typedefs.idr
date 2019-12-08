@@ -341,10 +341,6 @@ mutual
   showTDef (FRef n)    {a = True} = n
   showTDef (RRef n)    {a = False} = curly $ show $ toNat n
 
--- useful for debugging
---  showTDef (TApp f []) = name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">"
---  showTDef (TApp f xs) = parens $ concat $ intersperse " " ((name f ++ "<" ++ assert_total (showTDef (def f)) ++ ">") :: map (assert_total showTDef) xs)
-
   showOp : String -> Vect k (TDef' n a) -> String
   showOp _  []         = ""
   showOp _  [x]        = showTDef x
@@ -406,21 +402,21 @@ implementation Eq (TNamed' n a) where
   show = show . finToNat
 
 mutual
-  debugTDefVect : Vect k (TDef n) -> String
+  debugTDefVect : Vect k (TDef' n b) -> String
   debugTDefVect []        = "[]"
   debugTDefVect (x :: xs) = assert_total $
     square $ foldr (\elem, acc => acc ++ ", " ++ debugTDef elem) (debugTDef x) xs
 
-  debugMu : Vect k (Name, TDef (S n)) -> String
+  debugMu : Vect k (Name, TDef' (S n) b) -> String
   debugMu []        = "[]"
   debugMu (x :: xs) = assert_total $
     square $ foldr (\elem, acc => acc ++ ", " ++ debugNamedMu elem) (debugNamedMu x) xs
     where
-      debugNamedMu : (Name, TDef (S n)) -> String
+      debugNamedMu : (Name, TDef' (S n) b) -> String
       debugNamedMu (name, tdef) = parens $ show name ++ ", " ++ debugTDef tdef
 
   ||| prints a faithful representation of the AST of a TDef
-  debugTDef : TDef n -> String
+  debugTDef : TDef' n b -> String
   debugTDef T0          = "T0"
   debugTDef T1          = "T1"
   debugTDef (TSum  xs)  = "TSum " ++ debugTDefVect xs
@@ -428,8 +424,9 @@ mutual
   debugTDef (TVar x)    = "TVar " ++ show @{finSimpleShow} x
   debugTDef (TMu ms)    = "TMu " ++ debugMu ms
   debugTDef (TApp f xs) = "TApp (" ++ debugTNamed f ++ ", " ++ debugTDefVect xs ++ ")"
-  debugTDef (TRef n)    = "TRef " ++ show n
+  debugTDef (FRef n)    = "FRef " ++ show n
+  debugTDef (RRef n)    = "RRef " ++ show @{finSimpleShow} n
 
   ||| prints a faithful representation of the AST of a TNamed
-  debugTNamed : TNamed n -> String
+  debugTNamed : TNamed' n b -> String
   debugTNamed (TName name tdef) = "TName (" ++ show name ++ ", " ++ debugTDef tdef ++ ")"

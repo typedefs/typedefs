@@ -50,6 +50,6 @@ testSuite = spec $ do
       debugTNamed listNat
         `Expectations.shouldBe` "TName (\"ListNat\", TMu [(\"NilN\", T1), (\"ConsN\", TProd [TApp (TName (\"Nat\", TMu [(\"Z\", T1), (\"S\", TVar 0)]), []), TVar 0])])"
 
-    it "prints correctly the AST for TRef" $
-      debugTNamed (TName "NatRef" $ TRef {n=0} "nat")
-        `Expectations.shouldBe` "TName (\"NatRef\", TRef \"nat\")"
+    it "prints correctly the AST for FRef" $
+      debugTNamed (TName "NatRef" $ FRef {n=0} "nat")
+        `Expectations.shouldBe` "TName (\"NatRef\", FRef \"nat\")"

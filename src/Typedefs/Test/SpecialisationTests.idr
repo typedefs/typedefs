@@ -21,6 +21,7 @@ eitherBool = TName "A" (TSum [FRef "Bool" , FRef "Bool" ])
 eitherBoolInt : TNamed 0
 eitherBoolInt = TName "A" (TSum [FRef "Bool" , FRef "Int" ])
 
+export
 testSuite : IO ()
 testSuite = spec $ do
   describe "specialisation tests" $ do
