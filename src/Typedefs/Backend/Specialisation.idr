@@ -44,16 +44,11 @@ nubLTE = nubBy' [] (==)
       | False with (nubBy' (x::acc) p xs)
         | (_ ** (tail, prf)) = (_ ** (x::tail, (LTESucc prf)))
 
-||| extract all variables from a TDef
-||| /!\ TDefR n will count resolved references as variables /!\
-allVars : (tdef : TDef' n a) -> (m ** Vect m (Fin n))
-allVars tdef = let ls = getUsedIndices tdef in (length ls ** fromList ls)
-
-noDuplicateVars : TDef n -> (m ** Vect m (Fin n))
-noDuplicateVars tdef = let (_ ** vs) = allVars tdef in nub vs
+noDuplicateVars : TDef n -> (List (Fin n))
+noDuplicateVars tdef = nub $ getUsedIndices tdef
 
 countVars : TDef n -> Nat
-countVars tdef = fst $ noDuplicateVars tdef
+countVars tdef = length $ noDuplicateVars tdef
 
 weakenSN : (m : Nat) -> Fin (S n) -> Fin (S (n + m))
 weakenSN m FZ = FZ
@@ -63,9 +58,9 @@ pairLookup : k -> SortedMap k v -> Either k (k, v)
 pairLookup k m = MkPair k <$> maybeToEither k (lookup k m)
 
 ||| Build a vector of all the references, without duplication, present in the SortedMap
-buildVect : (t : TDef n) -> SortedMap String b -> Either String (l ** Vect l (String, b))
-buildVect tdef m = let (l ** refs) = noDupRefs tdef
-                    in MkDPair l <$> traverse (flip pairLookup m) refs
+collectReferences : (t : TDef n) -> SortedMap String b -> Either String (l ** Vect l (String, b))
+collectReferences tdef m = let (l ** refs) = noDupRefs tdef
+                            in MkDPair l <$> traverse (flip pairLookup m) refs
 
 traverseRefs : Applicative f => (String -> f (Fin k)) -> n `LTE` k -> TDef n -> f (TDef' k False)
 traverseRefs fn prf         T0                 = pure T0
@@ -92,6 +87,6 @@ replaceRefs tdef vs {n} = traverseRefs (map (shift n) . flip elemIndexVal vs) (l
 ||| Extends a TDef n with its context into a TDef (n + k) along with its new context after resolving references
 extendContext : TDef n -> SortedMap String b -> Vect n b ->
                 Either String (k ** (TDefR (n + k), Vect (n + k) b))
-extendContext def m c = do (r ** refs) <- buildVect def m
+extendContext def m c = do (r ** refs) <- collectReferences def m
                            replaced <- replaceRefs def (map fst refs)
                            pure (r ** (replaced, c ++ (map snd refs)))
