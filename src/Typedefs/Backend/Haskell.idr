@@ -48,6 +48,36 @@ data HsType : Type where -- TODO could be interesting to index this by e.g. used
   ||| decoders and encoders)
   HsArrow :         HsType -> HsType    -> HsType
 
+printType : HsType -> String
+printType HsVoid = "Void"
+printType HsUnit = "()"
+printType (HsTuple xs) = "(" ++ concat (intersperse ", " (map (assert_total printType) xs)) ++ ")"
+printType (HsSum x y) = "(Either " ++ printType x ++ printType y ++ ")"
+printType (HsVar x) = x
+printType (HsParam x xs) = x ++ concat (intersperse " " (map (assert_total printType) xs))
+printType (HsArrow x y) = printType x ++ " -> " ++ printType y
+
+public export
+Show HsType where
+  show = printType
+
+public export
+Eq HsType where
+  HsVoid == HsVoid = True
+  HsUnit == HsUnit = True
+  (HsTuple l {n = nl} ) == (HsTuple r {n = nr}) with (decEq nl nr)
+    (HsTuple l {n = nl} ) == (HsTuple r {n = nl}) | Yes Refl = assert_total $ l == r
+    (HsTuple l {n = nl} ) == (HsTuple r {n = nr}) | No _ = False
+  (HsSum xl yl)  == (HsSum xr yr)  = xl == xr && yl == yr
+  (HsVar l) == (HsVar r) = l == r
+  (HsParam xl yl {n = nl}) == (HsParam xr yr {n = nr}) with (decEq nl nr)
+    (HsParam xl yl {n = nl}) == (HsParam xr yr {n = nl}) | Yes Refl =
+      assert_total $ xl == xr && yl == yr
+    (HsParam xl yl {n = nl}) == (HsParam xr yr {n = nr}) | No _ = False
+  (HsArrow xl yl) == (HsArrow xr yr) = xl == xr && yl == yr
+  _ == _ = False
+
+
 hsNamed : String -> HsType
 hsNamed = flip HsParam []
 
