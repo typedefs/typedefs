@@ -1,5 +1,6 @@
 module Typedefs.Test.TypedefsSuite
 
+import Typedefs.Test.DebugTests
 import Typedefs.Test.ParseTests
 import Typedefs.Test.HaskellTests
 import Typedefs.Test.JSONTests
@@ -14,3 +15,4 @@ testSuite =
      ReasonMLTests.testSuite
      JSONTests.testSuite
      TermParseWriteTests.testSuite
+     DebugTests.testSuite
