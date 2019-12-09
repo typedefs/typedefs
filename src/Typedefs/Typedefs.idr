@@ -162,7 +162,7 @@ mutual
   Ty     tvars (TVar v)    = Vect.index v tvars
   Ty     tvars (TMu m)     = Mu tvars (args m)
   Ty     tvars (TApp f xs) = assert_total $ Ty tvars $ def f `ap` xs -- TODO: could be done properly
-  -- either use a proof that no TRefs exist or a proof that every 
+  -- either use a proof that no TRefs exist or a proof that every
   -- TRef has a mapping to an Idris type
   Ty     tvars (TRef n)    = Void
 
@@ -234,7 +234,7 @@ powN n tn = pow n (wrap tn)
 
 -- TODO add to stdlib?
 minusPlus : (n, m : Nat) -> LTE n m -> (m `minus` n) + n = m
-minusPlus  Z     m    _   = rewrite minusZeroRight m in 
+minusPlus  Z     m    _   = rewrite minusZeroRight m in
                             plusZeroRightNeutral m
 minusPlus (S _)  Z    lte = absurd lte
 minusPlus (S n) (S m) lte = rewrite sym $ plusSuccRightSucc (m `minus` n) n in
@@ -345,3 +345,37 @@ mutual
 implementation Eq (TNamed n) where
   (TName n t) == (TName n' t')       = n == n' && t == t'
 
+-- Debug ----
+
+-- we use a named implementation of `Show (Fin n)` to avoid possible conflicts
+[finSimpleShow] Show (Fin k) where
+  show = show . finToNat
+
+mutual
+  debugTDefVect : Vect k (TDef n) -> String
+  debugTDefVect []        = "[]"
+  debugTDefVect (x :: xs) = assert_total $
+    "[" ++ foldr (\elem, acc => acc ++ ", " ++ debugTDef elem) (debugTDef x) xs ++ "]"
+
+  debugMu : Vect k (Name, TDef (S n)) -> String
+  debugMu []        = "[]"
+  debugMu (x :: xs) = assert_total $
+    "[" ++ foldr (\elem, acc => acc ++ ", " ++ debugNamedMu elem) (debugNamedMu x) xs ++ "]"
+    where
+      debugNamedMu : (Name, TDef (S n)) -> String
+      debugNamedMu (name, tdef) = "(" ++ show name ++ ", " ++ debugTDef tdef ++ ")"
+
+  ||| prints a faithful representation of the AST of a TDef
+  debugTDef : TDef n -> String
+  debugTDef T0          = "T0"
+  debugTDef T1          = "T1"
+  debugTDef (TSum  xs)  = "TSum " ++ debugTDefVect xs
+  debugTDef (TProd xs)  = "TProd " ++ debugTDefVect xs
+  debugTDef (TVar x)    = "TVar " ++ show @{finSimpleShow} x
+  debugTDef (TMu ms)    = "TMu " ++ debugMu ms
+  debugTDef (TApp f xs) = "TApp (" ++ debugTNamed f ++ ", " ++ debugTDefVect xs ++ ")"
+  debugTDef (TRef n)    = "TRef " ++ show n
+
+  ||| prints a faithful representation of the AST of a TNamed
+  debugTNamed : TNamed n -> String
+  debugTNamed (TName name tdef) = "TName (" ++ show name ++ ", " ++ debugTDef tdef ++ ")"
