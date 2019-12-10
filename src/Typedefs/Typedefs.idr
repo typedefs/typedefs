@@ -355,15 +355,15 @@ mutual
   debugTDefVect : Vect k (TDef n) -> String
   debugTDefVect []        = "[]"
   debugTDefVect (x :: xs) = assert_total $
-    "[" ++ foldr (\elem, acc => acc ++ ", " ++ debugTDef elem) (debugTDef x) xs ++ "]"
+    square $ foldr (\elem, acc => acc ++ ", " ++ debugTDef elem) (debugTDef x) xs
 
   debugMu : Vect k (Name, TDef (S n)) -> String
   debugMu []        = "[]"
   debugMu (x :: xs) = assert_total $
-    "[" ++ foldr (\elem, acc => acc ++ ", " ++ debugNamedMu elem) (debugNamedMu x) xs ++ "]"
+    square $ foldr (\elem, acc => acc ++ ", " ++ debugNamedMu elem) (debugNamedMu x) xs
     where
       debugNamedMu : (Name, TDef (S n)) -> String
-      debugNamedMu (name, tdef) = "(" ++ show name ++ ", " ++ debugTDef tdef ++ ")"
+      debugNamedMu (name, tdef) = parens $ show name ++ ", " ++ debugTDef tdef
 
   ||| prints a faithful representation of the AST of a TDef
   debugTDef : TDef n -> String
