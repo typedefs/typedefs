@@ -2,7 +2,6 @@ module Typedefs.TermWrite
 
 import Typedefs.Typedefs
 import Typedefs.Names
-import Typedefs.Strings
 
 import Data.Vect
 
@@ -41,7 +40,7 @@ mutual
   serialize (_::_)    (w::_)    (RRef FZ)               x         = w x
   serialize (_::_::_) (_::w::_) (RRef (FS FZ))          x         = w x
   serialize (_::ts)   (_::ws)   (RRef (FS (FS i)))      x         = serialize ts ws (RRef (FS i)) x
-  serialize _ _ _ _ = ?speedhack
+  serialize _ _ _ _ = ?speedhack -- This makes the typechecker go a lot faster
 
 -- Binary serialisation
 

@@ -5,7 +5,6 @@ import Data.Vect
 import Data.NEList
 
 import Typedefs.Names
-import Typedefs.Strings
 
 %default total
 %access public export
@@ -92,6 +91,22 @@ wrap tn = TApp tn idVars
 ||| Alias one `TNamed` with a new name. Note: this is not the same as naming the underlying `TDef` again.
 alias : Name -> TNamed n -> TNamed n
 alias name tn = TName name (wrap tn)
+
+-- Surrounding character functions
+parens : String -> String
+parens "" = ""
+parens s = "(" ++ s ++ ")"
+
+parens' : String -> String
+parens' s = if " " `isInfixOf` s then "(" ++ s ++ ")" else s
+
+curly : String -> String
+curly "" = ""
+curly s = "{" ++ s ++ "}"
+
+square : String -> String
+square "" = ""
+square s = "[" ++ s ++ "]"
 
 ||| Generate the canonical name of a closed type.
 makeName : TDef' 0 b -> Name
