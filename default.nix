@@ -48,7 +48,7 @@ let
         # We override the 'idrisPackages' packaget set
         # This means, that all these package definitions will 'see' eachother
         #  e.g. if typedefs depends on typedefs-core, callPackage will automatically inject it
-        # Add new idris packages to this list 
+        # Add new idris packages to this list
         overrides = idrisPackagesNew: idrisPackagesOld: {
           typedefs-core= idrisPackagesNew.callPackage ./typedefs-core.nix {};
           typedefs = idrisPackagesNew.callPackage ./typedefs.nix {};
@@ -69,9 +69,9 @@ let
     sha256 = "014llk230q6871z73xzilvf93dna0q72y3y8hlgp47fc8h6fafim";
   };
   usepkgs = (
-    if null == pkgs 
+    if null == pkgs
     then import pinpkgs
-    else if 0 == pkgs 
+    else if 0 == pkgs
     then import <nixpkgs>
     else import pkgs) { inherit config; };
   stdenv = usepkgs.stdenvAdapters.keepDebugInfo usepkgs.stdenv;
@@ -79,9 +79,9 @@ let
 in {
   # This attribute set exposes what things will be built by a call to nix-build. See
   # its as the "CI" entrypoint.
-  inherit (usepkgs.idrisPackages) 
+  inherit (usepkgs.idrisPackages)
     typedefs-core
     typedefs
-    typedefs-js 
+    typedefs-js
     typedefs-examples;
 }

@@ -1,6 +1,6 @@
 module Typedefs.Provider
 
-import Data.SortedMap 
+import Data.SortedMap
 
 import TParsec
 import TParsec.Running

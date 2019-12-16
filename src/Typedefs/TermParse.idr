@@ -57,8 +57,8 @@ data HasParsers : Vect n Type -> Nat -> Type where
   -- chooseParser (TName _ td)          ts        ps        = chooseParser td ts ps
 
 -- this used to depend on chooseParser but now that its gone it is unclear how to proceed
-deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDefR n) -> String -> Maybe (Ty ts td)
-deserialize ts ps td s  = ?deserialize_rhs
+-- deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDefR n) -> String -> Maybe (Ty ts td)
+-- deserialize ts ps td s  = ?deserialize_rhs
 
 
 -- Binary deserialization
