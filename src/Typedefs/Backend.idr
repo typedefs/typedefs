@@ -13,8 +13,8 @@ import Text.PrettyPrint.WL
 %access public export
 
 --TODO remove, added to TParsec
-Traversable NEList where
-  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
+--Traversable NEList where
+--  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
 
 ||| Proof that a type constuctor indexed on Nat is indexed on Z or if its unbounded
 |||
