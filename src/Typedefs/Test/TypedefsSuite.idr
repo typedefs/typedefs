@@ -12,7 +12,7 @@ export
 testSuite : IO ()
 testSuite =
   do ParseTests.testSuite
-     SpecialisationTests.testSuite
+--     SpecialisationTests.testSuite
      HaskellTests.testSuite
      ReasonMLTests.testSuite
      JSONTests.testSuite
