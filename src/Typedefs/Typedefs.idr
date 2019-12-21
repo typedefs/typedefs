@@ -205,9 +205,13 @@ mutual
   Ty     tvars (RRef i)                = Vect.index i tvars
 
 
+||| Since `convertTy` is an identity function it is safe to assume this one is too
+convertTy' : Ty ts (TApp f ys) -> Ty ts (ap (def f) ys)
+convertTy' x = believe_me x
+
 -- `showTy` just needs a little nudge in the right direction
 %inline
-convertTy : Ty v (TApp (TName n def) xs) -> Ty v (def `ap` xs)
+convertTy : {n : Name} -> Ty v (TApp (TName n def) xs) -> Ty v (def `ap` xs)
 convertTy x {def = T0       } = x
 convertTy x {def = T1       } = x
 convertTy x {def = TSum xs  } = x
