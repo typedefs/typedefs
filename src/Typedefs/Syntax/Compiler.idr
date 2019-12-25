@@ -40,7 +40,9 @@ magicProof (S k) (S j) = LTESucc $ magicProof k j
 weakenMax : (n, m : Nat) -> TDef n -> (TDef (natMax n m))
 weakenMax n m tdef = weakenTDef tdef (natMax n m) (magicProof n m)
 
-postulate weakenMax' : (n, m : Nat) -> TDef m -> (TDef (natMax n m))
+||| Same a weakenMax but symetric
+weakenMax' : (n, m : Nat) -> TDef m -> (TDef (natMax n m))
+weakenMax' n m tdef = rewrite natMaxSym n m in weakenMax m n tdef
 
 CompilerM : Type -> Type
 CompilerM t = Eff t [EXCEPTION String]
@@ -76,7 +78,7 @@ mutual
   compileExpr (ESum x y) = do e <- compileExpr x
                               t <- compileTerm y
                               pure $ TSum [e, t]
-  compileExpr (Ref x) = pure $ (TRef x)
+  compileExpr (Ref x) = pure $ (FRef x)
 
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
@@ -121,7 +123,7 @@ trivialLTE : (m : Nat) -> m `LTE` (S m)
 trivialLTE Z = LTEZero
 trivialLTE (S k) = LTESucc (trivialLTE k)
 
-||| return the index of the given element in the context, extend accordingly
+||| Return the index of the given element in the context, extend accordingly
 ||| More precisely: Given a list of elements, a context as a vector and an
 ||| element, return the index of the element inside the context. If it cannot
 ||| be found this function will raise an error. If it cannot be found in context
@@ -140,40 +142,35 @@ mutual
   ||| Fold over a dependent type. The result are both a TDef and its context.
   ||| The TDef is weakened accordingly when the context grows which is why we
   ||| need the `LTE` proof.
-  foldIndexify : List String -> {m, k : Nat} -> (acc : (Vect k (TDef m))) -> (ctx : Vect m String)
-              -> Vect l (TDef Z)
+  foldIndexify : List String -> {m, k : Nat} -> (acc : (Vect k (TDef m)))
+              -> (ctx : Vect m String) -> Vect l (TDef Z)
               -> CompilerM (n ** (m `LTE` n, Vect l (TDef n), Vect n String))
-  foldIndexify names acc ctx [] {m} = pure (m ** (lteRefl, [], ctx))
-  foldIndexify names acc ctx (def :: defs) = do
-    (a ** (lteprf, newdef, newctx)) <- indexify names ctx def
+  foldIndexify args acc ctx [] {m} = pure (m ** (lteRefl, [], ctx))
+  foldIndexify args acc ctx (def :: defs) = do
+    (a ** (lteprf, newdef, newctx)) <- indexify args ctx def
     let weak = map (\tdef => weakenTDef tdef a lteprf) acc
-    (b ** (lteprf', restDefs, newctx')) <- foldIndexify names (newdef :: weak) newctx defs
+    (b ** (lteprf', restDefs, newctx')) <- foldIndexify args (newdef :: weak) newctx defs
     pure (b ** (lteTransitive lteprf lteprf', weakenTDef newdef b lteprf' :: restDefs, newctx'))
 
   ||| Give index to all free references
   ||| More specifically it will:
-  |||  - Replace all TRef by a TVar pointing to its index in the context
+  |||  - Replace all FRef by a TVar pointing to its index in the context
   |||  - update the context with new variables when they are not in context
   |||  - throw when a variable cannot be found
   indexify : List String -> (ctx : Vect m String) -> TDef Z
           -> CompilerM (n ** (m `LTE` n, TDef n, Vect n String))
-  indexify names ctx T0 {m} = pureM (m ** (lteRefl, T0, ctx))
-  indexify names ctx T1 {m} = pureM (m ** (lteRefl, T1, ctx))
-  indexify names ctx (TSum xs) {m} = do
-    (a ** (prf, args, newctx)) <- foldIndexify names [] ctx xs
+  indexify args ctx T0 {m} = pureM (m ** (lteRefl, T0, ctx))
+  indexify args ctx T1 {m} = pureM (m ** (lteRefl, T1, ctx))
+  indexify args ctx (TSum xs) {m} = do
+    (a ** (prf, args, newctx)) <- foldIndexify args [] ctx xs
     pure (a ** (prf, TSum args, newctx))
-  indexify names ctx (TProd xs) {m} = do
-    (a ** (prf, args, newctx)) <- foldIndexify names [] ctx xs
+  indexify args ctx (TProd xs) {m} = do
+    (a ** (prf, args, newctx)) <- foldIndexify args [] ctx xs
     pure (a ** (prf, TProd args, newctx))
-  indexify names ctx (TRef name) = do (l ** (prf, index, newCtx)) <- mkVariableCtx names name ctx
-                                      pure (S l ** (prf, TVar index, newCtx))
-  indexify names ctx _ = raise "shouldn't happen, lol typechecking amirite"
+  indexify args ctx (FRef ref) = do (l ** (prf, index, newCtx)) <- mkVariableCtx args ref ctx
+                                    pure (S l ** (prf, TVar index, newCtx))
+  indexify args ctx _ = raise "shouldn't happen, lol typechecking amirite"
 
-||| Given the name of an enum and the name of its argument construct a correctly indexed TDef
-indexEnum : (name : String) -> (args : List String)
-         -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
-indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args ["b"] tdef
-                              pure (n ** newTDef)
 
 checkDefs : Vect n a -> CompilerM (k ** Vect (2 + k) a)
 checkDefs [x, y] = pure (Z ** [x, y])
@@ -185,6 +182,38 @@ maximize : Vect (S k) (n ** TDef n) -> (m ** Vect (S k) (TDef m))
 maximize vect = let (n ** max) = toVMax vect in
                     (n ** map (\(_ ** (lte, td)) => weakenTDef td n lte) (fromVMax max))
 
+containsRef' : String -> TDef i -> Bool
+containsRef' x T0 = False
+containsRef' x T1 = False
+containsRef' x (TSum ys) = any (assert_total $ containsRef' x) ys
+containsRef' x (TProd ys) = any (assert_total $ containsRef' x) ys
+containsRef' x (TVar i) = False
+containsRef' x (TMu ys) = any (assert_total $ containsRef' x) (map snd ys)
+containsRef' x (TApp y ys) = False
+containsRef' x (FRef y) = x == y
+
+replaceRef : String -> TDef i -> TDef (S i)
+replaceRef x T0 = T0
+replaceRef x T1 = T1
+replaceRef x (TSum ys) = TSum $ map (assert_total $ replaceRef x) ys
+replaceRef x (TProd ys) = TProd $ map (assert_total $ replaceRef x) ys
+replaceRef x (TVar n) = TVar (FS n)
+replaceRef x (TMu ys) = TMu $ map (map $ assert_total (replaceRef x)) ys
+replaceRef x (TApp (TName n d) ys) = ?whut
+replaceRef x (FRef y) = if x == y then TVar FZ else FRef y
+
+
+weakenIfRef : String -> (t : TDef i) -> Nat
+weakenIfRef name tdef {i} = case containsRef' name tdef of
+                                 True => (S i)
+                                 False => i
+
+replaceRec : (n : String) -> (t : TDef i) -> TDef (weakenIfRef n t)
+replaceRec name t with (containsRef' name t)
+  | True = replaceRef name t
+  | False = t
+
+
 ||| Given a name and a vector of TDef, replace references pointing to the name with `Var 0`
 ||| This also either weakens or increments all references
 findRecusion : String -> Vect n (TDef i) -> Vect n (TDef (S i))
@@ -193,28 +222,13 @@ findRecusion name xs = if any (containsRef' name) xs
                           else weakenAll xs
   where
     weakenAll : Vect n (TDef i) -> Vect n (TDef (S i))
-    weakenAll vect {i} = map (\x => weakenTDef {n=i} x (S i) (trivialLTE i)) vect
+    weakenAll vect {i} = map (\def => weakenTDef def (S i) (trivialLTE i))vect
 
-    containsRef' : String -> TDef i -> Bool
-    containsRef' x T0 = False
-    containsRef' x T1 = False
-    containsRef' x (TSum ys) = any (assert_total $ containsRef' x) ys
-    containsRef' x (TProd ys) = any (assert_total $ containsRef' x) ys
-    containsRef' x (TVar i) = False
-    containsRef' x (TMu ys) = any (assert_total $ containsRef' x) (map snd ys)
-    containsRef' x (TApp y ys) = False
-    containsRef' x (TRef y) = x == y
-
-    replaceRef : String -> TDef i -> TDef (S i)
-    replaceRef x T0 = T0
-    replaceRef x T1 = T1
-    replaceRef x (TSum ys) = ?replaceRef_rhs_3
-    replaceRef x (TProd ys) = ?replaceRef_rhs_4
-    replaceRef x (TVar n) = TVar (FS n)
-    replaceRef x (TMu ys) = ?replaceRef_rhs_6
-    replaceRef x (TApp y ys) = ?replaceRef_rhs_7
-    replaceRef x (TRef y) = if x == y then TVar FZ else TRef y
-
+||| Given the name of an enum and the name of its argument construct a correctly indexed TDef
+indexEnum : (name : String) -> (args : List String)
+         -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
+indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args [name] tdef
+                              pure (n ** newTDef)
 
 ||| Compile an enum syntax down to a TMu
 ||| @name the name given to the type
