@@ -15,6 +15,7 @@ sepBy : (Alternative mn, Monad mn) =>
 sepBy parser sep = map (flip MkNEList []) parser
              `alt` map (uncurry MkNEList) (parser `and` (map NEList.toList $ nelist (sep `rand` parser)))
 
+export
 Parser' : Type -> Nat -> Type
 Parser' = Parser (TParsecT () Void Maybe) chars
 
@@ -44,7 +45,7 @@ parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
 
 language : All (Language)
-language = fix (Language) $ \rec => let 
+language = fix (Language) $ \rec => let
   parsePower = map PLit decimalNat `alt` map PEmb (parens (Nat.map {a=Language} _expr rec))
 
   parseFactor = hchainl (map FEmb (parsePower)) (parseInfix '^' FPow) parsePower
@@ -77,9 +78,17 @@ parseDef = alts
   , parseRecord
   ]
 
-parseTopDef : All (Parser' TopLevelDef)
-parseTopDef = map (uncurry MkTopLevelDef) $ separator (string ":=") parseDefName parseDef
+topDefParser : All (Parser' TopLevelDef)
+topDefParser = map (uncurry MkTopLevelDef) $ separator (string ":=") parseDefName parseDef
 
-parseDefinitions : All (Parser' (NEList TopLevelDef))
-parseDefinitions = nelist parseTopDef
+definitionParser : All (Parser' (NEList TopLevelDef))
+definitionParser = nelist topDefParser
+
+export
+parseMaybeTopDef : String -> Maybe TopLevelDef
+parseMaybeTopDef input = parseMaybe input topDefParser
+
+export
+parseDefList : String -> Maybe (NEList TopLevelDef)
+parseDefList input = parseMaybe input definitionParser
 
