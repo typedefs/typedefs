@@ -44,7 +44,7 @@ parseDefName : All (Parser' DefName)
 parseDefName = parseWithArgs `alt` parseNoArg
 
 parseIdent : All (Parser' Expr)
-parseIdent = map Ref alphas
+parseIdent = map Ref (ignoreSpaces alphas)
 
 parseInfix : Char -> f -> All (Parser' f)
 parseInfix c f = cmap f $ ignoreSpaces (char c)
@@ -54,7 +54,9 @@ parsePlus = parseInfix '+' ESum
 
 language : All (Language)
 language = fix (Language) $ \rec => let
-  parsePower = map PLit decimalNat `alt` map PEmb (parens (Nat.map {a=Language} _expr rec))
+  parsePower = map PLit decimalNat
+         `alt` (map PEmb (parens (Nat.map {a=Language} _expr rec))
+         `alt` map PEmb parseIdent)
 
   parseFactor = hchainl (map FEmb (parsePower)) (parseInfix '^' FPow) parsePower
 
@@ -81,9 +83,9 @@ parseRecord = between (char '{') (char '}') $
 
 parseDef : All (Parser' Definition)
 parseDef = alts
-  [ parseSimple
-  , parseEnum
+  [ parseEnum
   , parseRecord
+  , parseSimple
   ]
 
 topDefParser : All (Parser' TopLevelDef)
