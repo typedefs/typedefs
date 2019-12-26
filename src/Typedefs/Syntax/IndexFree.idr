@@ -5,6 +5,14 @@ import TParsec
 import TParsec.Running
 import Data.NEList
 
+whitespaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+              All (Parser mn p ())
+whitespaces {p} = cmap () $ spaces {p}
+
+ignoreSpaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
+               All (Parser mn p a :-> Parser mn p a)
+ignoreSpaces parser = whitespaces `roptand` (parser `landopt` whitespaces)
+
 separator : (Alternative mn, Monad mn) =>
             All (Parser mn p s :-> Parser mn p a :-> Parser mn p b :-> Parser mn p (a, b))
 separator sep a b = a `and` (sep `rand` b)
@@ -12,8 +20,8 @@ separator sep a b = a `and` (sep `rand` b)
 -- this should be in tparsec
 sepBy : (Alternative mn, Monad mn) =>
         All (Parser mn p a :-> Parser mn p s :-> Parser mn p (NEList a))
-sepBy parser sep = map (flip MkNEList []) parser
-             `alt` map (uncurry MkNEList) (parser `and` (map NEList.toList $ nelist (sep `rand` parser)))
+sepBy parser sep = map (uncurry MkNEList) (parser `and` (map NEList.toList $ nelist (sep `rand` parser)))
+             `alt` map (flip MkNEList []) parser
 
 export
 Parser' : Type -> Nat -> Type
@@ -30,16 +38,16 @@ parseNoArg : All (Parser' DefName)
 parseNoArg = map (flip MkDefName []) alphas
 
 parseWithArgs : All (Parser' DefName)
-parseWithArgs =  map (uncurry MkDefName) $ alphas `and` (map NEList.toList $ nelist alphas)
+parseWithArgs =  map (uncurry MkDefName) $ ignoreSpaces alphas `and` (map NEList.toList $ alphas `sepBy` whitespaces)
 
 parseDefName : All (Parser' DefName)
-parseDefName = parseNoArg `alt` parseWithArgs
+parseDefName = parseWithArgs `alt` parseNoArg
 
 parseIdent : All (Parser' Expr)
 parseIdent = map Ref alphas
 
 parseInfix : Char -> f -> All (Parser' f)
-parseInfix c f = cmap f $ char c
+parseInfix c f = cmap f $ ignoreSpaces (char c)
 
 parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
@@ -58,17 +66,17 @@ language = fix (Language) $ \rec => let
 
 
 nameColType : All (Parser' (String, Expr))
-nameColType = separator (char ':') alphas (_expr language)
+nameColType = separator (ignoreSpaces $ char ':') alphas (_expr language)
 
 parseSimple : All (Parser' Definition)
 parseSimple = map Simple (_expr language)
 
 parseEnum : All (Parser' Definition)
-parseEnum = map (Enum . NEList.toList) $ nameColType `sepBy` char '|'
+parseEnum = map (Enum . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char '|')
 
 parseRecord : All (Parser' Definition)
 parseRecord = between (char '{') (char '}') $
-              map (Record . NEList.toList) $ nameColType `sepBy` char ','
+              map (Record . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char ',')
 
 
 parseDef : All (Parser' Definition)
@@ -79,7 +87,7 @@ parseDef = alts
   ]
 
 topDefParser : All (Parser' TopLevelDef)
-topDefParser = map (uncurry MkTopLevelDef) $ separator (string ":=") parseDefName parseDef
+topDefParser = map (uncurry MkTopLevelDef) $ separator (ignoreSpaces $ string ":=") parseDefName parseDef
 
 definitionParser : All (Parser' (NEList TopLevelDef))
 definitionParser = nelist topDefParser
