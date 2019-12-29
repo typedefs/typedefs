@@ -257,6 +257,7 @@ compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) = do
 compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at this time"
 
 
+export
 compileEither : AST.TopLevelDef -> Either String (n ** TNamed n)
 compileEither ast = run (compileDef ast)
 
