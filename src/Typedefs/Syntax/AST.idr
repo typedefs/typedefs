@@ -38,6 +38,41 @@ record TopLevelDef where
   name : DefName
   def  : Definition
 
+-- Show instances
+
+mutual
+  Show Power where
+    show (PLit k) = show k
+    show (PEmb x) = show x
+
+  Show Factor where
+    show (FEmb x) = show x
+    show (FPow x y) = show x ++ " ^ " ++ show y
+
+  Show Term where
+    show (TEmb x) = show x
+    show (TMul x y) = show x ++ " * " ++ show y
+
+  Show Expr where
+    show (EEmb x) = show x
+    show (ESum x y) = show x ++ " + " ++ show y
+    show (Ref x) =  x
+
+Show Definition where
+  show (Simple x) = show x
+  show (Enum xs) = unwords $ intersperse "|" (map (\(dcon, tpe) => dcon ++ " : " ++ show tpe) xs)
+  show (Record xs) = ?Show_rhs_4
+
+Show DefName where
+  show (MkDefName name []) = name
+  show (MkDefName name arguments) = name ++ " " ++ unwords arguments
+
+export
+Show TopLevelDef where
+  show (MkTopLevelDef name def) = show name ++ " := " ++ show def
+
+-- Eq instances
+
 mutual
   Eq Power where
     (==) (PLit x) (PLit y) = x == y
@@ -69,9 +104,6 @@ mutual
 Eq DefName where
   (==) (MkDefName nl al) (MkDefName nr ar) = nl == nr && al == ar
 
-export
-Show TopLevelDef where
-  show v = ""
 
 Eq TopLevelDef where
   (==) (MkTopLevelDef nl dl) (MkTopLevelDef nr dr) = nl == nr && dl == dr

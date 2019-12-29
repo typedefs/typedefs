@@ -80,7 +80,6 @@ parseRecord : All (Parser' Definition)
 parseRecord = between (char '{') (char '}') $
               map (Record . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char ',')
 
-
 parseDef : All (Parser' Definition)
 parseDef = alts
   [ parseEnum
@@ -93,6 +92,11 @@ topDefParser = map (uncurry MkTopLevelDef) $ separator (ignoreSpaces $ string ":
 
 definitionParser : All (Parser' (NEList TopLevelDef))
 definitionParser = nelist topDefParser
+
+export
+parseMaybeExpr : String -> Maybe Expr
+parseMaybeExpr input = parseMaybe input (_expr language)
+
 
 export
 parseMaybeTopDef : String -> Maybe TopLevelDef
