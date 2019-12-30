@@ -52,11 +52,24 @@ parseInfix c f = cmap f $ ignoreSpaces (char c)
 parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
 
+||| Parse a type application of the form "Type a b" with `a` and `b` arbitrary expressions
+||| The arguments can be parenthesised expressions or alphabetical characters
+||| The expression parser is given as arugment since this is also an expression parser
+parseApp : All (Parser' Expr :-> Parser' Expr)
+parseApp p = map (uncurry EApp) (ignoreSpaces alphas `and` ((parseIdent `alt` p) `sepBy` whitespaces))
+
+parseIdApp : All (Parser' (NEList String))
+parseIdApp = (alphas `sepBy` whitespaces)
+
 language : All (Language)
-language = fix (Language) $ \rec => let
-  parsePower = map PLit decimalNat
-         `alt` (map PEmb (parens (Nat.map {a=Language} _expr rec))
-         `alt` map PEmb parseIdent)
+language = fix Language $ \rec => let
+  parsePower = alts [
+      map PLit decimalNat
+    , map PEmb (parens (Nat.map {a=Language} _expr rec))
+    -- parse type application using the `expr` parser recursively
+    , map PEmb $ parseApp (parens (Nat.map {a=Language} _expr rec))
+    , map PEmb parseIdent
+    ]
 
   parseFactor = hchainl (map FEmb (parsePower)) (parseInfix '^' FPow) parsePower
 

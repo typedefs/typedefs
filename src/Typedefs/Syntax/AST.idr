@@ -1,11 +1,14 @@
 module Typedefs.Syntax.AST
 
+import Data.NEList
+
 %access public export
 
 mutual
   data Expr = EEmb Term
             | ESum Expr Term
             | Ref String
+            | EApp String (NEList Expr)
 
   -- Weak priority
   data Term : Type where
@@ -61,7 +64,9 @@ mutual
 Show Definition where
   show (Simple x) = show x
   show (Enum xs) = unwords $ intersperse "|" (map (\(dcon, tpe) => dcon ++ " : " ++ show tpe) xs)
-  show (Record xs) = ?Show_rhs_4
+  show (Record xs) = "{" ++
+                     (unwords $ intersperse "," (map (\(proj, tpe) => proj ++ " : " ++ show tpe) xs)) ++
+                     "}"
 
 Show DefName where
   show (MkDefName name []) = name
