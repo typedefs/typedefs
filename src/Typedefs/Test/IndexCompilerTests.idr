@@ -35,6 +35,6 @@ testSuite = spec $ do
     "Binary := 1 + 1" `compileExprShouldBe` "(0 ** (Binary := (1 + 1)))"
     "maybe a := 1 + a" `compileExprShouldBe` "(1 ** (maybe := (1 + {0})))"
     "maybe a := Empty : 1 | Some : a" `compileExprShouldBe`
-      "(1 ** (maybe := (mu [Empty: 1, Some: {0}]))"
+      "(1 ** (maybe := (mu [Empty: 1, Some: {0}])))"
     "List a := Nil : 1 | Cons : a + List a" `compileExprShouldBe`
       "(1 ** (List := (mu [Nil: 1, Cons: ({1} + {0})])))"

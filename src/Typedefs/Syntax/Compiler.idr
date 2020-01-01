@@ -182,12 +182,6 @@ mutual
   indexify args ctx _ = raise "shouldn't happen, lol typechecking amirite"
 
 
-checkDefs : Vect n a -> CompilerM (k ** Vect (2 + k) a)
-checkDefs [x, y] = pure (Z ** [x, y])
-checkDefs (x :: xs) = do (n ** ns) <- checkDefs xs
-                         pure (S n ** x :: ns)
-checkDefs _ = raise "enum doesn't have at least two constructors"
-
 maximize : Vect (S k) (n ** TDef n) -> (m ** Vect (S k) (TDef m))
 maximize vect = let (n ** max) = toVMax vect in
                     (n ** map (\(_ ** (lte, td)) => weakenTDef td n lte) (fromVMax max))
@@ -232,13 +226,19 @@ findRecusion name xs = if any (containsRef' name) xs
                           else weakenAll xs
   where
     weakenAll : Vect n (TDef i) -> Vect n (TDef (S i))
-    weakenAll vect {i} = map (\def => weakenTDef def (S i) (trivialLTE i))vect
+    weakenAll vect {i} = map (\def => weakenTDef def (S i) (trivialLTE i)) vect
 
 ||| Given the name of an enum and the name of its argument construct a correctly indexed TDef
 indexEnum : (name : String) -> (args : List String)
          -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
 indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args [name] tdef
                               pure (n ** newTDef)
+
+checkDefs : Vect n a -> CompilerM (k ** Vect (2 + k) a)
+checkDefs [x, y] = pure (Z ** [x, y])
+checkDefs (x :: xs) = do (n ** ns) <- checkDefs xs
+                         pure (S n ** x :: ns)
+checkDefs _ = raise "enum doesn't have at least two constructors"
 
 ||| Compile an enum syntax down to a TMu
 ||| @name the name given to the type
@@ -249,11 +249,9 @@ compileEnum : (name : String) -> (args : List String)
            -> CompilerM (n ** TNamed n)
 compileEnum name args constructors = do
   (k ** checkedDefs) <- checkDefs constructors
-  defs <- traverseEffect (\(n, def) => indexEnum name args def) checkedDefs
-  let (i ** maximized) = maximize $ defs
-  let recursed = findRecusion name maximized
-  let named = zip (map fst checkedDefs) recursed
-  pure $ (i ** TName name $ TMu {k = S (S k)} named)
+  let recursed = findRecusion name (map snd checkedDefs)
+  let pairs = zip (map fst checkedDefs) recursed
+  pure (length args ** TName name (TMu pairs))
 
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName defn args) (Simple x)) = do
