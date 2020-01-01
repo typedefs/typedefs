@@ -15,53 +15,28 @@ import Typedefs.Parse
 
 %default total
 
-natMax : Nat -> Nat -> Nat
-natMax Z n = n
-natMax n Z = n
-natMax (S k) (S l) = S (natMax k l)
-
-natMaxSym : (a, b : Nat) -> natMax a b = natMax b a
-natMaxSym Z Z = Refl
-natMaxSym Z (S k) = Refl
-natMaxSym (S k) Z = Refl
-natMaxSym (S k) (S j) = cong $ natMaxSym k j
-
-natMaxSucc : (a, b : Nat) -> natMax (S a) (S b) = S (natMax a b)
-natMaxSucc Z Z = Refl
-natMaxSucc Z (S k) = Refl
-natMaxSucc (S k) Z = Refl
-natMaxSucc (S k) (S j) = cong $ natMaxSucc k j
-
-magicProof : (n, m : Nat) -> n `LTE` (natMax n m)
-magicProof Z _ = LTEZero
-magicProof Z (S k) = LTEZero
-magicProof (S k) Z = lteRefl
-magicProof (S k) (S j) = LTESucc $ magicProof k j
-
-weakenMax : (n, m : Nat) -> TDef n -> (TDef (natMax n m))
-weakenMax n m tdef = weakenTDef tdef (natMax n m) (magicProof n m)
-
-||| Same a weakenMax but symetric
-weakenMax' : (n, m : Nat) -> TDef m -> (TDef (natMax n m))
-weakenMax' n m tdef = rewrite natMaxSym n m in weakenMax m n tdef
-
 CompilerM : Type -> Type
 CompilerM t = Eff t [EXCEPTION String]
 
+ComputeEffect : {a : Nat -> Type} -> (n ** a n) -> List EFFECT
+ComputeEffect (l ** _) = [EXCEPTION String, STATE (Vect l String)]
+
+-- convert a Nat into a sum of T1s
 fromNat : Nat -> TDef n
 fromNat Z = T0
 fromNat (S Z) = T1
 fromNat (S (S n)) = TSum (replicate (S (S n)) T1)
 
+-- Given a proof than an element is in the list, make a TVar with its index in the list
 makeElem : {e : String} -> Data.List.Elem e ls -> TDef (length ls)
 makeElem Here = TVar FZ
 makeElem (There later) = shiftVars $ makeElem later
 
+-- If the string is an element in the list, make a TVar out of it otherwise return a ref
 findList : String -> (ls : List String) -> TDef (length ls)
 findList name ls with (name `isElem` ls)
   | Yes elem = makeElem elem
   | No nope = FRef name
-
 
 mutual
   compilePower : (names : List String) -> AST.Power -> CompilerM (Either Nat (TDef (length names)))
@@ -93,6 +68,8 @@ mutual
   compileExpr names (EApp n args) = do
     compiledArgs <- traverseEffect (assert_total $ compileExpr names) $ toVect args
     pure $ TApp (TName n (FRef n)) compiledArgs
+
+-- Flattening of expression trees, 1 + (1 + 1) are flattened as (+ 1 1 1)
 
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
@@ -126,16 +103,6 @@ flattenExpressionTree (TProd [l, r]) =
    in TProd prd2
 flattenExpressionTree tdef = tdef
 
-ComputeEffect : {a : Nat -> Type} -> (n ** a n) -> List EFFECT
-ComputeEffect (l ** _) = [EXCEPTION String, STATE (Vect l String)]
-
-succPlus : (n : Nat) -> S n = n + 1
-succPlus Z = Refl
-succPlus (S k) = cong {f=S} $ succPlus k
-
-trivialLTE : (m : Nat) -> m `LTE` (S m)
-trivialLTE Z = LTEZero
-trivialLTE (S k) = LTESucc (trivialLTE k)
 
 isVarList : Vect k (TDef n) -> Bool
 isVarList vs = isVarList' vs Z
@@ -177,8 +144,8 @@ replaceRef x (FRef y) = if y == "__self__" then TVar FZ else FRef y
 
 ||| Given a name and a vector of TDef, replace references pointing to the name with `Var 0`
 ||| This also either weakens or increments all references
-findRecusion : String -> List String -> Vect n (TDef i) -> Vect n (TDef (S i))
-findRecusion name args defs = map findRec defs
+findRecusion : String -> Vect n (TDef i) -> Vect n (TDef (S i))
+findRecusion name defs = map findRec defs
   where
     findRec : TDef i -> TDef (S i)
     findRec def = let self = findRef name def
@@ -193,16 +160,15 @@ checkDefs _ = raise "enum doesn't have at least two constructors"
 
 ||| Compile an enum syntax down to a TMu
 ||| @name the name given to the type
-||| @args the names used as type parameters
 ||| @constructors the list of constructors for each value
-compileEnum : (name : String) -> (args : List String)
-           -> (constructors : Vect m (String, TDef (length args)))
-           -> CompilerM (n ** TNamed n)
-compileEnum name args constructors = do
+compileEnum : (name : String)
+           -> (constructors : Vect m (String, TDef l))
+           -> CompilerM (TNamed l)
+compileEnum name constructors = do
   (k ** checkedDefs) <- checkDefs constructors
-  let recursed = findRecusion name args (map snd checkedDefs)
+  let recursed = findRecusion name (map snd checkedDefs)
   let pairs = zip (map fst checkedDefs) recursed
-  pure (length args ** TName name (TMu pairs))
+  pure (TName name (TMu pairs))
 
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName defn args) (Simple x)) = do
@@ -210,7 +176,7 @@ compileDef (MkTopLevelDef (MkDefName defn args) (Simple x)) = do
   pure (List.length args ** TName defn c)
 compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) = do
   exprdef <- traverseEffect (\(n, d) => MkPair n <$> (compileExpr args d)) (fromList xs)
-  compileEnum n args exprdef
+  pure $ (length args ** !(compileEnum n exprdef))
 compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at this time"
 
 
