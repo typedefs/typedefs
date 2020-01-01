@@ -74,31 +74,31 @@ mutual
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
 
-flattenSum : TDef Z -> (n ** Vect (S n) (TDef Z))
+flattenSum : TDef n -> (m ** Vect (S m) (TDef n))
 flattenSum (TSum [l, r]) = let (li ** left) = flattenSum l
                                (ri ** right) = flattenSum r
                                vect = (left ++ right)
                             in (li + (S ri) ** vect)
 flattenSum tdef = (Z ** [tdef])
 
-flattenMult : TDef Z -> (n ** Vect (S n) (TDef Z))
+flattenMult : TDef n -> (m ** Vect (S m) (TDef n))
 flattenMult (TProd [l, r]) = let (li ** left) = flattenMult l
                                  (ri ** right) = flattenMult r
                               in (li + (S ri) ** (left ++ right))
 flattenMult tdef = (Z ** [tdef])
 
-flattenExpressionTree : TDef Z -> TDef Z
-flattenExpressionTree (TSum [l, r]) =
+flattenExpressionTree : TDef n -> TDef n
+flattenExpressionTree (TSum [l, r]) {n} =
   let (li ** left) = flattenSum l
       (ri ** right) = flattenSum r
       plusProof = cong {f=S} $ sym $ plusSuccRightSucc li ri
-      prf = cong {f = \x => Vect x (TDef Z)} $ plusProof
+      prf = cong {f = \x => Vect x (TDef n)} $ plusProof
       prd2 = replace {P=id} prf (left ++ right)
    in TSum prd2
-flattenExpressionTree (TProd [l, r]) =
+flattenExpressionTree (TProd [l, r]) {n} =
   let (li ** left) = flattenMult l
       (ri ** right) = flattenMult r
-      prf = cong {f = \x => Vect x (TDef Z)} $ plusSuccSucc li ri
+      prf = cong {f = \x => Vect x (TDef n)} $ plusSuccSucc li ri
       prd2 = replace {P=id} prf (left ++ right)
    in TProd prd2
 flattenExpressionTree tdef = tdef
@@ -173,10 +173,13 @@ compileEnum name constructors = do
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName defn args) (Simple x)) = do
   c <- compileExpr args x
-  pure (List.length args ** TName defn c)
+  let flattened = flattenExpressionTree c
+  pure (List.length args ** TName defn flattened)
 compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) = do
-  exprdef <- traverseEffect (\(n, d) => MkPair n <$> (compileExpr args d)) (fromList xs)
-  pure $ (length args ** !(compileEnum n exprdef))
+  exprDef <- traverseEffect (\(n, d) => MkPair n <$> (compileExpr args d)) (fromList xs)
+  -- inner map is to map across pairs
+  let flattened = map (map flattenExpressionTree) exprDef
+  pure $ (length args ** !(compileEnum n flattened))
 compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at this time"
 
 
