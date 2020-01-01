@@ -86,9 +86,9 @@ testSuite = spec $ do
     "bitOrNibble := bit + nibble"
       `tdefProgramShouldParseAs`
         ["bitOrNibble := bit + nibble"]
-    "List a := Nil : 1 | Cons : a + List a"
-      `tdefProgramShouldParseAs`
-        ["List a := Nil : 1 | Cons : a + List a"]
+--    "List a := Nil : 1 | Cons : a + List a"
+--      `tdefProgramShouldParseAs`
+--        ["List a := Nil : 1 | Cons : a + List a"]
 
 --   describe "Parser tests: ill-formed definitions" $ do
 --     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"

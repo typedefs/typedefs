@@ -67,7 +67,7 @@ language = fix Language $ \rec => let
       map PLit decimalNat
     , map PEmb (parens (Nat.map {a=Language} _expr rec))
     -- parse type application using the `expr` parser recursively
-    , map PEmb $ parseApp (parens (Nat.map {a=Language} _expr rec))
+    -- , map PEmb $ parseApp (parens (Nat.map {a=Language} _expr rec))
     , map PEmb parseIdent
     ]
 
@@ -77,7 +77,7 @@ language = fix Language $ \rec => let
 
   parseExpr = hchainl (map EEmb (parseTerm)) parsePlus parseTerm
 
-  in MkLanguage (parseExpr) (parseTerm) (parseFactor) (parsePower)
+  in MkLanguage parseExpr parseTerm parseFactor parsePower
 
 
 nameColType : All (Parser' (String, Expr))
