@@ -1,6 +1,7 @@
 module Typedefs.Syntax.Compiler
 
 import Data.Vect
+import Data.NEList
 
 import Effects
 import Effect.Exception
@@ -89,6 +90,9 @@ mutual
                                     t <- compileTerm names y
                                     pure $ TSum [e, t]
   compileExpr names (Ref x) = pure $ findList x names
+  compileExpr names (EApp n args) = do
+    compiledArgs <- traverseEffect (assert_total $ compileExpr names) $ toVect args
+    pure $ TApp (TName n (FRef n)) compiledArgs
 
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
@@ -133,106 +137,53 @@ trivialLTE : (m : Nat) -> m `LTE` (S m)
 trivialLTE Z = LTEZero
 trivialLTE (S k) = LTESucc (trivialLTE k)
 
-||| Return the index of the given element in the context, extend accordingly
-||| More precisely: Given a list of elements, a context as a vector and an
-||| element, return the index of the element inside the context. If it cannot
-||| be found this function will raise an error. If it cannot be found in context
-||| but can be found in the list then extend the context with the missing element.
-mkVariableCtx : Show a => Eq a => (ls : List a) -> (e : a) -> (state : Vect m a)
-             -> CompilerM (n ** (m `LTE` (S n), Fin (S n), Vect (S n) a))
-mkVariableCtx ls e state {m} with (Vect.findIndex (== e) state)
-  mkVariableCtx ls e state {m}     | Nothing with (find (== e) ls)
-    mkVariableCtx ls e state {m}   | Nothing | Nothing  = raise $ "not found: " ++ show e
-    mkVariableCtx ls e state {m}   | Nothing | (Just x) = pure (m ** ( trivialLTE m
-                                                                     , last
-                                                                     , rewrite succPlus m in state ++ [x]))
-  mkVariableCtx ls e state {m=S m} | Just i  = pure (m ** (LTESucc lteRefl, i, state))
+isVarList : Vect k (TDef n) -> Bool
+isVarList vs = isVarList' vs Z
+  where
+    isVarList' : Vect k (TDef n) -> Nat -> Bool
+    isVarList' (TVar var :: xs) fin = if toNat var == fin then isVarList' xs (S fin)
+                                                          else False
+    isVarList' [] _ = True
+    isVarList' _ _ = False
 
-mutual
-  ||| Fold over a dependent type. The result are both a TDef and its context.
-  ||| The TDef is weakened accordingly when the context grows which is why we
-  ||| need the `LTE` proof.
-  foldIndexify : List String -> {m, k : Nat} -> (acc : (Vect k (TDef m)))
-              -> (ctx : Vect m String) -> Vect l (TDef Z)
-              -> CompilerM (n ** (m `LTE` n, Vect l (TDef n), Vect n String))
-  foldIndexify args acc ctx [] {m} = pure (m ** (lteRefl, [], ctx))
-  foldIndexify args acc ctx (def :: defs) = do
-    (a ** (lteprf, newdef, newctx)) <- indexify args ctx def
-    let weak = map (\tdef => weakenTDef tdef a lteprf) acc
-    (b ** (lteprf', restDefs, newctx')) <- foldIndexify args (newdef :: weak) newctx defs
-    pure (b ** (lteTransitive lteprf lteprf', weakenTDef newdef b lteprf' :: restDefs, newctx'))
+isRefName : String -> TNamed n -> Bool
+isRefName n (TName name (FRef rn)) = n == name && rn == n
+isRefName _ _ = False
 
-  ||| Give index to all free references
-  ||| More specifically it will:
-  |||  - Replace all FRef by a TVar pointing to its index in the context
-  |||  - update the context with new variables when they are not in context
-  |||  - throw when a variable cannot be found
-  indexify : List String -> (ctx : Vect m String) -> TDef Z
-          -> CompilerM (n ** (m `LTE` n, TDef n, Vect n String))
-  indexify args ctx T0 {m} = pureM (m ** (lteRefl, T0, ctx))
-  indexify args ctx T1 {m} = pureM (m ** (lteRefl, T1, ctx))
-  indexify args ctx (TSum xs) {m} = do
-    (a ** (prf, args, newctx)) <- foldIndexify args [] ctx xs
-    pure (a ** (prf, TSum args, newctx))
-  indexify args ctx (TProd xs) {m} = do
-    (a ** (prf, args, newctx)) <- foldIndexify args [] ctx xs
-    pure (a ** (prf, TProd args, newctx))
-  indexify args ctx (FRef ref) = do (l ** (prf, index, newCtx)) <- mkVariableCtx args ref ctx
-                                    pure (S l ** (prf, TVar index, newCtx))
-  indexify args ctx _ = raise "shouldn't happen, lol typechecking amirite"
+-- Replace all uses of self application with "__self__"
+findRef : String -> TDef i -> TDef i
+findRef x T0 = T0
+findRef x T1 = T1
+findRef x (TSum ys) = TSum $ map (assert_total $ findRef x) ys
+findRef x (TProd ys) = TProd $ map (assert_total $ findRef x) ys
+findRef x (TVar n) = TVar n
+findRef x (TMu ys) = TMu $ map (map $ assert_total (findRef x)) ys
+findRef n (TApp ndef defs) = if isRefName n ndef && isVarList defs
+  then FRef "__self__" -- we python now
+  else TApp ndef $ map (assert_total $ findRef n) defs
+findRef x (FRef y) = FRef y
 
-
-maximize : Vect (S k) (n ** TDef n) -> (m ** Vect (S k) (TDef m))
-maximize vect = let (n ** max) = toVMax vect in
-                    (n ** map (\(_ ** (lte, td)) => weakenTDef td n lte) (fromVMax max))
-
-containsRef' : String -> TDef i -> Bool
-containsRef' x T0 = False
-containsRef' x T1 = False
-containsRef' x (TSum ys) = any (assert_total $ containsRef' x) ys
-containsRef' x (TProd ys) = any (assert_total $ containsRef' x) ys
-containsRef' x (TVar i) = False
-containsRef' x (TMu ys) = any (assert_total $ containsRef' x) (map snd ys)
-containsRef' x (TApp y ys) = False
-containsRef' x (FRef y) = x == y
-
-replaceRef : String -> TDef i -> TDef (S i)
+-- replace all occurences of "__self__" with (TVar FZ)
+replaceRef : String -> TDef (S i) -> TDef (S i)
 replaceRef x T0 = T0
 replaceRef x T1 = T1
 replaceRef x (TSum ys) = TSum $ map (assert_total $ replaceRef x) ys
 replaceRef x (TProd ys) = TProd $ map (assert_total $ replaceRef x) ys
-replaceRef x (TVar n) = TVar (FS n)
+replaceRef x (TVar n) = TVar n
 replaceRef x (TMu ys) = TMu $ map (map $ assert_total (replaceRef x)) ys
-replaceRef x (TApp (TName n d) ys) = ?whut
-replaceRef x (FRef y) = if x == y then TVar FZ else FRef y
-
-
-weakenIfRef : String -> (t : TDef i) -> Nat
-weakenIfRef name tdef {i} = case containsRef' name tdef of
-                                 True => (S i)
-                                 False => i
-
-replaceRec : (n : String) -> (t : TDef i) -> TDef (weakenIfRef n t)
-replaceRec name t with (containsRef' name t)
-  | True = replaceRef name t
-  | False = t
-
+replaceRef n (TApp ndef defs) =
+  TApp ndef $ map (assert_total $ replaceRef n) defs
+replaceRef x (FRef y) = if y == "__self__" then TVar FZ else FRef y
 
 ||| Given a name and a vector of TDef, replace references pointing to the name with `Var 0`
 ||| This also either weakens or increments all references
-findRecusion : String -> Vect n (TDef i) -> Vect n (TDef (S i))
-findRecusion name xs = if any (containsRef' name) xs
-                          then map (replaceRef name) xs
-                          else weakenAll xs
+findRecusion : String -> List String -> Vect n (TDef i) -> Vect n (TDef (S i))
+findRecusion name args defs = map findRec defs
   where
-    weakenAll : Vect n (TDef i) -> Vect n (TDef (S i))
-    weakenAll vect {i} = map (\def => weakenTDef def (S i) (trivialLTE i)) vect
-
-||| Given the name of an enum and the name of its argument construct a correctly indexed TDef
-indexEnum : (name : String) -> (args : List String)
-         -> TDef Z -> Eff (n ** TDef n) [EXCEPTION String]
-indexEnum name args tdef = do (n ** (_, newTDef, ctx)) <- indexify args [name] tdef
-                              pure (n ** newTDef)
+    findRec : TDef i -> TDef (S i)
+    findRec def = let self = findRef name def
+                      shifted = shiftVars self
+                   in replaceRef name shifted
 
 checkDefs : Vect n a -> CompilerM (k ** Vect (2 + k) a)
 checkDefs [x, y] = pure (Z ** [x, y])
@@ -249,7 +200,7 @@ compileEnum : (name : String) -> (args : List String)
            -> CompilerM (n ** TNamed n)
 compileEnum name args constructors = do
   (k ** checkedDefs) <- checkDefs constructors
-  let recursed = findRecusion name (map snd checkedDefs)
+  let recursed = findRecusion name args (map snd checkedDefs)
   let pairs = zip (map fst checkedDefs) recursed
   pure (length args ** TName name (TMu pairs))
 
@@ -271,4 +222,4 @@ listDef : AST.TopLevelDef
 listDef = MkTopLevelDef (MkDefName "List" ["a"])
   (Enum [ ("Nil", EEmb $ TEmb $ FEmb $ PLit 1)
         , ("Cons", EEmb $ TMul (TEmb $ FEmb $ PEmb $ Ref "a")
-                                      (FEmb $ PEmb $ Ref "List"))])
+                                      (FEmb $ PEmb $ EApp "List" (MkNEList (Ref "a") [])))])
