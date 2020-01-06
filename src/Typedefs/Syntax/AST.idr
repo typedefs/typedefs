@@ -5,10 +5,14 @@ import Data.NEList
 %access public export
 
 mutual
+  -- Weakest priority
+  data Appli : Type where
+    AEmb : Expr -> Appli
+    App : Appli -> Expr -> Appli
+
+  -- Weaker priority
   data Expr = EEmb Term
             | ESum Expr Term
-            | Ref String
-            | EApp String (NEList Expr)
 
   -- Weak priority
   data Term : Type where
@@ -23,8 +27,8 @@ mutual
   -- Strongest priority
   data Power : Type where
     PLit : Nat -> Power
-    PEmb : Expr -> Power
-
+    PRef : String -> Power
+    PEmb : Appli -> Power
 
 record DefName where
   constructor MkDefName
@@ -32,9 +36,9 @@ record DefName where
   arguments : List String
 
 data Definition
-  = Simple Expr
-  | Enum   (List (String, Expr))
-  | Record (List (String, Expr))
+  = Simple Appli
+  | Enum   (List (String, Appli))
+  | Record (List (String, Appli))
 
 record TopLevelDef where
   constructor MkTopLevelDef
@@ -44,9 +48,14 @@ record TopLevelDef where
 -- Show instances
 
 mutual
+  Show Appli where
+    show (AEmb x) = show x
+    show (App name arg) = name ++ " " ++ show arg
+
   Show Power where
     show (PLit k) = show k
     show (PEmb x) = show x
+    show (PRef x) = x
 
   Show Factor where
     show (FEmb x) = show x
@@ -59,7 +68,6 @@ mutual
   Show Expr where
     show (EEmb x) = show x
     show (ESum x y) = show x ++ " + " ++ show y
-    show (Ref x) =  x
 
 Show Definition where
   show (Simple x) = show x
@@ -78,26 +86,35 @@ Show TopLevelDef where
 
 -- Eq instances
 
+Eq a => Eq (NEList a) where
+  a == b = (NEList.toList a) == (NEList.toList b)
+
 mutual
+  Eq Appli where
+    (==) (AEmb x ) (AEmb y ) = x == y
+    (==) (App n a) (App m b) =
+      n == m && a == b
+    (==) _ _ = False
+
   Eq Power where
     (==) (PLit x) (PLit y) = x == y
     (==) (PEmb x) (PEmb y) = x == y
+    (==) (PRef x) (PRef y) = x == y
     (==) _ _ = False
 
   Eq Factor where
-    (==) (FEmb x) (FEmb y) = x == y
-    (==) (FPow x y) (FPow z w) = x == z && y == w
+    (==) (FEmb x  ) (FEmb y  ) = x == y
+    (==) (FPow x z) (FPow y w) = x == y && z == w
     (==) _ _ = False
 
   Eq Term where
-    (==) (TEmb x) (TEmb y) = x == y
-    (==) (TMul x y) (TMul z w) = x == z && y == w
+    (==) (TEmb x  ) (TEmb y  ) = x == y
+    (==) (TMul x z) (TMul y w) = x == y && z == w
     (==) _ _ = False
 
   Eq Expr where
-    (==) (EEmb x) (EEmb y) = x == y
+    (==) (EEmb x  ) (EEmb y  ) = x == y
     (==) (ESum x y) (ESum z w) = x == z && y == w
-    (==) (Ref x) (Ref y) = x == y
     (==) _ _ = False
 
   Eq Definition where

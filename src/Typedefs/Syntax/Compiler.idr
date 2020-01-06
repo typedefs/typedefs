@@ -41,7 +41,8 @@ findList name ls with (name `isElem` ls)
 mutual
   compilePower : (names : List String) -> AST.Power -> CompilerM (Either Nat (TDef (length names)))
   compilePower names (PLit n) = pure (Left n)
-  compilePower names (PEmb x) = pure (Right !(compileExpr names x))
+  compilePower names (PEmb x) = pure (Right !(compileAppli names x))
+  compilePower names (PRef x) = pure (Right $ findList x names)
 
   compileFactor : (names : List String) -> AST.Factor -> CompilerM (TDef (length names))
   compileFactor names (FEmb x) = do Left n <- compilePower names x
@@ -64,8 +65,10 @@ mutual
   compileExpr names (ESum x y) = do e <- compileExpr names x
                                     t <- compileTerm names y
                                     pure $ TSum [e, t]
-  compileExpr names (Ref x) = pure $ findList x names
-  compileExpr names (EApp n args) = do
+
+  compileAppli : (names : List String) -> AST.Appli -> CompilerM (TDef (length names))
+  compileAppli names (AEmb x) = compileExpr names x
+  compileAppli names (App n args) = do
     compiledArgs <- traverseEffect (assert_total $ compileExpr names) $ toVect args
     pure $ TApp (TName n (FRef n)) compiledArgs
 
@@ -188,11 +191,11 @@ compileEnum name args constructors = do
 
 compileDef : AST.TopLevelDef -> CompilerM (n ** TNamed n)
 compileDef (MkTopLevelDef (MkDefName defn args) (Simple x)) = do
-  c <- compileExpr args x
+  c <- compileAppli args x
   let flattened = flattenExpressionTree c
   pure (List.length args ** TName defn flattened)
 compileDef (MkTopLevelDef (MkDefName n args) (Enum xs)) = do
-  exprDef <- traverseEffect (\(n, d) => MkPair n <$> (compileExpr args d)) (fromList xs)
+  exprDef <- traverseEffect (\(n, d) => MkPair n <$> (compileAppli args d)) (fromList xs)
                        -- inner map is to map across pairs
   let flattened = map (map flattenExpressionTree) exprDef
   pure $ (length args ** !(compileEnum n args flattened))
@@ -205,6 +208,7 @@ compileEither ast = run (compileDef ast)
 
 listDef : AST.TopLevelDef
 listDef = MkTopLevelDef (MkDefName "List" ["a"])
-  (Enum [ ("Nil", EEmb $ TEmb $ FEmb $ PLit 1)
-        , ("Cons", EEmb $ TMul (TEmb $ FEmb $ PEmb $ Ref "a")
-                                      (FEmb $ PEmb $ EApp "List" (MkNEList (Ref "a") [])))])
+  (Enum [ ("Nil", AEmb $ EEmb $ TEmb $ FEmb $ PLit 1)
+        , ("Cons", AEmb $ EEmb $ TMul (TEmb $ FEmb $ PRef "a")
+
+                   (FEmb $ PEmb $ AST.App "List" (MkNEList (EEmb $ TEmb $ FEmb $ PRef "a") [])))])

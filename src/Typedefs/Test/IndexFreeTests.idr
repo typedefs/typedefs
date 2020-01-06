@@ -27,18 +27,6 @@ export
 testSuite : IO ()
 testSuite = spec $ do
 
---   describe "Parser tests: comments" $ do
---
---     "0;comment\n" `tdefShouldParseAs` Value "(0 ** 0)"
---
---     "0;\n" `tdefShouldParseAs` Value "(0 ** 0)"
---
---     "; first line\n; second line\n(+ 1 1)" `tdefShouldParseAs` Value "(0 ** (1 + 1))"
---
---     "; comment followed by empty\n\n(+ 1 1)" `tdefShouldParseAs` Value "(0 ** (1 + 1))"
---
---     "(var ;comment\n123)" `tdefShouldParseAs` Value "(124 ** {123})"
-
   describe "Parser tests: well-formed expressions" $ do
     "0" `tdefShouldParseAs` "0"
 
@@ -56,21 +44,10 @@ testSuite = spec $ do
 
     "1 + 1 + 0 + 1 * 0" `tdefShouldParseAs` "1 + 1 + 0 + 1 * 0"
 
---   describe "Parser tests: ill-formed terms" $ do
---
---     "(*)" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 2)
---
---     "(+ 1)" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 4)
---
---     "(mu list (nil 1))" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 5)
---
---     "(+ 1 * 1 0)" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 5)
---
---     "(mu nat (Z 1) (S (var 0))) (name mpat (+ 1 pat))" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 5)
---
---     "(name maybe (+ 1 (var 0)))" `tdefShouldParseAs` (SoftFail $ ParseError $ MkPosition 0 0)
---
---     "(mu list (cons (* (var 1) (var 0))))" `tdefShouldParseAs` (HardFail $ ParseError $ MkPosition 0 5)
+    "list " `tdefShouldParseAs` "list"
+
+    "list a" `tdefShouldParseAs` "list a"
+
 
   describe "Parser tests: well-formed definitions" $ do
     "Maybe a := 1+a" `tdefProgramShouldParseAs` ["Maybe a := 1 + a"]
@@ -86,6 +63,7 @@ testSuite = spec $ do
     "bitOrNibble := bit + nibble"
       `tdefProgramShouldParseAs`
         ["bitOrNibble := bit + nibble"]
+
 --    "List a := Nil : 1 | Cons : a + List a"
 --      `tdefProgramShouldParseAs`
 --        ["List a := Nil : 1 | Cons : a + List a"]

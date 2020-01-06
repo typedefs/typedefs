@@ -5,6 +5,7 @@ import TParsec
 import TParsec.Running
 import Data.NEList
 
+||| This consumes at least one space
 whitespaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
               All (Parser mn p ())
 whitespaces {p} = cmap () $ spaces {p}
@@ -33,6 +34,7 @@ record Language (n : Nat) where
   _term   : Parser' Term n
   _factor : Parser' Factor n
   _power  : Parser' Power n
+  _appli  : Parser' Appli n
 
 parseNoArg : All (Parser' DefName)
 parseNoArg = map (flip MkDefName []) alphas
@@ -43,8 +45,8 @@ parseWithArgs =  map (uncurry MkDefName) $ ignoreSpaces alphas `and` (map NEList
 parseDefName : All (Parser' DefName)
 parseDefName = parseWithArgs `alt` parseNoArg
 
-parseIdent : All (Parser' Expr)
-parseIdent = map Ref (ignoreSpaces alphas)
+parseIdent : All (Parser' Power)
+parseIdent = map PRef (ignoreSpaces alphas)
 
 parseInfix : Char -> f -> All (Parser' f)
 parseInfix c f = cmap f $ ignoreSpaces (char c)
@@ -52,46 +54,42 @@ parseInfix c f = cmap f $ ignoreSpaces (char c)
 parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
 
-||| Parse a type application of the form "Type a b" with `a` and `b` arbitrary expressions
-||| The arguments can be parenthesised expressions or alphabetical characters
-||| The expression parser is given as arugment since this is also an expression parser
-parseApp : All (Parser' Expr :-> Parser' Expr)
-parseApp p = map (uncurry EApp) (ignoreSpaces alphas `and` ((parseIdent `alt` p) `sepBy` whitespaces))
-
 parseIdApp : All (Parser' (NEList String))
 parseIdApp = (alphas `sepBy` whitespaces)
 
 language : All (Language)
 language = fix Language $ \rec => let
+
   parsePower = alts [
       map PLit decimalNat
-    , map PEmb (parens (Nat.map {a=Language} _expr rec))
+    , map PRef alphas
     -- parse type application using the `expr` parser recursively
-    -- , map PEmb $ parseApp (parens (Nat.map {a=Language} _expr rec))
-    , map PEmb parseIdent
+    , map PEmb (parens (Nat.map {a=Language} _appli rec))
     ]
 
-  parseFactor = hchainl (map FEmb (parsePower)) (parseInfix '^' FPow) parsePower
+  parseFactor = hchainl (map FEmb parsePower) (parseInfix '^' FPow) parsePower
 
-  parseTerm = hchainl (map TEmb (parseFactor)) (parseInfix '*' TMul) parseFactor
+  parseTerm = hchainl (map TEmb parseFactor) (parseInfix '*' TMul) parseFactor
 
-  parseExpr = hchainl (map EEmb (parseTerm)) parsePlus parseTerm
+  parseExpr = hchainl (map EEmb parseTerm) parsePlus parseTerm
 
-  in MkLanguage parseExpr parseTerm parseFactor parsePower
+  parseApplication = hchainr (alphas) (cmap (\a, b => AST.App a (AEmb b)) spaces) parseExpr
+
+  in MkLanguage parseExpr parseTerm parseFactor parsePower parseApplication
 
 
-nameColType : All (Parser' (String, Expr))
-nameColType = separator (ignoreSpaces $ char ':') alphas (_expr language)
+nameColType : All (Parser' (String, Appli))
+nameColType = separator (ignoreSpaces $ char ':') alphas (_appli language)
 
 parseSimple : All (Parser' Definition)
-parseSimple = map Simple (_expr language)
+parseSimple = map Simple (_appli language)
 
 parseEnum : All (Parser' Definition)
-parseEnum = map (Enum . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char '|')
+parseEnum = Combinators.map (Enum . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char '|')
 
 parseRecord : All (Parser' Definition)
 parseRecord = between (char '{') (char '}') $
-              map (Record . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char ',')
+              Combinators.map (Record . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char ',')
 
 parseDef : All (Parser' Definition)
 parseDef = alts
