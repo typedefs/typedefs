@@ -50,7 +50,7 @@ record TopLevelDef where
 mutual
   Show Appli where
     show (AEmb x) = show x
-    show (App name arg) = name ++ " " ++ show arg
+    show (App name arg) = show name ++ " " ++ show arg
 
   Show Power where
     show (PLit k) = show k
@@ -78,7 +78,7 @@ Show Definition where
 
 Show DefName where
   show (MkDefName name []) = name
-  show (MkDefName name arguments) = name ++ " " ++ unwords arguments
+  show (MkDefName name argument) = name ++ " " ++ unwords argument
 
 export
 Show TopLevelDef where

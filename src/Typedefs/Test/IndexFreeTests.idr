@@ -44,9 +44,9 @@ testSuite = spec $ do
 
     "1 + 1 + 0 + 1 * 0" `tdefShouldParseAs` "1 + 1 + 0 + 1 * 0"
 
-    "list " `tdefShouldParseAs` "list"
-
     "list a" `tdefShouldParseAs` "list a"
+
+    "list 1" `tdefShouldParseAs` "list 1"
 
 
   describe "Parser tests: well-formed definitions" $ do
@@ -54,6 +54,8 @@ testSuite = spec $ do
 
     "Nat := Z : 1 | S : Nat" `tdefProgramShouldParseAs` ["Nat := Z : 1 | S : Nat"]
 
+    "List a := Nil : 1 | Cons : a * List a" `tdefProgramShouldParseAs`
+      ["List a := Nil : 1 | Cons : a * List a"]
     """Nat := Z : 1 | S : Nat
        ListNat := Nil : 1 | Cons : Nat * ListNat"""
       `tdefProgramShouldParseAs`

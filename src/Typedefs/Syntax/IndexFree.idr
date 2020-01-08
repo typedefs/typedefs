@@ -54,8 +54,13 @@ parseInfix c f = cmap f $ ignoreSpaces (char c)
 parsePlus : All (Parser' (Expr -> Term -> Expr))
 parsePlus = parseInfix '+' ESum
 
-parseIdApp : All (Parser' (NEList String))
-parseIdApp = (alphas `sepBy` whitespaces)
+-- Definition := name ':=' expr | enum
+-- Enum       := name : expr (| name : expr)*
+-- App        := App expr
+-- expr       := expr + term
+-- term       := term * prod
+-- prod       := prod ^ pow
+-- pow        := [0-9]+ | name
 
 language : All (Language)
 language = fix Language $ \rec => let
@@ -73,7 +78,7 @@ language = fix Language $ \rec => let
 
   parseExpr = hchainl (map EEmb parseTerm) parsePlus parseTerm
 
-  parseApplication = hchainr (alphas) (cmap (\a, b => AST.App a (AEmb b)) spaces) parseExpr
+  parseApplication = hchainl (map AEmb parseExpr) (cmap AST.App spaces) parseExpr
 
   in MkLanguage parseExpr parseTerm parseFactor parsePower parseApplication
 
@@ -105,8 +110,8 @@ definitionParser : All (Parser' (NEList TopLevelDef))
 definitionParser = nelist topDefParser
 
 export
-parseMaybeExpr : String -> Maybe Expr
-parseMaybeExpr input = parseMaybe input (_expr language)
+parseMaybeExpr : String -> Maybe Appli
+parseMaybeExpr input = parseMaybe input (_appli language)
 
 
 export
