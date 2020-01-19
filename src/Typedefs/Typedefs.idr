@@ -334,6 +334,9 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
 
+weaken : TDef' n a -> TDef' (S n) a
+weaken tdef {n} = weakenTDef tdef (S n) (lteSuccRight lteRefl)
+
 ||| Increase the type index representing the number of variables accessible
 ||| to a `TNamed`, without actually changing the variables that are used by it.
 |||
