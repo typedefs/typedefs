@@ -48,6 +48,16 @@ testSuite = spec $ do
 
     "list 1" `tdefShouldParseAs` "list 1"
 
+    it "list a + 3" $ (parseMaybeExpr "list a + 3") `shouldBe`
+      (Just (ESum (EEmb $ TEmb $ FEmb $ App (AEmb $ PRef "list")
+                                           (PRef "a"))
+                 (TEmb $ FEmb $ AEmb $ PLit 3)))
+
+    it "list a b + 3" $ (parseMaybeExpr "list a b + 3") `shouldBe`
+     (Just (ESum (EEmb $ TEmb $ FEmb $ App (App (AEmb $ PRef "list")
+                                           (PRef "a")) (PRef "b"))
+                (TEmb $ FEmb $ AEmb $ PLit 3)))
+
 
   describe "Parser tests: well-formed definitions" $ do
     "Maybe a := 1+a" `tdefProgramShouldParseAs` ["Maybe a := 1 + a"]
@@ -65,6 +75,20 @@ testSuite = spec $ do
     "bitOrNibble := bit + nibble"
       `tdefProgramShouldParseAs`
         ["bitOrNibble := bit + nibble"]
+    it "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b" $
+       (parseDefList "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b")
+         `shouldBe`
+           Just (MkNEList (MkTopLevelDef (MkDefName "BinaryTree" ["a", "b"])
+             (Enum [ ("Left", EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
+                   , ("Right", EEmb $ TEmb $ FEmb $ AEmb $ PRef "b")
+                   , ("Node", EEmb $ TMul (TEmb $ FEmb $ AEmb $ PEmb $ ESum
+                                            (EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
+                                            (TEmb $ FEmb $ AEmb $ PRef "b"))
+                                          (FEmb $ App (App (AEmb $ PRef "BinaryTree")
+                                                           (PRef "a"))
+                                                      (PRef "b")))
+                   ])) [])
+
 
 --    "List a := Nil : 1 | Cons : a + List a"
 --      `tdefProgramShouldParseAs`

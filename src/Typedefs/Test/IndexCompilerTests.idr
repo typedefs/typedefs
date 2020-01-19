@@ -42,12 +42,21 @@ testSuite = spec $ do
     "maybe a := 1 + a" `compileExprShouldBe` "(1 ** (maybe := (1 + {0})))"
     "maybe a := Empty : 1 | Some : a" `compileExprShouldBe`
       "(1 ** (maybe := (mu [Empty: 1, Some: {1}])))"
-    "List a := Nil : 1 | Cons : a * (List a)" `compileExprShouldBe`
+    "List a := Nil : 1 | Cons : a * List a" `compileExprShouldBe`
       "(1 ** (List := (mu [Nil: 1, Cons: ({1} * {0})])))"
     "Nat := Z : 1 | S : Nat" `compileExprShouldBe` "(0 ** (Nat := (mu [Z: 1, S: {0}])))"
     "Either a b := a + b" `compileExprShouldBe` "(2 ** (Either := ({0} + {1})))"
-    "Wrong a b c := Base : 1 | Rec : a + (Wrong b c)" `compileExprShouldFail`
-      "Type \"Wrong\" expected 3 arguments, got 2"
+    "Wrong a b c := Base : 1 | Rec : a + Wrong b c" `compileExprShouldFail`
+      "Type \"Wrong\" expected 3 arguments, got 2 instead."
+    "BigApplication a b c := Base : 1 | Value : a * b * BigApplication a b c"
+      `compileExprShouldBe`
+      "(3 ** (BigApplication := (mu [Base: 1, Value: ({1} * {2} * {0})])))"
+    "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b"
+      `compileExprShouldBe`
+      "(2 ** (BinaryTree := (mu [Left: {1}, Right: {2}, Node: (({1} + {2}) * {0})])))"
+
+
+
 --     (name either (+ (var 0) (var 1)))
 --     (name bit (+ 1 1))
 --     (name nibble (* bit bit bit bit))

@@ -33,8 +33,8 @@ record Language (n : Nat) where
   _expr   : Parser' Expr n
   _term   : Parser' Term n
   _factor : Parser' Factor n
-  _power  : Parser' Power n
   _appli  : Parser' Appli n
+  _power  : Parser' Val n
 
 parseNoArg : All (Parser' DefName)
 parseNoArg = map (flip MkDefName []) alphas
@@ -45,49 +45,46 @@ parseWithArgs =  map (uncurry MkDefName) $ ignoreSpaces alphas `and` (map NEList
 parseDefName : All (Parser' DefName)
 parseDefName = parseWithArgs `alt` parseNoArg
 
-parseIdent : All (Parser' Power)
+parseIdent : All (Parser' Val)
 parseIdent = map PRef (ignoreSpaces alphas)
 
 parseInfix : Char -> f -> All (Parser' f)
 parseInfix c f = cmap f $ ignoreSpaces (char c)
 
-parsePlus : All (Parser' (Expr -> Term -> Expr))
-parsePlus = parseInfix '+' ESum
-
 -- Definition := name ':=' expr | enum
 -- Enum       := name : expr (| name : expr)*
--- App        := App expr
 -- expr       := expr + term
 -- term       := term * prod
--- prod       := prod ^ pow
--- pow        := [0-9]+ | name
+-- prod       := prod ^ app
+-- app        := app pow
+-- pow        := [0-9]+ | name | (expr)
 
 language : All (Language)
 language = fix Language $ \rec => let
 
-  parsePower = alts [
+  parseVal = alts [
       map PLit decimalNat
     , map PRef alphas
     -- parse type application using the `expr` parser recursively
-    , map PEmb (parens (Nat.map {a=Language} _appli rec))
+    , map PEmb (parens (Nat.map {a=Language} _expr rec))
     ]
 
-  parseFactor = hchainl (map FEmb parsePower) (parseInfix '^' FPow) parsePower
+  parseApplication = hchainl (map AEmb parseVal) (cmap AST.App spaces) parseVal
+
+  parseFactor = hchainl (map FEmb parseApplication) (parseInfix '^' FPow) parseApplication
 
   parseTerm = hchainl (map TEmb parseFactor) (parseInfix '*' TMul) parseFactor
 
-  parseExpr = hchainl (map EEmb parseTerm) parsePlus parseTerm
+  parseExpr = hchainl (map EEmb parseTerm) (parseInfix '+' ESum) parseTerm
 
-  parseApplication = hchainl (map AEmb parseExpr) (cmap AST.App spaces) parseExpr
-
-  in MkLanguage parseExpr parseTerm parseFactor parsePower parseApplication
+  in MkLanguage parseExpr parseTerm parseFactor parseApplication parseVal
 
 
-nameColType : All (Parser' (String, Appli))
-nameColType = separator (ignoreSpaces $ char ':') alphas (_appli language)
+nameColType : All (Parser' (String, Expr))
+nameColType = separator (ignoreSpaces $ char ':') alphas (_expr language)
 
 parseSimple : All (Parser' Definition)
-parseSimple = map Simple (_appli language)
+parseSimple = map Simple (_expr language)
 
 parseEnum : All (Parser' Definition)
 parseEnum = Combinators.map (Enum . NEList.toList) $ nameColType `sepBy` (ignoreSpaces $ char '|')
@@ -110,9 +107,8 @@ definitionParser : All (Parser' (NEList TopLevelDef))
 definitionParser = nelist topDefParser
 
 export
-parseMaybeExpr : String -> Maybe Appli
-parseMaybeExpr input = parseMaybe input (_appli language)
-
+parseMaybeExpr : String -> Maybe Expr
+parseMaybeExpr input = parseMaybe input (_expr language)
 
 export
 parseMaybeTopDef : String -> Maybe TopLevelDef

@@ -5,10 +5,6 @@ import Data.NEList
 %access public export
 
 mutual
-  -- Weakest priority
-  data Appli : Type where
-    AEmb : Expr -> Appli
-    App : Appli -> Expr -> Appli
 
   -- Weaker priority
   data Expr = EEmb Term
@@ -21,14 +17,22 @@ mutual
 
   -- Strong priority
   data Factor : Type where
-    FEmb : Power -> Factor
-    FPow : Factor -> Power -> Factor
+    FEmb : Appli -> Factor
+    FPow : Factor -> Appli -> Factor
 
   -- Strongest priority
-  data Power : Type where
-    PLit : Nat -> Power
-    PRef : String -> Power
-    PEmb : Appli -> Power
+  data Appli : Type where
+    AEmb : Val -> Appli
+    App : Appli -> Val -> Appli
+
+  -- Strongestest priority
+  data Val : Type where
+    PLit : Nat -> Val
+    PRef : String -> Val
+    PEmb : Expr -> Val
+
+appName : String -> Val -> Appli
+appName name = AST.App (AEmb $ PRef name)
 
 record DefName where
   constructor MkDefName
@@ -36,9 +40,9 @@ record DefName where
   arguments : List String
 
 data Definition
-  = Simple Appli
-  | Enum   (List (String, Appli))
-  | Record (List (String, Appli))
+  = Simple Expr
+  | Enum   (List (String, Expr))
+  | Record (List (String, Expr))
 
 record TopLevelDef where
   constructor MkTopLevelDef
@@ -52,7 +56,7 @@ mutual
     show (AEmb x) = show x
     show (App name arg) = show name ++ " " ++ show arg
 
-  Show Power where
+  Show Val where
     show (PLit k) = show k
     show (PEmb x) = show x
     show (PRef x) = x
@@ -96,7 +100,7 @@ mutual
       n == m && a == b
     (==) _ _ = False
 
-  Eq Power where
+  Eq Val where
     (==) (PLit x) (PLit y) = x == y
     (==) (PEmb x) (PEmb y) = x == y
     (==) (PRef x) (PRef y) = x == y
