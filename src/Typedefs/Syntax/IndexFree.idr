@@ -4,25 +4,20 @@ import Typedefs.Syntax.AST
 import TParsec
 import TParsec.Running
 import Data.NEList
+import Typedefs.Syntax.ParserUtils
 
 ||| This consumes at least one space
 whitespaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
               All (Parser mn p ())
-whitespaces {p} = cmap () $ spaces {p}
+whitespaces {p} = cmap () $ anyOf {p} (map into $ unpack " \t")
 
 ignoreSpaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
                All (Parser mn p a :-> Parser mn p a)
-ignoreSpaces parser = whitespaces `roptand` (parser `landopt` whitespaces)
+ignoreSpaces = withSpaces
 
 separator : (Alternative mn, Monad mn) =>
             All (Parser mn p s :-> Parser mn p a :-> Parser mn p b :-> Parser mn p (a, b))
 separator sep a b = a `and` (sep `rand` b)
-
--- this should be in tparsec
-sepBy : (Alternative mn, Monad mn) =>
-        All (Parser mn p a :-> Parser mn p s :-> Parser mn p (NEList a))
-sepBy parser sep = map (uncurry MkNEList) (parser `and` (map NEList.toList $ nelist (sep `rand` parser)))
-             `alt` map (flip MkNEList []) parser
 
 export
 Parser' : Type -> Nat -> Type
@@ -40,7 +35,7 @@ parseNoArg : All (Parser' DefName)
 parseNoArg = map (flip MkDefName []) alphas
 
 parseWithArgs : All (Parser' DefName)
-parseWithArgs =  map (uncurry MkDefName) $ ignoreSpaces alphas `and` (map NEList.toList $ alphas `sepBy` whitespaces)
+parseWithArgs =  Combinators.map (uncurry MkDefName) $ ignoreSpaces alphas `and` (Combinators.map NEList.toList $ alphas `sepBy` whitespaces)
 
 parseDefName : All (Parser' DefName)
 parseDefName = parseWithArgs `alt` parseNoArg
@@ -104,7 +99,7 @@ topDefParser : All (Parser' TopLevelDef)
 topDefParser = map (uncurry MkTopLevelDef) $ separator (ignoreSpaces $ string ":=") parseDefName parseDef
 
 definitionParser : All (Parser' (NEList TopLevelDef))
-definitionParser = nelist topDefParser
+definitionParser = nelist $ topDefParser `land` (withSpaces (char ';'))
 
 export
 parseMaybeExpr : String -> Maybe Expr
@@ -117,4 +112,3 @@ parseMaybeTopDef input = parseMaybe input topDefParser
 export
 parseDefList : String -> Maybe (NEList TopLevelDef)
 parseDefList input = parseMaybe input definitionParser
-

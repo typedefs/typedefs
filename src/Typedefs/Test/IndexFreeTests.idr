@@ -60,23 +60,23 @@ testSuite = spec $ do
 
 
   describe "Parser tests: well-formed definitions" $ do
-    "Maybe a := 1+a" `tdefProgramShouldParseAs` ["Maybe a := 1 + a"]
+    "Maybe a := 1+a;" `tdefProgramShouldParseAs` ["Maybe a := 1 + a"]
 
-    "Nat := Z : 1 | S : Nat" `tdefProgramShouldParseAs` ["Nat := Z : 1 | S : Nat"]
+    "Nat := Z : 1 | S : Nat;" `tdefProgramShouldParseAs` ["Nat := Z : 1 | S : Nat"]
 
-    "List a := Nil : 1 | Cons : a * List a" `tdefProgramShouldParseAs`
+    "List a := Nil : 1 | Cons : a * List a;" `tdefProgramShouldParseAs`
       ["List a := Nil : 1 | Cons : a * List a"]
-    """Nat := Z : 1 | S : Nat
-       ListNat := Nil : 1 | Cons : Nat * ListNat"""
+    ("Nat := Z : 1 | S : Nat;\n" ++
+      "ListNat := Nil : 1 | Cons : Nat * ListNat;")
       `tdefProgramShouldParseAs`
        [ "Nat := Z : 1 | S : Nat"
        , "ListNat := Nil : 1 | Cons : Nat * ListNat"]
 
-    "bitOrNibble := bit + nibble"
+    "bitOrNibble := bit + nibble;"
       `tdefProgramShouldParseAs`
         ["bitOrNibble := bit + nibble"]
-    it "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b" $
-       (parseDefList "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b")
+    it "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b;" $
+       (parseDefList "BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b;")
          `shouldBe`
            Just (MkNEList (MkTopLevelDef (MkDefName "BinaryTree" ["a", "b"])
              (Enum [ ("Left", EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
