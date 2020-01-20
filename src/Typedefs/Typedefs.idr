@@ -76,7 +76,7 @@ TNamedR n = TNamed' n False
 record TopLevelDef where
   constructor MkTopLevelDef
   specialized : List String
-  typedefs : NEList (n ** TNamed n)
+  typedefs : NEList (n ** TNamedR n)
 
 ||| Generate `[TVar 0, ..., TVar (n-1)]`.
 idVars : Vect n (TDef' n a)
