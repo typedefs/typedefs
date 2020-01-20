@@ -2,6 +2,7 @@ module Typedefs.Parse
 
 import Data.SortedMap
 import Data.NEList
+import Data.Tuple
 import Control.Monad.State
 
 import TParsec
@@ -43,8 +44,8 @@ fromVMax {m} vm = go lteRefl vm
 --Monoid a => Pointed a where
 --  point = neutral
 
-Pointed (SortedMap Name a) where
-  point = empty
+Pointed (SortedMap Name a, List b) where
+  point = (empty, [])
 
 data Error : Type where
   ParseError : Position -> Error
@@ -63,7 +64,7 @@ Subset (Position, List Void) Error where
   into = ParseError . fst
 
 TPState : Type -> Type
-TPState = TParsecT Error Void (State $ SortedMap Name (n ** TDefR n)) --(SortedMap Name (n ** TDefR n), List Name))
+TPState = TParsecT Error Void (State (SortedMap Name (n ** TDefR n), List Name)) --(SortedMap Name (n ** TDefR n), List Name))
 
 Parser' : Type -> Nat -> Type
 Parser' = Parser TPState chars
@@ -96,9 +97,27 @@ tApp {m} {k} f xs with (decEq k m)
 pushName : Name -> (n ** TDefR n) -> (n ** TNamedR n)
 pushName name (n**td) = (n ** TName name td)
 
+findIndex' : Eq a => Nat -> a -> Vect n a -> Maybe (m ** Fin (S m))
+findIndex' _ elem [] = Nothing
+findIndex' idx elem (x :: xs) = if x == elem
+                                  then Just (idx ** last {n=idx})
+                                  else findIndex' (S idx) elem xs
+
+pushRef : Name -> (names : List Name) -> Maybe (k ** TDefR k)
+pushRef nm names = do (m ** fin) <- findIndex' Z nm $ fromList names
+                      pure (S m ** RRef fin)
+
+handleName : ((SortedMap Name (n ** TDefR n), List Name), Name) -> Maybe (n ** TDefR n)
+handleName ((mp, spec), name) =
+  case SortedMap.lookup name mp of
+    Just found => pure (Z ** !(tApp (DPair.snd $ pushName name found) []))
+    Nothing => pushRef name spec
+
+--  let Nothing <- SortedMap.lookup name mp
+--            pure (Z ** !(tApp (DPair.snd $ pushName name !(SortedMap.lookup name mp)) []))
 tdefRef : All (Parser' (n ** TDefR n))
 tdefRef = guardM
-            (\(mp, nam) => pure (Z ** !(tApp (snd $ pushName nam !(lookup nam mp)) [])))
+            handleName
             (mand (lift get) alphas)
 
 --tdefName : All (Box (Parser' (n ** TDefR n)) :-> Parser' (n ** TDefR n))
@@ -167,17 +186,16 @@ tdef =
         , tdefMu rec
         ]
 
-{-
 
-(specialised int) ;  ref 0 -> "int"
-(specialised string)
 
-(name listInt ((ref 1) (* (ref 2) (var 0))
-(name listInt ((ref 2) (* (ref 3) (var 0) (var 1))))
+-- (specialised int) ;  ref 0 -> "int"
+-- (specialised string)
+--
+-- (name listInt ((ref 1) (* (ref 2) (var 0))
+-- (name listInt ((ref 2) (* (ref 3) (var 0) (var 1))))
+--
+-- type ListInt x0 = List (Int , x0)
 
-type ListInt x0 = List (Int , x0)
-
--}
 
 tnamed : All (Parser' (n ** TNamedR n))
 tnamed =
@@ -185,7 +203,7 @@ tnamed =
   randbindm
     (parens $ rand (ignoreSpaces $ string "name")
                    (and (ignoreSpaces alphas) (ignoreSpaces tdef)))
-    (\(nm, (n**td)) => (lift $ modify $ insert nm (n**td)) *> pure (n ** TName nm td))
+    (\(nm, (n**td)) => (lift $ modify $ mapFst $ insert nm (n**td)) *> pure (n ** TName nm td))
 
 ||| Parse a sequence of TDefRs and return the last one that parsed, accumulating
 ||| and substituting named entries in the process
@@ -238,10 +256,18 @@ topLevel : All (Parser' TopLevelDef)
 topLevel = withSpecialized `alt` withoutSpecialized
   where
     withoutSpecialized : All (Parser' TopLevelDef)
-    withoutSpecialized = map (MkTopLevelDef []) tnamedNEL
+    withoutSpecialized = map (MkTopLevelDef [ ]) tnamedNEL
 
+    mkState : NEList String -> (SortedMap String (n : Nat ** TDef' n False), List String)
+    mkState = MkPair empty . Data.NEList.toList
+
+    parseWithSpecial : All (Parser' (NEList String))
+    parseWithSpecial = specializedList `landbindm` (lift . put . mkState)
+
+    ||| First parse the specialised list and add it to the context, then parse as normal
     withSpecialized : All (Parser' TopLevelDef)
-    withSpecialized = map (\(s, t) => MkTopLevelDef (Data.NEList.toList s) t) $ and specializedList tnamedNEL
+    withSpecialized = map (\(s, t) =>  MkTopLevelDef (Data.NEList.toList s) t)
+                          (parseWithSpecial `and` tnamedNEL)
 
 parseTopLevel : String -> Result Error TopLevelDef
 parseTopLevel str = getResult $ parseResult str topLevel
