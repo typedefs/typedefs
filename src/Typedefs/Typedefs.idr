@@ -221,6 +221,16 @@ convertTy x {def = TMu xs   } = x
 convertTy x {def = TApp y xs} = x
 convertTy x {def = RRef y   } = x
 
+convertPrf : Ty v (ap def xs) = Ty v (TApp (TName n def) xs)
+convertPrf {def = T0} = Refl
+convertPrf {def = T1} = Refl
+convertPrf {def = (TSum xs)} = Refl
+convertPrf {def = (TProd xs)} = Refl
+convertPrf {def = (TVar i)} = Refl
+convertPrf {def = (TMu xs)} = Refl
+convertPrf {def = (TApp x xs)} = Refl
+convertPrf {def = (RRef x)} = Refl
+
 -- Show and Eq instances
 
 mutual

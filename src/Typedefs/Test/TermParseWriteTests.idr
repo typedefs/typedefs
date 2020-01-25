@@ -38,7 +38,6 @@ testSuite = spec $ do
       (serialize [Integer] [show] (TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
       `shouldBe`
       "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))"
-{-
   describe "TermParse" $ do
 
     it "deserialize unit" $
@@ -49,8 +48,6 @@ testSuite = spec $ do
 
     it "deserialize prod with var" $
       (deserialize [Integer] [decimalInteger] (TProd [T1, TVar 0]) "(both () 2)") `shouldBe` (Just ((), 2))
--- ^ Those test should be back once we reimplement the dependent parser
--}
 
 --    it "deserialize mu" $
 --      (deserialize [Integer] [decimalInteger] (TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))")
