@@ -1,5 +1,7 @@
 module Typedefs.Test.ParseTests
 
+import Data.NEList
+
 import Typedefs.Typedefs
 import Typedefs.Parse
 
@@ -18,6 +20,11 @@ tdefShouldParseAs input exp = it (quote input) $ (show <$> parseTDef input) `sho
 
 tnamedShouldParseAs : String -> Result Error String -> Tree (Either SpecInfo (IO' ffi SpecResult))
 tnamedShouldParseAs input exp = it (quote input) $ (show <$> parseTNamed input) `shouldBe` exp
+
+specShouldParseAs : String -> (List String, List String) -> Tree (Either SpecInfo (IO' ffi SpecResult))
+specShouldParseAs input (expCtx, expDef) = it (quote input) $ do
+  (map (\(MkTopLevelDef s t) => (s, map show (NEList.toList t))) (parseTopLevel input))
+    `shouldBe` Value (expCtx, expDef)
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -91,7 +98,7 @@ testSuite = spec $ do
     (name bit (+ 1 1))
     (name nibble (* bit bit bit bit))
     (name bitOrNibble (either bit nibble))
-    """ 
+    """
       `tnamedShouldParseAs`
         Value "(0 ** (bitOrNibble := (either bit nibble)))"
 
@@ -101,3 +108,28 @@ testSuite = spec $ do
         (SoftFail $ ParseError $ MkPosition 0 2)
 
     "0" `tnamedShouldParseAs` (SoftFail $ ParseError $ MkPosition 0 1)
+  describe "Parser tests: Specialized types" $ do
+      """
+      (specialised List)
+      (specialised Int)
+      (name Bool (+ 1 1))
+      """
+           `specShouldParseAs` (["List", "Int"], ["(0 ** (Bool := (1 + 1)))"])
+      """
+      (specialised List)
+      (specialised Int)
+      (name ListOrInt (+ Int List))
+      """
+        `specShouldParseAs` (["List", "Int"], ["(2 ** (ListOrInt := ({1} + {0})))"])
+      """
+      (specialised List)
+      (specialised Int)
+      (name ListOrInt (+ (var 2) List))
+      """
+        `specShouldParseAs` (["List", "Int"], ["(3 ** (ListOrInt := ({2} + {0})))"])
+      """
+      (specialised List)
+      (specialised Int)
+      (name Pair (* (var 2) (var 3)))
+      """
+        `specShouldParseAs` (["List", "Int"], ["(4 ** (Pair := ({2} * {3})))"])

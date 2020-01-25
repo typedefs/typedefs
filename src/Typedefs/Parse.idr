@@ -9,6 +9,7 @@ import TParsec
 import TParsec.Running
 
 import Typedefs.Typedefs
+import Typedefs.Typedefs
 import Typedefs.Names
 
 import Data.Vect
@@ -120,15 +121,15 @@ tdefRef = guardM
             handleName
             (mand (lift get) alphas)
 
---tdefName : All (Box (Parser' (n ** TDefR n)) :-> Parser' (n ** TDefR n))
---tdefName rec = guardM
---  {a=((m**TNamedR m), NEList (n**TDefR n))}
---  (\(f,xs) =>
---      let (mx**vx) = toVMax (toVect xs)
---       in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
---  )
---  (parens (and (guardM (\(mp, nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
---               (Nat.map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+tdefName : All (Box (Parser' (n ** TDefR n)) :-> Parser' (n ** TDefR n))
+tdefName rec = guardM
+  {a=((m**TNamedR m), NEList (n**TDefR n))}
+  (\(f,xs) =>
+      let (mx**vx) = toVMax (toVect xs)
+       in pure (mx ** !(tApp (snd f) $ map (\(_**(lte,td)) => weakenTDef td mx lte) (fromVMax vx)))
+  )
+  (parens (and (guardM (\((mp,ls), nam) => pushName nam <$> lookup nam mp) $ mand (lift get) alphas)
+               (Nat.map {a=Parser' _} (nelist . ignoreSpaces) rec)))
 
 tdefNary : All (Box (Parser' (n ** TDefR n))
         :-> Cst  Char
@@ -177,7 +178,7 @@ tdef =
    fix (Parser' (n ** TDefR n)) $ \rec =>
    ignoreSpaces $
    alts [ tdefRef
---        , tdefName rec
+        , tdefName rec
         , tdefZero
         , tdefOne
         , tdefNary rec '*' TProd
@@ -185,16 +186,6 @@ tdef =
         , tdefVar
         , tdefMu rec
         ]
-
-
-
--- (specialised int) ;  ref 0 -> "int"
--- (specialised string)
---
--- (name listInt ((ref 1) (* (ref 2) (var 0))
--- (name listInt ((ref 2) (* (ref 3) (var 0) (var 1))))
---
--- type ListInt x0 = List (Int , x0)
 
 
 tnamed : All (Parser' (n ** TNamedR n))
@@ -215,17 +206,17 @@ tdefRec = fix _ $ \rec => map (\(a, ma) => fromMaybe a ma) $ andopt tdef rec
 tdefNEL : All (Parser' (NEList (n ** TDefR n)))
 tdefNEL = nelist tdef
 
-parseTDefR : String -> Result Error (n : Nat ** TDefR n)
-parseTDefR str = getResult $ parseResult str tdefRec
+parseTDef : String -> Result Error (n : Nat ** TDefR n)
+parseTDef str = getResult $ parseResult str tdefRec
 
-parseTDefRs : String -> Result Error (NEList (n : Nat ** TDefR n))
-parseTDefRs str = getResult $ parseResult str tdefNEL
+parseTDefs : String -> Result Error (NEList (n : Nat ** TDefR n))
+parseTDefs str = getResult $ parseResult str tdefNEL
 
-parseThenShowTDefR : String -> String
-parseThenShowTDefR = show . parseTDefR
+parseThenShowTDef : String -> String
+parseThenShowTDef = show . parseTDef
 
-parseTDefRThenStrFun : String -> ((n ** TDefR n) -> String) -> String
-parseTDefRThenStrFun str fn = result show show fn $ parseTDefR str
+parseTDefThenStrFun : String -> ((n ** TDefR n) -> String) -> String
+parseTDefThenStrFun str fn = result show show fn $ parseTDef str
 
 ||| Parse a sequence of `TNamedR`s and return the last one that parsed, accumulating
 ||| and substituting named entries in the process.
@@ -249,8 +240,15 @@ parseThenShowTNamed = show . parseTNamed
 parseTNamedThenStrFun : String -> ((n ** TNamedR n) -> String) -> String
 parseTNamedThenStrFun str fn = result show show fn $ parseTNamed str
 
-specializedList : All (Parser' (NEList String))
-specializedList = nelist $ parens $ rand (ignoreSpaces $ string "specialized") (ignoreSpaces $ alphas)
+
+
+
+specialisedList : All (Parser' (NEList String))
+specialisedList = nelist $ withSpaces spec
+  where
+    spec : All (Parser' String)
+    spec = parens (rand (withSpaces $ string "specialised")
+                        (withSpaces $ alphas))
 
 topLevel : All (Parser' TopLevelDef)
 topLevel = withSpecialized `alt` withoutSpecialized
@@ -258,11 +256,13 @@ topLevel = withSpecialized `alt` withoutSpecialized
     withoutSpecialized : All (Parser' TopLevelDef)
     withoutSpecialized = map (MkTopLevelDef [ ]) tnamedNEL
 
+    ||| Given a list of specialised references, setup the initial state for the parser
     mkState : NEList String -> (SortedMap String (n : Nat ** TDef' n False), List String)
     mkState = MkPair empty . Data.NEList.toList
 
+    ||| Parse the list of specialised references and setup the state for the rest of the parser
     parseWithSpecial : All (Parser' (NEList String))
-    parseWithSpecial = specializedList `landbindm` (lift . put . mkState)
+    parseWithSpecial = specialisedList `landbindm` (lift . put . mkState)
 
     ||| First parse the specialised list and add it to the context, then parse as normal
     withSpecialized : All (Parser' TopLevelDef)
