@@ -48,18 +48,17 @@ mutual
   chooseParser (TVar FZ)             (_::_)    (p::_)    = p
   chooseParser (TVar (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (TVar (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (TVar (FS i)) ts ps
-  chooseParser (TApp f xs)           ts        ps        = ?wat --assert_total $ chooseParser (rewrite convertTy' in (ap (def f) xs)) ts ps
+  chooseParser (TApp (TName n def) xs)           ts        ps        =
+    assert_total $ chooseParser (ap def xs) ts ps
   chooseParser (RRef FZ)             (_::_)    (p::_)    = p
   chooseParser (RRef (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (RRef (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (RRef (FS i)) ts ps
-  chooseParser (TMu td)              ts        ps        = ?wat2
---     map (\ty => Inn {tvars = ts} {m = args td} ty) $
---     parens (rand (string "inn")
---                  (withSpaces $ assert_total $ chooseParser (args td) ((Mu ts (args td))::ts) ((muParser ts ps)::ps)))
+  chooseParser (TMu td)              ts        ps        =
+     map (\ty => Inn {tvars = ts} {m = args td} ty) $
+     parens (rand (string "inn")
+                  (withSpaces $ assert_total $ chooseParser (args td) ((Mu ts (args td))::ts)
+                                                                      ((muParser ts ps)::ps)))
 
---   chooseParser (TName _ td)          ts        ps        = chooseParser td ts ps
-
--- this used to depend on chooseParser but now that its gone it is unclear how to proceed
 deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDefR n) -> String -> Maybe (Ty ts td)
 deserialize ts ps td s  = parseMaybe s (chooseParser td ts ps)
 

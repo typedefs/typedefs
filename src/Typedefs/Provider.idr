@@ -11,7 +11,7 @@ import Typedefs.Parse
 %language TypeProviders
 %default total
 
-provideTP : String -> IO (Provider (n ** TDef n))
+provideTP : String -> IO (Provider (n ** TDefR n))
 provideTP s = case parseMaybe s tdefRec of
   Just r => pure $ Provide r
   Nothing => pure $ Error "parse error"
