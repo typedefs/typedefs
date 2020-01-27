@@ -134,10 +134,19 @@ testSuite = spec $ do
       """
         `specShouldParseAs` (["List", "Int"], ["(4 ** (Pair := ({2} * {3})))"])
       """
-      (specialised Either)
+      (specialised Either 2)
       (name bit (+ 1 1))
       (name nibble (* bit bit bit bit))
       (name bitOrNibble (Either bit nibble))
       """
-        `specShouldParseAs` (["Int", "List"], ["(0 ** (bitOrNibble := ({0} bit nibble)))"])
+        `specShouldParseAs` ([ "Either"], ["(0 ** (bit := (1 + 1)))"
+                             , "(0 ** (nibble := (bit * bit * bit * bit)))"
+                             , "(0 ** (bitOrNibble := (Either bit nibble)))"])
+      """
+      (specialised Either 2)
+      (specialised Int)
+      (specialised String)
+      (name bitOrNibble (Either Int String))
+      """
+        `specShouldParseAs` ([ "Either", "Int", "String"], ["(3 ** (bitOrNibble := (Either {1} {2})))"])
 
