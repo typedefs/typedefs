@@ -18,8 +18,8 @@ import Data.Vect
 
 %access public export
 
-generate : TNamed 0 -> Maybe Doc
-generate tn = generate JSONDef $ singleton (Z ** tn)
+generate : TNamedR 0 -> Maybe Doc
+generate tn = Backend.generate JSONDef $ singleton (Z ** tn)
 
 dquotes : String -> Doc
 dquotes = dquotes . text

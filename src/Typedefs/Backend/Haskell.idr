@@ -144,12 +144,14 @@ data Haskell : Type where
   ||| clauses of the form ((arg1, ..., argk), rhs).
   FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
-specialisedMap : SortedMap String HsType
-specialisedMap = insert "Int"  (hsNamed "Int")
-               $ insert "Bool" (hsNamed "Bool")
+specialisedMap : SortedMap String (HsType, HsTerm)
+specialisedMap = insert "Int"  (hsNamed "Int", HsUnitTT)
+               $ insert "Bool" (hsNamed "Bool", HsUnitTT)
+               $ insert "Maybe" (hsNamed "Maybe", HsUnitTT)
+               $ insert "List" (hsNamed "List", HsUnitTT)
                $ empty
 
-Specialisation HsType where
+Specialisation (HsType, HsTerm) where
   specialisedTypes = specialisedMap
 
 -- Effects -----
@@ -164,7 +166,7 @@ ENV n = 'Env ::: STATE (SortedMap String Nat, Vect n (HsType, HsTerm))
 ||| terms for decoding/encoding the types.
 ||| @ n the size of the environment
 TermGen : (n : Nat) -> Type -> Type
-TermGen n t = Eff t [ENV n, SPECIALIZED HsType, ERR]
+TermGen n t = Eff t [ENV n, SPECIALIZED (HsType, HsTerm), ERR]
 
 toTermGen : Either CompilerError a -> TermGen n a
 toTermGen (Left err) = raise err
@@ -177,21 +179,18 @@ runTermGen env mx = runInit (initialState env) mx
     -- `Env eff […]` instead of `Env (Either CompilerError) […]`
     initialState : (env : Vect n (HsType, HsTerm)) -> Env (Either CompilerError)
       [ STATE (LRes 'Env (SortedMap String Nat, Vect n (HsType, HsTerm)))
-      , STATE (LRes 'Spec (SortedMap String HsType))
+      , STATE (LRes 'Spec (SortedMap String (HsType, HsTerm)))
       , EXCEPTION CompilerError
       ]
-    initialState env = ['Env := (empty, env), 'Spec := specialisedMap, default]
+    initialState env = ['Env := (empty, env), 'Spec := specialisedTypes, default]
 
 HaskellDefM : Type -> Type
-HaskellDefM = MakeDefM HsType
-
-runMakeDefsM : HaskellDefM a -> Either CompilerError a
-runMakeDefsM = runMakeDefM
+HaskellDefM = MakeDefM (HsType, HsTerm)
 
 -- TODO use definition from Utils
 -- The state monad in which name lookup happens, contains a sorted map of existing types, can throw errors
 HaskellLookupM : Type -> Type
-HaskellLookupM = LookupM HsType
+HaskellLookupM = LookupM (HsType, HsTerm)
 
 toHaskellLookupM : Either CompilerError a -> HaskellLookupM a
 toHaskellLookupM (Left err) = raise err
@@ -455,7 +454,8 @@ makeType e    (TVar v)    = pure $ Vect.index v e
 makeType e td@(TMu cases) = pure $ HsParam (nameMu cases) $ getUsedVars e td
 makeType e    (TApp f xs) = do ys <- (traverseEffect (assert_total (makeType e)) xs)
                                pure $ HsParam (name f) ys
-makeType e    (RRef n)    = ?whut --do specMap <- 'Spec :- get
+makeType e    (RRef i)    = pure $ Vect.index i e
+                            --do specMap <- 'Spec :- get
                             --   case lookup n specMap of
                             --     Just t => pure t
                             --     Nothing => raise $ RefNotFound ("could not find " ++ n ++ " in " ++ (show $ keys specMap))
@@ -615,9 +615,7 @@ encoderDecoderTerm : (namer : HsType -> Name) -> TDefR n -> TermGen n HsTerm
 encoderDecoderTerm namer (TApp g xs) =
   do xs' <- traverseEffect (assert_total $ encoderDecoderTerm namer) xs
      pure (HsApp (HsFun (namer (HsParam (name g) []))) (toList xs'))
-encoderDecoderTerm namer (TVar i)    =
-  do env <- envTerms
-     pure (index i env)
+encoderDecoderTerm namer (TVar i)    = index i <$> envTerms
 encoderDecoderTerm namer td          =
   do env <- envTerms
      let varEncoders = getUsedVars env td
@@ -713,7 +711,8 @@ encode t@(TMu tds)      y =
      pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
 encode t@(TApp f xs)    y =
      pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
-encode   (RRef n)       t = raise $ ReferencesNotSupported "Haskell term encoder"
+encode   (RRef i)       t =
+     pure $ HsApp (index i !envTerms) [t]
 
 ||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
@@ -747,7 +746,8 @@ decode   (TVar i)       =
      pure $ index i !envTerms
 decode t@(TMu tds)      = decoderTerm t -- assumes the def of this is generated elsewhere
 decode t@(TApp f xs)    = decoderTerm t -- assumes the def of this is generated elsewhere
-decode   (RRef n)       = raise $ ReferencesNotSupported "Haskell term decoder"
+decode   (RRef i)       =
+     pure $ index i !envTerms
 
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
@@ -854,8 +854,12 @@ decodeDef {n} t@(TName tname td) =
 
 ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = runHaskellLookupM $ makeType' freshEnv tn
-  generateTyDefs tns = runMakeDefsM $ concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
-  generateTermDefs tns = runMakeDefsM $
+  generateTyDefs declaredSpecialisations tns =
+    runMakeDefM {t=(HsType, HsTerm)} $ do
+      let specialisedMap = specialisedTypes {t=(HsType, HsTerm)}
+      'Names :- put declaredSpecialisations
+      concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
+  generateTermDefs tns = runMakeDefM $
     do gen <- traverseEffect genHaskell (toVect tns)
        pure $ concat gen
     where
@@ -877,6 +881,7 @@ CodegenIndep Haskell HsType where
   preamble   = text """module Typedefs.Definitions
 
 import Data.Word
+import Data.Binary
 import Data.ByteString.Lazy
 import Data.ByteString.Builder
 

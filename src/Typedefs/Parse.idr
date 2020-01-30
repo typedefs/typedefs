@@ -249,9 +249,6 @@ parseThenShowTNamed = show . parseTNamed
 parseTNamedThenStrFun : String -> ((n ** TNamedR n) -> String) -> String
 parseTNamedThenStrFun str fn = result show show fn $ parseTNamed str
 
-
-
-
 specialisedList : All (Parser' (NEList (String, Maybe Nat)))
 specialisedList = nelist $ withSpaces spec
   where
