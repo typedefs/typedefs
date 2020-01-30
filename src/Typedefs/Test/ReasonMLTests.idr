@@ -32,8 +32,8 @@ eitherDoc : Doc
 eitherDoc = text "type" |++| text "either" |+| tupled [x0,x1]
             |++| equals |++| text "Left" |+| parens x0 |++| pipe |++| text "Right" |+| parens x1 |+| semi
 
-generate : TNamed n -> Maybe Doc
-generate {n} tn = eitherToMaybe $ generateDefs ReasonML $ singleton (n ** tn)
+generate : TNamedR n -> Maybe Doc
+generate {n} tn = eitherToMaybe $ generateDefs ReasonML (MkTopLevelDef [] $ NEList.singleton (n ** tn))
 
 testSuite : IO ()
 testSuite = spec $ do
@@ -258,7 +258,7 @@ testSuite = spec $ do
                       ])
 
     it "list of definitions [bit, nibble, byte, char, hash, transitionId, data, previous, rootTx]" $
-      (eitherToMaybe $ generateDefs ReasonML listOfDefs)
+      (eitherToMaybe $ generateDefs ReasonML (MkTopLevelDef [] listOfDefs))
         `shouldBe` (Just $ vsep2
                       [ bitDoc
                       , text "type" |++| text "nibble"

@@ -98,7 +98,7 @@ rmlParam : Decl -> RMLType
 rmlParam (MkDecl n ps) = RMLParam n (map RMLVar ps)
 
 ||| Generate a ReasonML type from a `TDef`.
-makeType : Env n -> TDef n -> ReasonLookupM RMLType
+makeType : Env n -> TDefR n -> ReasonLookupM RMLType
 makeType _     T0         = pure $ RMLParam "void" []
 makeType _     T1         = pure RMLUnit
 makeType e    (TSum xs)   = foldr1' (\t1,t2 => RMLParam "Either" [t1, t2]) <$> traverseEffect (assert_total $ makeType e) xs
@@ -106,20 +106,18 @@ makeType e    (TProd xs)  = RMLTuple <$> traverseEffect (assert_total $ makeType
 makeType e    (TVar v)    = pure $ either RMLVar rmlParam $ Vect.index v e
 makeType e td@(TMu cases) = pure $ RMLParam (nameMu cases) . map (either RMLVar rmlParam) $ getUsedVars e td
 makeType e    (TApp f xs) = RMLParam (name f) <$> (traverseEffect (assert_total $ makeType e) xs)
-makeType e    (FRef n)    = case lookup n !('Spec :- get) of
-                              Just t => pure t
-                              Nothing => raise $ RefNotFound n
+makeType e    (RRef n)    = raise $ ReferencesNotSupported "Only Haskell supports references"
 
-||| Generate a ReasonML type from a `TNamed`.
-makeType' : Env n -> TNamed n -> RMLType
+||| Generate a ReasonML type from a `TNamedR`.
+makeType' : Env n -> TNamedR n -> RMLType
 makeType' e (TName name body) = RMLParam name . map (either RMLVar rmlParam) $ getUsedVars e body
 
 mutual
   ||| Generate all the ReasonML type definitions that a `TDef` depends on.
-  makeDefs : TDef n -> ReasonDefM (List ReasonML)
+  makeDefs : TDefR n -> ReasonDefM (List ReasonML)
   makeDefs T0             = assert_total $ makeDefs' voidDef
     where
-    voidDef : TNamed 0
+    voidDef : TNamedR 0
     voidDef = TName "void" $ TMu []
   makeDefs T1             = pure (the (List ReasonML) [])
   makeDefs (TProd xs)     = concat <$> traverseEffect (assert_total makeDefs) xs
@@ -127,7 +125,7 @@ mutual
     do res <- concat <$> traverseEffect (assert_total makeDefs) xs
        (++ res) <$> (assert_total $ makeDefs' eitherDef)
     where
-    eitherDef : TNamed 2
+    eitherDef : TNamedR 2
     eitherDef = TName "either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
   makeDefs    (TVar v)    = pure []
   makeDefs td@(TMu cases) = makeDefs' $ TName (nameMu cases) td -- We name anonymous mus using their constructors.
@@ -135,10 +133,10 @@ mutual
     do res <- assert_total $ makeDefs' f
        res' <- concat <$> traverseEffect (assert_total makeDefs) xs
        pure (res ++ res')
-  makeDefs    (FRef n)    = raise $ RefNotFound n
+  makeDefs    (RRef n)    = pure []
 
-  ||| Generate ReasonML type definitions for a `TNamed` and all of its dependencies.
-  makeDefs' : TNamed n -> ReasonDefM (List ReasonML)
+  ||| Generate ReasonML type definitions for a `TNamedR` and all of its dependencies.
+  makeDefs' : TNamedR n -> ReasonDefM (List ReasonML)
   makeDefs' (TName name body) = ifNotPresent name $
     let decl = MkDecl name (getFreeVars $ getUsedVars freshEnv body) in -- All vars will actually be free, but we want Strings instead of Eithers.
     case body of
@@ -152,15 +150,15 @@ mutual
            do res <- assert_total $ makeDefs body
               pure $ res ++ [Alias decl !(makeType freshEnv body)]
     where
-      makeCaseDef : Env (S n) -> (Name, TDef (S n)) -> ReasonDefM (Name, RMLType)
+      makeCaseDef : Env (S n) -> (Name, TDefR (S n)) -> ReasonDefM (Name, RMLType)
       makeCaseDef env (n, def) = pure (n, !(subLookup $ makeType env def))
 
 
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
-  generateTyDefs tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
+  generateTyDefs specialised tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
     where
-      genDef : ZeroOrUnbounded TNamed True -> ReasonDefM (List ReasonML)
+      genDef : ZeroOrUnbounded TNamedR True -> ReasonDefM (List ReasonML)
       genDef (Unbounded tn) = makeDefs' tn
 
   generateTermDefs tns = pure [] -- TODO

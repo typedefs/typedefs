@@ -48,7 +48,7 @@ jsonRefError n = ReferencesNotSupported ("JSON doesn't support references, but f
 
 
 mutual
-  makeSubSchema : TDef 0 -> JSONLookupM JSON
+  makeSubSchema : TDefR 0 -> JSONLookupM JSON
   makeSubSchema  T0         = pure $ defRef "emptyType"
   makeSubSchema  T1         = pure $ defRef "singletonType"
   makeSubSchema (TSum ts)   = disjointSubSchema (zip (nary "case") ts)
@@ -56,18 +56,17 @@ mutual
   makeSubSchema (TMu cs)    = pure $ defRef (nameMu cs)
   makeSubSchema (TApp f []) = pure $ defRef . name $ f
   makeSubSchema (TApp f xs) = pure $ defRef . name $ f `apN` xs
-  makeSubSchema (FRef n)    = raise $ jsonRefError n
 
   ||| Generate a schema that matches exactly one of the supplied schemas, which must be wrapped in its corresponding name.
-  disjointSubSchema : Vect k (Name, TDef 0) -> JSONLookupM JSON
+  disjointSubSchema : Vect k (Name, TDefR 0) -> JSONLookupM JSON
   disjointSubSchema cases =
     pure $ JObject [("oneOf", JArray . toList $ !(traverseEffect (assert_total makeCase) cases))]
     where
-    isMu : TDef n -> Bool
+    isMu : TDefR n -> Bool
     isMu (TMu _) = True
     isMu _       = False
 
-    makeCase : (Name, TDef 0) -> JSONLookupM JSON
+    makeCase : (Name, TDefR 0) -> JSONLookupM JSON
     makeCase (name, td) = pure $ JObject
       [ ("type", JString "object")
       , ("required", JArray [JString name])
@@ -76,7 +75,7 @@ mutual
       ]
 
   ||| Generate a schema that requires all of the supplied schemas to match, with each being wrapped in its corresponding name.
-  productSubSchema : Vect k Name -> Vect k (TDef 0) -> JSONLookupM JSON
+  productSubSchema : Vect k Name -> Vect k (TDefR 0) -> JSONLookupM JSON
   productSubSchema names tds = pure $ JObject
     [ ("type", JString "object")
     , ("required", JArray . toList $ map JString names)
@@ -85,8 +84,8 @@ mutual
     ]
 
 mutual
-  ||| Generate helper definitions for all types contained in a `TDef 0`.
-  makeDefs : TDef 0 -> JSONMakeDefM (List JSONDef)
+  ||| Generate helper definitions for all types contained in a `TDefR 0`.
+  makeDefs : TDefR 0 -> JSONMakeDefM (List JSONDef)
   makeDefs T0 = ifNotPresent "emptyType" $ pure [("emptyType", emptyType)]
     where
       emptyType : JSON
@@ -106,9 +105,8 @@ mutual
   makeDefs td@(TMu cases) = makeDefs' (TName (nameMu cases) td)
   makeDefs    (TApp f []) = makeDefs' f
   makeDefs    (TApp f xs) = makeDefs' (f `apN` xs)
-  makeDefs    (FRef n)    = raise $ jsonRefError n
 
-  makeDefs' : TNamed 0 -> JSONMakeDefM (List JSONDef)
+  makeDefs' : TNamedR 0 -> JSONMakeDefM (List JSONDef)
   makeDefs' (TName name body) = ifNotPresent name $
     case body of
       TMu cs => do -- Named `TMu`s are treated specially
@@ -139,9 +137,9 @@ makeSchema schema defs = JObject
 
 ASTGen JSONDef JSON False where
   msgType (Zero tn) = pure $ makeSubSchema' tn
-  generateTyDefs tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
+  generateTyDefs specialisations tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
     where
-      genDef : ZeroOrUnbounded TNamed False -> JSONMakeDefM (List JSONDef)
+      genDef : ZeroOrUnbounded TNamedR False -> JSONMakeDefM (List JSONDef)
       genDef (Zero tn) = makeDefs' tn
 
   generateTermDefs tns = pure [] -- TODO?
