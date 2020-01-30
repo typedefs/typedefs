@@ -89,7 +89,7 @@ wrap : TNamed' n a -> TDef' n a
 wrap tn = TApp tn idVars
 
 ||| Alias one `TNamed` with a new name. Note: this is not the same as naming the underlying `TDef` again.
-alias : Name -> TNamed n -> TNamed n
+alias : Name -> TNamed' n b -> TNamed' n b
 alias name tn = TName name (wrap tn)
 
 -- Surrounding character functions

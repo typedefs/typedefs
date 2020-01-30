@@ -30,7 +30,7 @@ getInput (StringInput x) = pure (Right x)
 getInput (FileInput x)   = readFile x
 
 parseAndGenerateTDef : String -> Either String String
-parseAndGenerateTDef tdef = (resultToEither $ parseTNameds tdef)
+parseAndGenerateTDef tdef = (resultToEither $ parseTopLevel tdef)
                         >>= printOrShowError . generateDefs Haskell
 
 runWithOptions : TypedefOpts -> IO ()
