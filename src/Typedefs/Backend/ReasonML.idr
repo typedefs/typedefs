@@ -153,7 +153,6 @@ mutual
       makeCaseDef : Env (S n) -> (Name, TDefR (S n)) -> ReasonDefM (Name, RMLType)
       makeCaseDef env (n, def) = pure (n, !(subLookup $ makeType env def))
 
-
 ASTGen ReasonML RMLType True where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
   generateTyDefs specialised tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)

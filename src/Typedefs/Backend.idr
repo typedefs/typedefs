@@ -12,10 +12,6 @@ import Text.PrettyPrint.WL
 %default total
 %access public export
 
---TODO remove, added to TParsec
---Traversable NEList where
---  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
-
 ||| Proof that a type constuctor indexed on Nat is indexed on Z or if its unbounded
 |||
 ||| `ZeroOrUnbounded p True` means `p` is unbounded
@@ -97,7 +93,7 @@ generate' {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
                                  terms <- generateTermDefs {def} nel
                                  pure $ sourceCode types (defs ++ terms)
 
-||| Here for compatibilty purpopses with tests
+||| Here for compatibilty purposes with tests
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamedR n) -> Maybe Doc
 generate {fv} def tns = eitherToMaybe $ generate' def tns
 

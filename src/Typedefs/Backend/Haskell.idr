@@ -145,11 +145,12 @@ data Haskell : Type where
   FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
 
 specialisedMap : SortedMap String (HsType, HsTerm)
-specialisedMap = insert "Int"  (hsNamed "Int", HsUnitTT)
-               $ insert "Bool" (hsNamed "Bool", HsUnitTT)
-               $ insert "Maybe" (hsNamed "Maybe", HsUnitTT)
-               $ insert "List" (hsNamed "List", HsUnitTT)
-               $ empty
+specialisedMap = foldr {t=List} (uncurry insert) empty $
+                 [ ("Int"  , (hsNamed "Int"  , HsUnitTT))
+                 , ("Bool" , (hsNamed "Bool" , HsUnitTT))
+                 , ("Maybe", (hsNamed "Maybe", HsUnitTT))
+                 , ("List" , (hsNamed "List" , HsUnitTT))
+                 ]
 
 Specialisation (HsType, HsTerm) where
   specialisedTypes = specialisedMap
@@ -171,7 +172,6 @@ TermGen n t = Eff t [ENV n, SPECIALIZED (HsType, HsTerm), ERR]
 toTermGen : Either CompilerError a -> TermGen n a
 toTermGen (Left err) = raise err
 toTermGen (Right val) = pure val
-
 
 runTermGen : (env : Vect n (HsType, HsTerm)) -> TermGen n a -> Either CompilerError a
 runTermGen env mx = runInit (initialState env) mx
@@ -240,7 +240,6 @@ mutual
       renderArrow a (HsArrow b' c') = a |++| text "->" |++| (renderArrow (renderParamNoParen b') c')
       renderArrow a b               = a |++| text "->" |++| (renderParamNoParen b)
 
-
   ||| As `renderType`, but with enclosing top-level parentheses
   ||| if it can possibly make a semantic difference.
   guardParen : HsType -> Doc
@@ -293,7 +292,6 @@ mutual
   renderDoExp : (Maybe HsTerm, HsTerm) -> Doc
   renderDoExp (Nothing, e) = renderTerm e
   renderDoExp (Just x , e) = renderTerm x |++| text "<-" |++| renderTerm e
-
 
 ||| Helper function to render a top-level declaration as source code.
 renderDecl : Decl -> Doc
@@ -742,12 +740,10 @@ decode   (TProd {k} xs) =
   where
     traverseIndexDecode : Vect (2 + k) HsTerm -> Fin (2 + k) -> TDefR n -> TermGen n (Maybe HsTerm, HsTerm)
     traverseIndexDecode vars i tdef = pure (Just $ index i vars, !(assert_total $ decode tdef))
-decode   (TVar i)       =
-     pure $ index i !envTerms
+decode   (TVar i)       = pure $ index i !envTerms
 decode t@(TMu tds)      = decoderTerm t -- assumes the def of this is generated elsewhere
 decode t@(TApp f xs)    = decoderTerm t -- assumes the def of this is generated elsewhere
-decode   (RRef i)       =
-     pure $ index i !envTerms
+decode   (RRef i)       = pure $ index i !envTerms
 
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
