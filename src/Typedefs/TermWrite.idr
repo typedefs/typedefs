@@ -64,7 +64,6 @@ injectionInv (a::b::c::tds) (Left x) = (0 ** x)
 injectionInv (a::b::c::tds) (Right y) =
   let (i' ** y') = injectionInv (b::c::tds) y in (FS i' ** y')
 
-
 serializeBinary : (t : TDefR n) -> (ts : Vect n (a ** Serialiser a)) -> Serialiser (Ty (map DPair.fst ts) t)
 serializeBinary T0 ts x impossible
 serializeBinary T1 ts x = empty

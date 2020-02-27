@@ -204,7 +204,6 @@ mutual
     assert_total $ Ty tvars $ def `ap` xs -- TODO: could be done properly
   Ty     tvars (RRef i)                = Vect.index i tvars
 
-
 ||| Since `convertTy` is an identity function it is safe to assume this one is too
 convertTy' : Ty ts (TApp f ys) -> Ty ts (ap (def f) ys)
 convertTy' x = believe_me x
