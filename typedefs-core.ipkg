@@ -12,6 +12,7 @@ modules = Typedefs.Names
         , Typedefs.Backend.Haskell
         , Typedefs.Backend.JSON
         , Typedefs.Backend.ReasonML
+        , Typedefs.Backend.Purescript
 
         , Typedefs.Test
         , Typedefs.Test.TypedefsSuite
