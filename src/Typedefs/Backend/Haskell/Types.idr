@@ -1,11 +1,31 @@
 module Typedefs.Backend.Haskell.HaskellTypes
 
 import Text.PrettyPrint.WL
+import Data.Vect
+
+import Typedefs.Names
+import Typedefs.Backend.Haskell.Data
 
 %default total
+||| The same as `tupled : List Doc -> Doc`, except that tuples with
+||| more than 62 components get turned into nested tuples, to adhere
+||| to GHC's restriction on tuple size.
+||| (See https://hackage.haskell.org/package/ghc-prim-0.5.1.0/docs/src/GHC.Tuple.html )
+export
+hsTupled : List Doc -> Doc
+hsTupled xs = if length xs < 63
+              then tupled xs
+              else let (xs0, xs1) = splitAt 61 xs in
+                     tupled (xs0 ++ [hsTupled $ assert_smaller xs xs1])
+
+
+export
+renderApp : Name -> Vect n Doc -> Doc
+renderApp name params = text (uppercase name) |+| hsep (empty :: toList params)
 
 mutual
   ||| Render a type signature as Haskell source code.
+  export
   renderType : HsType -> Doc
   renderType HsVoid                = text "Void"
   renderType HsUnit                = text "()"
@@ -27,6 +47,7 @@ mutual
 
   ||| As `renderType`, but with enclosing top-level parentheses
   ||| if it can possibly make a semantic difference.
+  export
   guardParen : HsType -> Doc
   guardParen t@(HsParam _ []) = assert_total $ renderType t
   guardParen t@(HsParam _ _ ) = parens (assert_total $ renderType t)

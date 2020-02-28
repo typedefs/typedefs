@@ -3,9 +3,10 @@ module Typedefs.Backend
 import Data.Vect
 import Data.NEList
 
+import Typedefs.Text
 import Typedefs.Names
 import Typedefs.Typedefs
-import Typedefs.Backend.Utils
+import Typedefs.Backend.Data
 
 import Text.PrettyPrint.WL
 
@@ -97,39 +98,3 @@ generate' {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
 generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamedR n) -> Maybe Doc
 generate {fv} def tns = eitherToMaybe $ generate' def tns
 
-{-
-record SpecialiseEntry where
-  constructor MkSpecialiseEntry
-  tdef : TDef 0
-  ||| name of type used for specialisation
-  targetType : String
-  ||| name of function of target type generateType tdef -> targetType
-  encodeFun : String
-  ||| name of function of target type targetType -> generateType tdef
-  decodeFun : String
-
-||| Generate type definitions according to an *ordered* set of specialisation entries.
-generateDefsSpecialised : Backend lang => Vect (S m') SpecialiseEntry -> (n : Nat) -> TDef n -> List lang
-generateDefsSpecialised {lang} {m' = m'} table n td = generateTyDefs e td'
-   where m : Nat
-         m = S m'
-         e : Env (n + m)
-         e = freshEnv {lang} n ++ map (\ s => Right $ MkDecl (targetType s) []) table
-         traverseTD : (n : Nat) -> (Fin m, SpecialiseEntry) -> TDef (n + m) -> TDef (n + m)
-         traverseTD n (i, se) t = if t == weakenTDef (tdef se) _ (lteAddRight 0)
-                                    then replace prf (TVar (fromNat (n + toNat i)))
-                                    else go t
-             where prf : m + n = n + m
-                   prf = plusCommutative m n
-                   go : TDef (n + m) -> TDef (n + m)
-                   go T0 = T0
-                   go T1 = T1
-                   go (TSum xs)  = TSum (assert_total $ map (traverseTD n (i, se)) xs)
-                   go (TProd xs) = TProd (assert_total $ map (traverseTD n (i, se)) xs)
-                   go (TMu xs)   = TMu (assert_total $ map (\(c, t) => (c,traverseTD (S n) (i, se) t)) xs)
-                   --go (TName name t) = TName name (traverseTD n (i, se) t)
-                   go (TApp f xs) = ?goTApp
-                   go x = x -- only TVar i case left
-         td' : TDef (n + m)
-         td' = foldl (flip (traverseTD n)) (weakenTDef td (n + m) (lteAddRight n)) (zip range table)
--}
