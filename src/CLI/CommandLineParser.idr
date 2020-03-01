@@ -44,6 +44,7 @@ export
 data GenerateTarget = All
                     | TypesOnly
                     | TermsOnly
+
 Show GenerateTarget where
   show All = "--all"
   show TypesOnly = "--types"
@@ -55,7 +56,6 @@ parseGenerateTarget = flag' All (long "all")
                   <|> flag' TermsOnly (long "terms")
                   <|> pure All -- fallback on `All` if no argument is provided
 
-
 public export
 record TypedefOpts where
   constructor MkTypedefOpts
@@ -64,8 +64,8 @@ record TypedefOpts where
   generate : GenerateTarget
 
 public export
-data CommandLineOpts = Help 
-                     | GenerateTDefOpt TypedefOpts 
+data CommandLineOpts = Help
+                     | GenerateTDefOpt TypedefOpts
                      | HelpFallback
 
 Show TypedefOpts where

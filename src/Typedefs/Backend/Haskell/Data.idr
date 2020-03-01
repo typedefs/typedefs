@@ -40,7 +40,7 @@ data HsTerm : Type where
   |||   e         [ represented by (Nothing, e)].
   HsDo : List (Maybe HsTerm, HsTerm) -> HsTerm
 
-  -- special constants (for convencience)
+  -- special constants (for convenience)
 
   ||| A Word8 converted from an Int literal (`fromIntegral i`).
   HsWord8 : Int -> HsTerm
@@ -77,13 +77,13 @@ data HsType : Type where -- TODO could be interesting to index this by e.g. used
   HsArrow :         HsType -> HsType    -> HsType
 
 printType : HsType -> String
-printType HsVoid = "Void"
-printType HsUnit = "()"
-printType (HsTuple xs) = "(" ++ concat (intersperse ", " (map (assert_total printType) xs)) ++ ")"
-printType (HsSum x y) = "(Either " ++ printType x ++ printType y ++ ")"
-printType (HsVar x) = x
+printType  HsVoid        = "Void"
+printType  HsUnit        = "()"
+printType (HsTuple xs)   = "(" ++ concat (intersperse ", " (map (assert_total printType) xs)) ++ ")"
+printType (HsSum x y)    = "(Either " ++ printType x ++ printType y ++ ")"
+printType (HsVar x)      = x
 printType (HsParam x xs) = x ++ concat (intersperse " " (map (assert_total printType) xs))
-printType (HsArrow x y) = printType x ++ " -> " ++ printType y
+printType (HsArrow x y)  = printType x ++ " -> " ++ printType y
 
 export
 Show HsType where
@@ -113,12 +113,12 @@ hsNamed n = HsParam n []
 public export
 data Haskell : Type where
   ||| A type synonym is a declared name (possibly with parameters) and a type.
-  Synonym : Decl -> HsType                -> Haskell
+  Synonym : Decl -> HsType                               -> Haskell
 
   ||| An algebraic data type is a declared name (possibly with parameters)
   ||| and a number of constructors, each wrapping a Haskell type.
-  ADT     : Decl -> Vect n (Name, HsType) -> Haskell
+  ADT     : Decl -> Vect n (Name, HsType)                -> Haskell
 
   ||| A function definition is a declared name, a type, and a list of
   ||| clauses of the form ((arg1, ..., argk), rhs).
-  FunDef : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell
+  FunDef  : Name -> HsType -> List (List HsTerm, HsTerm) -> Haskell

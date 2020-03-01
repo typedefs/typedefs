@@ -37,8 +37,7 @@ hsTupled : List Doc -> Doc
 hsTupled xs = if length xs < 63
               then tupled xs
               else let (xs0, xs1) = splitAt 61 xs in
-                     tupled (xs0 ++ [hsTupled $ assert_smaller xs xs1])
-
+                   tupled (xs0 ++ [hsTupled $ assert_smaller xs xs1])
 
 export
 renderApp : Name -> Vect n Doc -> Doc
@@ -64,7 +63,6 @@ mutual
       renderArrow : Doc -> HsType -> Doc
       renderArrow a (HsArrow b' c') = a |++| text "->" |++| (renderArrow (renderParamNoParen b') c')
       renderArrow a b               = a |++| text "->" |++| (renderParamNoParen b)
-
 
   ||| As `renderType`, but with enclosing top-level parentheses
   ||| if it can possibly make a semantic difference.

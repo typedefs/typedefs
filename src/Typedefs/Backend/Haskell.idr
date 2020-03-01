@@ -26,13 +26,6 @@ import Effect.Exception
 %default total
 %access export
 
-traverseWithIndex : (Fin n -> a -> HaskellTermGen m b) -> Vect n a -> HaskellTermGen m (Vect n b)
-traverseWithIndex f []        = pure []
-traverseWithIndex f (x :: xs) = do y <- f FZ x
-                                   ys <- traverseWithIndex (f . FS) xs
-                                   pure (y :: ys)
-
-
 ||| Compute the list of `TNamed`s whose termdefs the termdef for the
 ||| given `TDef` depends on. Does not include the given `TDef` itself.
 ||| @ env semantic environment, used for knowing what to name things

@@ -42,6 +42,13 @@ public export
 HaskellTermGen : Nat -> Type -> Type
 HaskellTermGen = TermGen (HsType, HsTerm)
 
+export
+traverseWithIndex : (Fin n -> a -> HaskellTermGen m b) -> Vect n a -> HaskellTermGen m (Vect n b)
+traverseWithIndex f []        = pure []
+traverseWithIndex f (x :: xs) = do y <- f FZ x
+                                   ys <- traverseWithIndex (f . FS) xs
+                                   pure (y :: ys)
+
 public export
 HaskellDefM : Type -> Type
 HaskellDefM = MakeDefM (HsType, HsTerm)

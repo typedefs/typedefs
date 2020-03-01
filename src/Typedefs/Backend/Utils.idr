@@ -31,7 +31,6 @@ foldr1' : (a -> a -> a) -> Vect (S n) a -> a
 foldr1' f [x]        = x
 foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 
-
 ||| Produce a name for an anonymous `TMu` by simply concatenating its constructors.
 export
 nameMu : Vect n (Name, TDef' k a) -> Name
@@ -56,4 +55,3 @@ flattenMus muName = flattenMu [muName]
   flattenMu names (TApp f xs) = assert_total $ TApp f (map (flattenMu names) xs)
   flattenMu names (RRef i) {a = False} = wrap $ TName (index i names) T0
   flattenMu names (FRef i) {a = True } = FRef i
-
