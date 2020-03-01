@@ -125,6 +125,7 @@ handleNameArgument ((mp, ls), name) = maybe (do Just ix <- lookup name ls
                                                 Just $ (ix ** TName name T0)) Just
   (pushName name <$> SortedMap.lookup name mp)
 
+
 tdefName : All (Box (Parser' (n ** TDefR n)) :-> Parser' (n ** TDefR n))
 tdefName rec = guardM
   -- 2. and then we try to apply the list of argument to the first name
@@ -139,6 +140,7 @@ tdefName rec = guardM
   (parens (and (guardM handleNameArgument
                        (mand (lift get) alphas))
                (Nat.map {a=Parser' _} (nelist . ignoreSpaces) rec)))
+
 
 tdefNary : All (Box (Parser' (n ** TDefR n))
         :-> Cst  Char
@@ -187,7 +189,7 @@ tdef =
    fix (Parser' (n ** TDefR n)) $ \rec =>
    ignoreSpaces $
    alts [ tdefRef
-        , tdefName rec
+        --, tdefName rec
         , tdefZero
         , tdefOne
         , tdefNary rec '*' TProd
