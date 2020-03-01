@@ -6,7 +6,6 @@ import Typedefs.Typedefs
 import Typedefs.Backend
 import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell
-import Typedefs.Backend.Haskell.Data
 
 import Typedefs.Test
 import Typedefs.Test.HaskellStrings

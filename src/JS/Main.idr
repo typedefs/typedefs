@@ -14,7 +14,6 @@ import        Typedefs.Backend
 import        Typedefs.Backend.Data
 import        Typedefs.Backend.Utils
 import        Typedefs.Backend.Haskell
-import        Typedefs.Backend.Haskell.Data
 import        Typedefs.Backend.JSON
 import        Typedefs.Backend.ReasonML
 

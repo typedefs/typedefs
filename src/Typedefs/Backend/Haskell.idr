@@ -7,14 +7,14 @@ import Data.SortedMap
 import Typedefs.Names
 import Typedefs.Typedefs
 
-import Typedefs.Backend
-import Typedefs.Backend.Data
-import Typedefs.Backend.Effects
-import Typedefs.Backend.Specialisation
-import Typedefs.Backend.Utils
-import Typedefs.Backend.Haskell.Data
-import Typedefs.Backend.Haskell.Types
-import Typedefs.Backend.Haskell.Terms
+import        Typedefs.Backend
+import        Typedefs.Backend.Data
+import        Typedefs.Backend.Effects
+import        Typedefs.Backend.Specialisation
+import        Typedefs.Backend.Utils
+import public Typedefs.Backend.Haskell.Data
+import        Typedefs.Backend.Haskell.Typegen
+import        Typedefs.Backend.Haskell.Termgen
 
 import Text.PrettyPrint.WL
 import Control.Monad.State
@@ -48,7 +48,7 @@ dependencies env td =
 
     -- Traverse TMu recursively
     goMu : Vect n HsType -> Vect k (String, TDefR (S n)) -> HaskellLookupM (List (m ** TNamedR m))
-    goMu env tds = do muType <- makeType env (TMu tds)
+    goMu env tds = do let muType = makeType env (TMu tds)
                       let tdefs = map snd tds
                       let extendedEnv = muType :: env
                       traverseRec extendedEnv tdefs
@@ -64,7 +64,7 @@ dependencies env td =
     -- FRefs are not followed through the dependencies of the type they point to.
     go     env   (RRef _)                        = pure []
     go     env   (TApp {k} t@(TName name td) xs) = do
-        envxs <- traverseEffect (makeType env) xs
+        let envxs = map (makeType env) xs
         -- dependencies of the actual td
         depTd <- case td of
                  TMu tds => goMu envxs tds -- skip the TMu itself
@@ -157,14 +157,14 @@ encodeDef {n} t@(TName tname td) = do
       let env = freshEnvWithTerms "encode"
       let envTypes = map fst env
       funName <- if tname == ""
-                    then encodeName <$> makeType envTypes td
+                    then pure $ encodeName $ makeType envTypes td
                     else pure $ "encode" ++ uppercase tname
       let varEncs = toList $ getUsedVars (map snd env) td
       currTerm <- pure $ HsApp (HsFun funName) varEncs
       currType <- if tname == ""
-                     then makeType envTypes td
+                     then pure $ makeType envTypes td
                      else pure $ HsParam tname []
-      funType <- do init <- makeType' envTypes t
+      funType <- do let init = makeType' envTypes t
                     pure $ foldr HsArrow
                                 (hsSerialiser init)
                                 (map hsSerialiser (getUsedVars envTypes td))
@@ -210,14 +210,14 @@ decodeDef {n} t@(TName tname td) =
   do let env = freshEnvWithTerms "decode"
      let envTypes = map fst env
      funName <- if tname == ""
-                   then decodeName <$> makeType envTypes td
+                   then pure $ decodeName $ makeType envTypes td
                    else pure $ "decode" ++ uppercase tname
      let varEncs = toList $ getUsedVars (map snd env) td
      let currTerm = HsApp (HsFun funName) varEncs
-     currType <- if tname == ""  -- makeType' env t
-                    then makeType envTypes td
+     currType <- if tname == ""
+                    then pure $ makeType envTypes td
                     else pure $ HsParam tname []
-     funType <- do init <- makeType' envTypes t
+     funType <- do let init = makeType' envTypes t
                    pure $ foldr HsArrow
                                 (hsDeserialiser init)
                                 (map hsDeserialiser (getUsedVars envTypes td))
@@ -254,7 +254,7 @@ decodeDef {n} t@(TName tname td) =
     genCase n currType currTerm env td = toHaskellLookupM $ map simplify $ runTermGen env (decode td)
 
 ASTGen Haskell HsType True where
-  msgType  (Unbounded tn) = runHaskellLookupM $ makeType' freshEnv tn
+  msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
   generateTyDefs declaredSpecialisations tns =
     runMakeDefM {t=(HsType, HsTerm)} $ do
       let specialisedMap = specialisedTypes {t=(HsType, HsTerm)}

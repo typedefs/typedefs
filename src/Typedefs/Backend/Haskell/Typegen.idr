@@ -1,12 +1,33 @@
-module Typedefs.Backend.Haskell.HaskellTypes
+module Typedefs.Backend.Haskell.Typegen
 
 import Text.PrettyPrint.WL
 import Data.Vect
 
+import Typedefs.Typedefs
 import Typedefs.Names
+import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell.Data
 
 %default total
+
+||| Generate a Haskell type from a `TDef`.
+export
+makeType : Vect n HsType -> TDefR n -> HsType
+makeType _    T0          = HsVoid
+makeType _    T1          = HsUnit
+makeType e    (TSum xs)   = foldr1' HsSum $ map (assert_total $ makeType e) xs
+makeType e    (TProd xs)  = HsTuple $ map (assert_total $ makeType e) xs
+makeType e    (TVar v)    = Vect.index v e
+makeType e td@(TMu cases) = HsParam (nameMu cases) $ getUsedVars e td
+makeType e    (TApp f xs) = HsParam (name f) $ map (assert_total $ makeType e) xs
+makeType e    (RRef i)    = index i e
+
+||| Generate a Haskell type from a `TNamed`.
+export
+makeType' : Vect n HsType -> TNamedR n -> HsType
+makeType' e (TName ""   body) = makeType e body --escape hatch; used e.g. for all non-TApp dependencies of a TApp
+makeType' e (TName name body) = HsParam name $ getUsedVars e body
+
 ||| The same as `tupled : List Doc -> Doc`, except that tuples with
 ||| more than 62 components get turned into nested tuples, to adhere
 ||| to GHC's restriction on tuple size.

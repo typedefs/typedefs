@@ -1,4 +1,4 @@
-module Typedefs.Backend.Haskell.Terms
+module Typedefs.Backend.Haskell.Termgen
 
 import Data.Vect
 import Data.NEList
@@ -12,7 +12,7 @@ import Typedefs.Backend.Effects
 import Typedefs.Backend.Specialisation
 import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell.Data
-import Typedefs.Backend.Haskell.Types
+import Typedefs.Backend.Haskell.Typegen
 
 import Text.PrettyPrint.WL
 
@@ -46,7 +46,6 @@ public export
 HaskellDefM : Type -> Type
 HaskellDefM = MakeDefM (HsType, HsTerm)
 
--- TODO use definition from Utils
 -- The state monad in which name lookup happens, contains a sorted map of existing types, can throw errors
 public export
 HaskellLookupM : Type -> Type
@@ -260,30 +259,6 @@ export
 freshEnvWithTerms : (prefix : String) -> Vect n (HsType, HsTerm)
 freshEnvWithTerms prefix = map (\ x => (x, HsTermVar (prefix ++ uppercase (hsTypeName x)))) freshEnv
 
-||| Generate a Haskell type from a `TDef`.
-export
-makeType : Vect n HsType -> TDefR n -> HaskellLookupM HsType
-makeType _    T0          = pure HsVoid
-makeType _    T1          = pure HsUnit
-makeType e    (TSum xs)   = do ys <- traverseEffect (assert_total $ makeType e) xs
-                               pure $ foldr1' HsSum ys
-makeType e    (TProd xs)  = do ys <- traverseEffect (assert_total $ makeType e) xs
-                               pure $ HsTuple ys
-makeType e    (TVar v)    = pure $ Vect.index v e
-makeType e td@(TMu cases) = pure $ HsParam (nameMu cases) $ getUsedVars e td
-makeType e    (TApp f xs) = do ys <- (traverseEffect (assert_total (makeType e)) xs)
-                               pure $ HsParam (name f) ys
-makeType e    (RRef i)    = pure $ Vect.index i e
-                            --do specMap <- 'Spec :- get
-                            --   case lookup n specMap of
-                            --     Just t => pure t
-                            --     Nothing => raise $ RefNotFound ("could not find " ++ n ++ " in " ++ (show $ keys specMap))
-
-||| Generate a Haskell type from a `TNamed`.
-export
-makeType' : Vect n HsType -> TNamedR n -> HaskellLookupM HsType
-makeType' e (TName ""   body) = makeType e body --escape hatch; used e.g. for all non-TApp dependencies of a TApp
-makeType' e (TName name body) = pure $ HsParam name $ getUsedVars e body
 
 mutual
   ||| Generate all the Haskell type definitions that a `TDef` depends on.
@@ -302,7 +277,7 @@ mutual
 
   -- This is only to help readabilty and type inference
   makeTypeFromCase : Vect n HsType -> (String, TDefR n) -> HaskellDefM (String, HsType)
-  makeTypeFromCase env (name, def) = pure (name, !(makeType env def))
+  makeTypeFromCase env (name, def) = pure (name, makeType env def)
 
   ||| Generate Haskell type definitions for a `TNamed` and all of its dependencies.
   export
@@ -321,7 +296,7 @@ mutual
                         pure $ (concat res) ++ [ADT decl args]
         -- All other named types are treated as synonyms.
         _ => do res <- assert_total $ makeDefs body
-                type <- (makeType freshEnv body)
+                let type = makeType freshEnv body
                 pure $ res ++ [Synonym decl type]
 
 -- Convenience definitions for Termdefs -----
@@ -438,7 +413,7 @@ encoderDecoderTerm namer (TVar i)    = index i <$> envTerms
 encoderDecoderTerm namer td          =
   do env <- envTerms
      let varEncoders = getUsedVars env td
-     rawType <- makeType freshEnv td
+     let rawType = makeType freshEnv td
      pure $ HsApp (HsFun (namer rawType)) (toList varEncoders)
 
 ||| Term to use for encoder for this `TDef`.

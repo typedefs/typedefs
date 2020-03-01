@@ -33,6 +33,7 @@ foldr1' f (x::y::xs) = f x (foldr1' f (y::xs))
 
 
 ||| Produce a name for an anonymous `TMu` by simply concatenating its constructors.
+export
 nameMu : Vect n (Name, TDef' k a) -> Name
 nameMu = concatMap (uppercase . fst)
 
