@@ -18,6 +18,14 @@ import Data.Vect
 
 %access public export
 
+specialisedInt : TopLevelDef
+specialisedInt = MkTopLevelDef ["Int"]
+                               (MkNEList (1 ** TName "MyInt" (TMu [("MkInt", RRef 0)]))
+                                         [])
+
+genHaskell : TopLevelDef -> Maybe (List HsTerm)
+genHaskell d = traverse eitherToMaybe (generateTermDefs {type=Haskell} {def=HsTerm} d)
+
 generate : TNamedR n -> Maybe Doc
 generate {n} tn = eitherToMaybe $ generateDefs Haskell $ MkTopLevelDef [] (singleton (n ** tn))
 
@@ -53,7 +61,12 @@ x3 = text "x3"
 
 testSuite : IO ()
 testSuite = spec $ do
-
+--  describe "Haskell specialisation code generation:" $ do
+--    it "specialised int" $
+--      genHaskell specialisedInt
+--        `shouldBe` (Just $ vsep2 [ preamble {def = Haskell}
+--                                 , specialInt ])
+--
   describe "Haskell code generation tests:" $ do
 
     it "bit" $

@@ -4,6 +4,23 @@ import Text.PrettyPrint.WL
 
 %access export
 
+specialInt : Doc
+specialInt = text """data MyInt = MkInt Int
+
+encodeMyInt :: Serialiser MyInt
+encodeMyInt x = case x of
+                     MkInt z -> word9 (fromIntegral z)
+
+decodeMyInt :: Deserialiser MyInt
+decodeMyInt = do
+                i <- decodeInt
+                case i of
+                  0 -> do
+                         x <- decodeInt
+                         return (MkInt x)"""
+
+
+
 bitDoc : Doc
 bitDoc = text """type Bit = Either () ()
 
@@ -679,7 +696,7 @@ decodeFoo = do
                         _ -> failDecode
               return (Bar x x0)"""
 
-listOfDefsDoc : Doc 
+listOfDefsDoc : Doc
 listOfDefsDoc = text """type Bit = Either () ()
 
 type Nibble = (Bit,Bit,Bit,Bit)
