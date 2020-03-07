@@ -137,6 +137,7 @@ makeSchema schema defs = JObject
                   , ("properties", JObject [ ("value", JObject [("oneOf", JArray $ NEList.toList schema)] ) ])
                   ]
 
+
 ASTGen JSONDef JSON False where
   msgType (Zero tn) = pure $ makeSubSchema' tn
   generateTyDefs specialisations tns = runMakeDefM $ concat <$> traverseEffect genDef (toVect tns)
@@ -146,5 +147,23 @@ ASTGen JSONDef JSON False where
 
   generateTermDefs tns = pure [] -- TODO?
 
-CodegenInterdep JSONDef JSON where
-  sourceCode msg defs = literal $ format 2 $ makeSchema msg defs
+sourceCode : NEList JSON -> List JSONDef -> Doc
+sourceCode msg defs = literal $ format 2 $ makeSchema msg defs
+
+jsonType : (ZeroOrUnbounded TNamedR False) -> Either CompilerError JSON
+jsonType (Zero tn) = pure $ makeSubSchema' tn
+
+||| Use the given backend to generate code for a list of type definitions.
+generate' : NEList (n ** TNamedR n) -> Either CompilerError Doc
+generate' tns = (traverse (fromSigma False) tns) >>= generateDefinitions
+  where
+    generateDefinitions : NEList (ZeroOrUnbounded TNamedR False) -> Either CompilerError Doc
+    generateDefinitions nel = do types <- traverse (jsonType) nel
+                                 defs <- generateTyDefs {def=JSONDef} [] nel
+                                 terms <- generateTermDefs {def=JSONDef} nel
+                                 pure $ sourceCode types (defs ++ terms)
+
+||| Here for compatibilty purposes with tests
+generate : NEList (n ** TNamedR n) -> Maybe Doc
+generate tns = eitherToMaybe $ generate' tns
+

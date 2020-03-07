@@ -76,25 +76,3 @@ generateType' {fv} def tns =
 generateType : (def : Type) -> (ASTGen def type fv, CodegenIndep def type) => NEList (n ** TNamedR n) -> Maybe Doc
 generateType {fv} def tns = eitherToMaybe $ generateType' def tns
 
-||| Interface for code generators that need to generate code for type definitions and
-||| type signatures at the same time, for example the JSON schema backend.
-||| @def  the type representing type definitions.
-||| @type the type representing type signatures.
-interface CodegenInterdep def type where
-  ||| Generate source code for a type signature and a list of helper definitions.
-  sourceCode   : NEList type -> List def -> Doc
-
-||| Use the given backend to generate code for a list of type definitions.
-generate' : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamedR n) -> Either CompilerError Doc
-generate' {fv} def tns = (traverse (fromSigma fv) tns) >>= generateDefinitions
-  where
-    generateDefinitions : NEList (ZeroOrUnbounded TNamedR fv) -> Either CompilerError Doc
-    generateDefinitions nel = do types <- traverse (msgType {def}) nel
-                                 defs <- generateTyDefs {def} [] nel
-                                 terms <- generateTermDefs {def} nel
-                                 pure $ sourceCode types (defs ++ terms)
-
-||| Here for compatibilty purposes with tests
-generate : (def : Type) -> (ASTGen def type fv, CodegenInterdep def type) => NEList (n ** TNamedR n) -> Maybe Doc
-generate {fv} def tns = eitherToMaybe $ generate' def tns
-
