@@ -146,23 +146,23 @@ decode   (RRef i)       = pure $ index i !envTerms
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
 encodeDef : TNamedR n -> HaskellLookupM Haskell
-encodeDef {n} t@(TName tname td) = do
-      let env = freshEnvWithTerms "encode"
-      let envTypes = map fst env
-      funName <- if tname == ""
-                    then pure $ encodeName $ makeType envTypes td
-                    else pure $ "encode" ++ uppercase tname
-      let varEncs = toList $ getUsedVars (map snd env) td
-      currTerm <- pure $ HsApp (HsFun funName) varEncs
-      currType <- if tname == ""
-                     then pure $ makeType envTypes td
-                     else pure $ HsParam tname []
-      funType <- do let init = makeType' envTypes t
-                    pure $ foldr HsArrow
-                                (hsSerialiser init)
-                                (map hsSerialiser (getUsedVars envTypes td))
-      clauses <- toHaskellLookupM $ genClauses n currType currTerm env varEncs td
-      pure $ FunDef funName funType clauses
+encodeDef {n} t@(TName tname td) =
+  let
+    env = freshEnvWithTerms "encode"
+    envTypes = map fst env
+    funName = if tname == ""
+                then encodeName $ makeType envTypes td
+                else "encode" ++ uppercase tname
+    varEncs = toList $ getUsedVars (map snd env) td
+    currTerm = HsApp (HsFun funName) varEncs
+    currType = if tname == ""
+                 then makeType envTypes td
+                 else HsParam tname []
+    init = makeType' envTypes t
+    funType = foldr HsArrow (hsSerialiser init) (map hsSerialiser (getUsedVars envTypes td))
+   in
+  do clauses <- toHaskellLookupM $ genClauses n currType currTerm env varEncs td
+     pure $ FunDef funName funType clauses
   where
     genConstructor : (n : Nat) -> String -> TDefR n -> HaskellTermGen n (HsTerm, List HsTerm)
     genConstructor n name (TProd {k = k} xs) =
@@ -200,21 +200,21 @@ encodeDef {n} t@(TName tname td) = do
 ||| Assumes definitions it depends on are generated elsewhere.
 decodeDef : TNamedR n -> HaskellLookupM Haskell
 decodeDef {n} t@(TName tname td) =
-  do let env = freshEnvWithTerms "decode"
-     let envTypes = map fst env
-     funName <- if tname == ""
-                   then pure $ decodeName $ makeType envTypes td
-                   else pure $ "decode" ++ uppercase tname
-     let varEncs = toList $ getUsedVars (map snd env) td
-     let currTerm = HsApp (HsFun funName) varEncs
-     currType <- if tname == ""
-                    then pure $ makeType envTypes td
-                    else pure $ HsParam tname []
-     funType <- do let init = makeType' envTypes t
-                   pure $ foldr HsArrow
-                                (hsDeserialiser init)
-                                (map hsDeserialiser (getUsedVars envTypes td))
-     rhs <- genCase n currType currTerm env td
+  let
+    env = freshEnvWithTerms "decode"
+    envTypes = map fst env
+    funName = if tname == ""
+                then decodeName $ makeType envTypes td
+                else "decode" ++ uppercase tname
+    varEncs = toList $ getUsedVars (map snd env) td
+    currTerm = HsApp (HsFun funName) varEncs
+    currType = if tname == ""
+                 then makeType envTypes td
+                 else HsParam tname []
+    init = makeType' envTypes t
+    funType = foldr HsArrow (hsDeserialiser init) (map hsDeserialiser (getUsedVars envTypes td))
+   in
+  do rhs <- genCase n currType currTerm env td
      pure $ FunDef funName funType [(varEncs, rhs)]
   where
     genConstructor : (n : Nat) -> String -> TDefR n -> HaskellTermGen n (List (HsTerm, HsTerm))
