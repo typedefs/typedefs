@@ -3,6 +3,8 @@ module Typedefs.Backend.JSON
 import Typedefs.Names
 import Typedefs.Typedefs
 import Typedefs.Backend
+import Typedefs.Backend.Data
+import Typedefs.Backend.Effects
 import Typedefs.Backend.Specialisation
 import Typedefs.Backend.Utils
 

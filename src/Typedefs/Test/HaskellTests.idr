@@ -1,6 +1,7 @@
 module Typedefs.Test.HaskellTests
 
 import Typedefs.Names
+import Typedefs.Text
 import Typedefs.Typedefs
 import Typedefs.Backend
 import Typedefs.Backend.Utils
