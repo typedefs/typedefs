@@ -3,9 +3,12 @@ module CLI.Main
 import Typedefs.Typedefs
 import Typedefs.Parse
 import Typedefs.Either
+import Typedefs.Text
 import Typedefs.Backend
+import Typedefs.Backend.Data
 import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell
+import Typedefs.Backend.Haskell.Data
 import CLI.CommandLineParser
 
 import Options.Applicative
@@ -34,7 +37,7 @@ parseAndGenerateTDef tdef = (resultToEither $ parseTopLevel tdef)
                         >>= printOrShowError . generateDefs Haskell
 
 runWithOptions : TypedefOpts -> IO ()
-runWithOptions (MkTypedefOpts input output) = do
+runWithOptions (MkTypedefOpts input output target) = do
   Right typedef <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
   case parseAndGenerateTDef typedef of

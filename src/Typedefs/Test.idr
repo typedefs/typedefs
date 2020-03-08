@@ -2,6 +2,7 @@ module Typedefs.Test
 
 import Typedefs.Typedefs
 import Typedefs.Names
+import Typedefs.Text
 import Typedefs.Backend.Utils
 
 import Data.Vect
@@ -147,4 +148,4 @@ suc x = Inn (Right x)
 -}
 
 shouldBe : Maybe Doc -> Maybe Doc -> SpecResult
-shouldBe actual expected = map print actual `shouldBe` map print expected
+shouldBe actual expected = Expectations.shouldBe (map print actual)  (map print expected)

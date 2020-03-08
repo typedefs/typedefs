@@ -6,10 +6,7 @@ import Data.SortedSet
 import Data.Vect
 import Typedefs.Names
 
-import Effects
-
 %default total
-%access export
 
 public export
 interface Specialisation t where
@@ -85,6 +82,7 @@ replaceRefs : (TDef n) -> Vect k String -> Either String (TDef' (n + k) False)
 replaceRefs tdef vs {n} = traverseRefs (map (shift n) . flip elemIndexVal vs) (lteAddRight n) tdef
 
 ||| Extends a TDef n with its context into a TDef (n + k) along with its new context after resolving references
+export
 extendContext : TDef n -> SortedMap String b -> Vect n b ->
                 Either String (k ** (TDefR (n + k), Vect (n + k) b))
 extendContext def m c = do (r ** refs) <- collectReferences def m

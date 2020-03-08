@@ -9,7 +9,9 @@ import public Typedefs.TermParse
 import public Typedefs.TermWrite
 import        Typedefs.Parse
 import        Typedefs.Either
+import        Typedefs.Text
 import        Typedefs.Backend
+import        Typedefs.Backend.Data
 import        Typedefs.Backend.Utils
 import        Typedefs.Backend.Haskell
 import        Typedefs.Backend.JSON
@@ -28,7 +30,7 @@ generateType backend tdef = (resultToEither $ parseTopLevel tdef) >>= (genType b
   genType : String -> TopLevelDef -> Either String String
   genType "reasonml" nel = printOrShowError $ generateDefs ReasonML nel
   genType "json"     nel = maybeToEither "<error : cannot generate JSON schema for open typedefs>" $
-                           Backend.Utils.print <$> generate JSONDef (typedefs nel)
+                           Text.print <$> generate JSONDef (typedefs nel)
   genType _          _   = Left "<error : unsupported backend>"
 
 lib : FFI_Export FFI_JS "" []
