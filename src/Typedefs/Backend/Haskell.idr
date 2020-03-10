@@ -41,10 +41,13 @@ dependencies env td =
 
     -- Traverse TMu recursively
     goMu : Vect n HsType -> Vect k (String, TDefR (S n)) -> HaskellLookupM (List (m ** TNamedR m))
-    goMu env tds = do let muType = makeType env (TMu tds)
-                      let tdefs = map snd tds
-                      let extendedEnv = muType :: env
-                      traverseRec extendedEnv tdefs
+    goMu env tds =
+      let
+        muType = makeType env (TMu tds)
+        tdefs = map snd tds
+        extendedEnv = muType :: env
+       in
+      traverseRec extendedEnv tdefs
 
     -- We return a TNamed here, because we still have access to the name information
     go : Vect n HsType -> TDefR n -> HaskellLookupM (List (m ** TNamedR m))
