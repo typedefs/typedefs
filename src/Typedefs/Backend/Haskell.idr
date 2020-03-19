@@ -254,7 +254,8 @@ ASTGen Haskell HsType True where
       'Names :- put declaredSpecialisations
       concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
   generateTermDefs tns = runMakeDefM $
-    do gen <- traverseEffect genHaskell (toVect tns)
+    do
+       gen <- traverseEffect genHaskell (toVect tns)
        pure $ concat gen
     where
       genTerms : TNamedR n -> HaskellLookupM (List Haskell)

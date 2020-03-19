@@ -19,6 +19,7 @@ import Text.PrettyPrint.WL
 import Effects
 import Effect.State
 import Effect.Exception
+import Effect.StdIO
 
 private
 hsParam : Decl -> HsType
