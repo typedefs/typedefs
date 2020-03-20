@@ -22,6 +22,7 @@ import Control.Monad.State
 import Effects
 import Effect.State
 import Effect.Exception
+import Effect.StdIO
 
 %default total
 %access export
