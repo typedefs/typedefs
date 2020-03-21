@@ -25,11 +25,30 @@ private
 hsParam : Decl -> HsType
 hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 
+private
+maybeDef : Haskell
+maybeDef =
+  FunDef "decodeMaybe"
+         (HsArrow (HsParam "Deserialiser" [HsVar "x"])
+                  (HsParam "Deserialiser" [HsParam "Maybe" [HsVar "x"]]))
+         [([HsTermVar "deserialiseX"]
+         , HsDo [ (Just (HsTermVar "i"), HsApp (HsFun "deserialiseInt") [])
+                , ( Nothing
+                  , HsCase (HsTermVar "i")
+                    [ (HsInt 0, (hsReturn (HsInn "Nothing" [])))
+                    , (HsInt 1, HsApp (HsFun "map") [HsFun "Just", HsFun "deserialiseX"])
+                    , (HsWildcard, HsApp (HsFun "failDecode") [])
+                    ]
+                  )
+                ]
+          )
+         ]
+
 specialisedMap : SortedMap String (HsType, HsTerm)
 specialisedMap = foldr {t=List} (uncurry insert) empty $
                  [ ("Int"  , (hsNamed "Int"  , HsUnitTT))
                  , ("Bool" , (hsNamed "Bool" , HsUnitTT))
-                 , ("Maybe", (hsNamed "Maybe", HsUnitTT))
+                 , ("Maybe", (HsParam "Maybe" [HsVar "x"]), maybeDef)
                  , ("List" , (hsNamed "List" , HsUnitTT))
                  ]
 

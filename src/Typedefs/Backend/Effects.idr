@@ -12,7 +12,6 @@ import Typedefs.Backend.Specialisation
 import Effects
 import Effect.State
 import Effect.Exception
-import Effect.StdIO
 
 export
 traverseEffect : {b : Type} -> {e : List EFFECT}
@@ -56,15 +55,15 @@ runLookupM m = runInit ['Spec := specialisedTypes, default] m
 -- Keeps track of generated names and requires specialized types lookup
 public export
 MakeDefM : Type -> Type -> Type
-MakeDefM target t = Eff t [STDIO, NAMES, SPECIALIZED target, ERR]
+MakeDefM target t = Eff t [NAMES, SPECIALIZED target, ERR]
 
 toEff : Either CompilerError a -> Eff a [ERR]
 toEff (Left err)  = raise err
 toEff (Right val) = pure val
 
 export
-runMakeDefM : Specialisation t => MakeDefM t a -> IO (Either CompilerError a)
-runMakeDefM m = runInit [default, 'Names := [], 'Spec := specialisedTypes, default] m
+runMakeDefM : Specialisation t => MakeDefM t a -> Either CompilerError a
+runMakeDefM m = runInit ['Names := [], 'Spec := specialisedTypes, default] m
 
 -- idk why this is necessary sometimes
 export

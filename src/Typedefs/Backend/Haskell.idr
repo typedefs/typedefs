@@ -8,6 +8,7 @@ import Typedefs.Names
 import Typedefs.Typedefs
 
 import        Typedefs.Backend
+import        Typedefs.Text
 import        Typedefs.Backend.Data
 import        Typedefs.Backend.Effects
 import        Typedefs.Backend.Specialisation
@@ -247,7 +248,10 @@ decodeDef {n} t@(TName tname td) =
                        ])
     genCase n currType currTerm env td = toHaskellLookupM $ map simplify $ runTermGen env (decode td)
 
-ASTGen Haskell HsType True IO where
+maybeDef : TNamed' 1 False
+maybeDef = TName "Maybe" (TMu [("Nothing", T1), ("Just", (TVar 0))])
+
+ASTGen Haskell HsType True where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
   generateTyDefs declaredSpecialisations tns =
     runMakeDefM {t=(HsType, HsTerm)} $ do

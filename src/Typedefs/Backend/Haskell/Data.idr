@@ -8,8 +8,10 @@ import Data.Vect
 ||| The syntactic structure of (a subset of) Haskell terms.
 public export
 data HsTerm : Type where
+
   ||| The unit term `()`.
   HsUnitTT : HsTerm
+
   ||| The tuple constructor, containing two or more further terms.
   HsTupC : Vect n HsTerm -> HsTerm
 
