@@ -22,7 +22,7 @@ data ZeroOrUnbounded : (Nat -> Type) -> Bool -> Type where
   Zero : p Z -> ZeroOrUnbounded p False
 
 ||| Checks if the bound assumed on an indexed type is the correct one
-fromSigma : (Alternative m) => {p : Nat -> Type} -> (bounded : Bool) -> (n ** p n)
+fromSigma : {p : Nat -> Type} -> (bounded : Bool) -> (n ** p n)
          -> Either CompilerError (ZeroOrUnbounded p bounded)
 fromSigma True  (n  **pn) = Right $ Unbounded $ pn
 fromSigma False (Z  **pz) = Right $ Zero $ pz
@@ -65,18 +65,23 @@ generateDefs {fv} {m} def (MkTopLevelDef sp tns) = let Right v = (traverse (from
                                                        generateDefinitions v
   where
     generateDefinitions : NEList (ZeroOrUnbounded TNamedR fv) -> m (Either CompilerError Doc)
-    generateDefinitions nel = do defs <- generateTyDefs {def} sp nel
-                                 terms <- generateTermDefs {def} nel
+    generateDefinitions nel = do Right defs <- generateTyDefs {def} sp nel
+                                   | Left err => pure (Left err)
+                                 Right terms <- generateTermDefs {def} nel
+                                   | Left err => pure (Left err)
                                  pure $ pure $ vsep2 $ (preamble {def}) :: (defSource <$> defs ++ terms)
 
 ||| Use the given backend to generate code for a list of type signatures.
-generateType' : (def : Type) -> (ASTGen def type fv m , CodegenIndep def type) => NEList (n ** TNamedR n) -> m Doc
-generateType' {fv} def tns =
-  typeSource {def} <$> (concatMap (msgType {def})) !(traverse (fromSigma fv) tns)
+generateType' : (def : Type) -> (ASTGen def type fv m , CodegenIndep def type) => NEList (n ** TNamedR n) -> m (Either CompilerError Doc)
+generateType' {fv} def tns = let Right v = traverse (fromSigma fv) tns
+                                   | Left err => pure (Left err)
+                                 Right concat = concatMap (msgType {def}) v
+                                   | Left err => pure (Left err) in
+                                 pure $ pure $ typeSource {def} concat
 
 ||| Here for compatiblity purposes with tests
-generateType : (def : Type) -> (ASTGen def type fv m, CodegenIndep def type) => NEList (n ** TNamedR n) -> Maybe Doc
-generateType {fv} def tns = eitherToMaybe $ generateType' def tns
+generateType : (def : Type) -> (ASTGen def type fv m, CodegenIndep def type) => NEList (n ** TNamedR n) -> m (Maybe Doc)
+generateType {fv} def tns = eitherToMaybe <$> generateType' def tns
 
 ||| Interface for code generators that need to generate code for type definitions and
 ||| type signatures at the same time, for example the JSON schema backend.
@@ -87,14 +92,14 @@ interface CodegenInterdep def type where
   sourceCode   : NEList type -> List def -> Doc
 
 ||| Use the given backend to generate code for a list of type definitions.
-generate' : (def : Type) -> (ASTGen def type fv m, CodegenInterdep def type) => NEList (n ** TNamedR n) -> m Doc
-generate' {fv} def tns = let Right v = (traverse (fromSigma fv) tns)
+generate' : (def : Type) -> (ASTGen def type fv m, CodegenInterdep def type) => NEList (n ** TNamedR n) -> m (Either CompilerError Doc)
+generate' {fv} {m} def tns = let Right v = (traverse (fromSigma fv) tns)
                                | Left err => pure (Left err) in generateDefinitions v
   where
-    generateDefinitions : NEList (ZeroOrUnbounded TNamedR fv) -> IO (Either CompilerError Doc)
+    generateDefinitions : NEList (ZeroOrUnbounded TNamedR fv) -> m (Either CompilerError Doc)
     generateDefinitions nel = do
-                                 defs <- generateTyDefs {def} [] nel
-                                 terms <- generateTermDefs {def} nel
+                                 Right defs <- generateTyDefs {def} [] nel | Left err => pure (Left err)
+                                 Right terms <- generateTermDefs {def} nel | Left err => pure (Left err)
                                  pure $ do types <- traverse (msgType {def}) nel
                                            pure $ sourceCode types (defs ++ terms)
 

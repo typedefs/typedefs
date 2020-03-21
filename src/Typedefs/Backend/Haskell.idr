@@ -247,7 +247,7 @@ decodeDef {n} t@(TName tname td) =
                        ])
     genCase n currType currTerm env td = toHaskellLookupM $ map simplify $ runTermGen env (decode td)
 
-ASTGen Haskell HsType True where
+ASTGen Haskell HsType True IO where
   msgType  (Unbounded tn) = pure $ makeType' freshEnv tn
   generateTyDefs declaredSpecialisations tns =
     runMakeDefM {t=(HsType, HsTerm)} $ do

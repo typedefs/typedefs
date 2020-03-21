@@ -63,7 +63,7 @@ toEff (Left err)  = raise err
 toEff (Right val) = pure val
 
 export
-runMakeDefM : Specialisation t => MakeDefM t a -> IO a
+runMakeDefM : Specialisation t => MakeDefM t a -> IO (Either CompilerError a)
 runMakeDefM m = runInit [default, 'Names := [], 'Spec := specialisedTypes, default] m
 
 -- idk why this is necessary sometimes
