@@ -109,8 +109,8 @@ encode t@(TMu tds)      y =
      pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
 encode t@(TApp f xs)    y =
      pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
-encode   (RRef i)       t =
-     pure $ HsApp (index i !envTerms) [t]
+encode t@(RRef i)       y =
+     pure $ HsApp !(encoderTerm t) [y] -- assumes the def of eTerm is generated elsewhere
 
 ||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
@@ -143,7 +143,7 @@ decode   (TProd {k} xs) =
 decode   (TVar i)       = pure $ index i !envTerms
 decode t@(TMu tds)      = decoderTerm t -- assumes the def of this is generated elsewhere
 decode t@(TApp f xs)    = decoderTerm t -- assumes the def of this is generated elsewhere
-decode   (RRef i)       = pure $ index i !envTerms
+decode t@(RRef i)       = decoderTerm t -- assumes the def of this is generated elsewhere
 
 ||| Generate an encoder function definition for the given TNamed.
 ||| Assumes definitions it depends on are generated elsewhere.
@@ -260,8 +260,8 @@ ASTGen Haskell HsType True where
       concat <$> traverseEffect (\(Unbounded tn) => makeDefs' tn) (toVect tns)
   generateTermDefs tns = runMakeDefM $
     do
-       gen <- traverseEffect genHaskell (toVect tns)
-       pure $ concat gen
+       gen <- (traverseEffect genHaskell (toVect tns))
+       pure $ (haskellSpec >>= (\(a, (b, c)) => [b, c])) ++ (concat gen)
     where
       genTerms : TNamedR n -> HaskellLookupM (List Haskell)
       genTerms tn = pure [!(encodeDef tn), !(decodeDef tn)]
@@ -271,14 +271,16 @@ ASTGen Haskell HsType True where
 
       genHaskell : ZeroOrUnbounded TNamedR True -> HaskellDefM (List Haskell)
       genHaskell (Unbounded {n} tn) =
-        do deps <- (dependencies freshEnv (def tn))
+        do
+           'Names :- put (map fst haskellSpec)
+           deps <- (dependencies freshEnv (def tn))
            let genFrom = deps ++ [(n ** tn)]
            concat <$> traverseEffect (\(n ** tn) => generateNext tn) (fromList genFrom)
 
 CodegenIndep Haskell HsType where
   typeSource = renderType
   defSource  = renderDef
-  preamble   = text """module Typedefs.Definitions
+  preamble   = text """module Typedefs.Definitions where
 
 import Data.Word
 import Data.Binary

@@ -25,30 +25,11 @@ private
 hsParam : Decl -> HsType
 hsParam (MkDecl n ps) = HsParam n (map HsVar ps)
 
-private
-maybeDef : Haskell
-maybeDef =
-  FunDef "decodeMaybe"
-         (HsArrow (HsParam "Deserialiser" [HsVar "x"])
-                  (HsParam "Deserialiser" [HsParam "Maybe" [HsVar "x"]]))
-         [([HsTermVar "deserialiseX"]
-         , HsDo [ (Just (HsTermVar "i"), HsApp (HsFun "deserialiseInt") [])
-                , ( Nothing
-                  , HsCase (HsTermVar "i")
-                    [ (HsInt 0, (hsReturn (HsInn "Nothing" [])))
-                    , (HsInt 1, HsApp (HsFun "map") [HsFun "Just", HsFun "deserialiseX"])
-                    , (HsWildcard, HsApp (HsFun "failDecode") [])
-                    ]
-                  )
-                ]
-          )
-         ]
 
 specialisedMap : SortedMap String (HsType, HsTerm)
 specialisedMap = foldr {t=List} (uncurry insert) empty $
                  [ ("Int"  , (hsNamed "Int"  , HsUnitTT))
                  , ("Bool" , (hsNamed "Bool" , HsUnitTT))
-                 , ("Maybe", (HsParam "Maybe" [HsVar "x"]), maybeDef)
                  , ("List" , (hsNamed "List" , HsUnitTT))
                  ]
 
@@ -452,3 +433,43 @@ encoderTerm td = encoderDecoderTerm encodeName td
 export
 decoderTerm : TDefR n -> HaskellTermGen n HsTerm
 decoderTerm td = encoderDecoderTerm decodeName td
+
+private
+maybeDef : Haskell
+maybeDef =
+  FunDef "decodeMaybe"
+         (HsArrow (HsParam "Deserialiser" [HsVar "x"])
+                  (HsParam "Deserialiser" [HsParam "Maybe" [HsVar "x"]]))
+         [([HsTermVar "deserialiseX"]
+         , HsDo [ (Just (HsTermVar "i"), HsApp (HsFun "deserialiseInt") [])
+                , ( Nothing
+                  , HsCase (HsTermVar "i")
+                    [ (HsInt 0, (hsReturn (HsInn "Nothing" [])))
+                    , (HsInt 1, HsApp (HsFun "fmap") [HsFun "Just", HsFun "deserialiseX"])
+                    , (HsWildcard, HsApp (HsFun "failDecode") [])
+                    ]
+                  )
+                ]
+          )
+         ]
+
+-- encodeOption :: Serialiser x -> Serialiser (Maybe x)
+-- encodeOption _ Nothing = word8 (fromIntegral 0)
+-- encodeOption serialiserX (Just x) = mconcat [(word8 (fromIntegral 1)),(serialiserX x)]
+private
+maybeEncode : Haskell
+maybeEncode =
+  FunDef "encodeMaybe"
+         (HsArrow (HsParam "Serialiser" [HsVar "x"])
+                  (HsParam "Serialiser" [HsParam "Maybe" [HsVar "x"]]))
+         [ ( [HsWildcard, HsTermVar "Nothing"]
+           , word 0
+           )
+         , ( [HsTermVar "serialiserX", HsApp (HsFun "Just") [HsTermVar "x"]]
+           , HsConcat [(word 1), HsApp (HsFun "serialiserX") [HsTermVar "x"]]
+           )
+         ]
+
+export
+haskellSpec : List (String, (Haskell, Haskell))
+haskellSpec = [("Maybe", (maybeDef, maybeEncode))]
