@@ -22,6 +22,7 @@ mutual
   serializeMu : (ts : Vect n Type) -> HasWriters ts -> Mu ts td -> String
   serializeMu ts ws {td} (Inn x) = parens $ "inn " ++
     (assert_total $ serialize ((Mu ts td)::ts) ((serializeMu {td} ts ws)::ws) td x)
+
   serialize : (ts : Vect n Type) -> HasWriters ts -> (t : TDefR n) -> (tm : Ty ts t) -> String
   serialize  ts       ws        T1                    ()        = "()"
   serialize  ts       ws        (TSum [x,_])          (Left l)  =
@@ -43,7 +44,7 @@ mutual
   serialize (_::_::_) (_::w::_) (TVar (FS FZ))        x         = w x
   serialize (_::ts)   (_::ws)   (TVar (FS (FS i)))    x         = serialize ts ws (TVar (FS i)) x
   serialize ts        ws        (TApp f ys)           x         =
-        assert_total $ serialize ts ws (ap (def f) ys) (convertTy' x)
+    assert_total $ serialize ts ws (ap (def f) ys) (convertTy' x)
   serialize ts        ws        (TMu td)              (Inn x)   =
     "(inn " ++
       serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x

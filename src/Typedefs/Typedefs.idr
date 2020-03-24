@@ -128,8 +128,8 @@ shiftVars (TSum ts)               = assert_total $ TSum $ map shiftVars ts
 shiftVars (TProd ts)              = assert_total $ TProd $ map shiftVars ts
 shiftVars (TMu cs)                = assert_total $ TMu $ map (map shiftVars) cs
 shiftVars (TApp f xs)             = assert_total $ TApp f $ map shiftVars xs
-shiftVars (RRef i)    {a = False} = RRef $ shift 1 i
-shiftVars (TVar v)                = TVar $ shift 1 v
+shiftVars (RRef i)    {a = False} = RRef $ weaken i --shift 1 i
+shiftVars (TVar v)                = TVar $ weaken v --shift 1 v
 shiftVars (FRef i)    {a = True}  = FRef i
 
 ||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
@@ -155,7 +155,7 @@ getUsedVars : Vect n a -> (td : TDef' n b) -> Vect (List.length (getUsedIndices 
 getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
 ||| Substitute all variables in a `TDef` with a vector of arguments.
-||| This also repaces resolved references
+||| This also replaces resolved references
 ap : TDef' n b -> Vect n (TDef' m b) -> TDef' m b
 ap T0          _    = T0
 ap T1          _    = T1
