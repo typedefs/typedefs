@@ -19,6 +19,9 @@ modules = Typedefs.Names
         , Typedefs.Backend.JSON
         , Typedefs.Backend.ReasonML
         , Typedefs.Backend.Purescript
+        , Typedefs.Backend.Purescript.Data
+        , Typedefs.Backend.Purescript.Termgen
+        , Typedefs.Backend.Purescript.Typegen
 
         , Typedefs.Test
         , Typedefs.Test.TypedefsSuite
