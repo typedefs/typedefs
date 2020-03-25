@@ -49,9 +49,9 @@ mutual
     name : Name
     def  : TDef' n b
 
-SpecType : TDef' n a -> Type
-SpecType _ {a = True} = Name
-SpecType _ {a = False} {n} = Fin n
+SpecType : TDef' n b -> Type
+SpecType _ {b = True} = Name
+SpecType _ {b = False} {n} = Fin n
 
 SpecType' : Nat -> Bool -> Type
 SpecType' _ True = Name
@@ -79,13 +79,13 @@ record TopLevelDef where
   typedefs : NEList (n ** TNamedR n)
 
 ||| Generate `[TVar 0, ..., TVar (n-1)]`.
-idVars : Vect n (TDef' n a)
+idVars : Vect n (TDef' n b)
 idVars {n=Z}   = []
 idVars {n=S _} = map TVar range
 
 ||| Apply a `TNamed` to the variable list `[TVar 0, ..., TVar (n-1)]`. Semantically, this is the same as
 ||| doing nothing, but it allows us to embed a named definition in a regular `TDef`.
-wrap : TNamed' n a -> TDef' n a
+wrap : TNamed' n b -> TDef' n b
 wrap tn = TApp tn idVars
 
 ||| Alias one `TNamed` with a new name. Note: this is not the same as naming the underlying `TDef` again.
@@ -110,27 +110,41 @@ square s = "[" ++ s ++ "]"
 
 ||| Generate the canonical name of a closed type.
 makeName : TDef' 0 b -> Name
-makeName T0          = "void"
-makeName T1          = "unit"
-makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
-makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
-makeName (TMu cases) = concatMap fst cases
-makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
+makeName  T0                     = "void"
+makeName  T1                     = "unit"
+makeName (TSum ts)               = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TProd ts)              = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TMu cases)             = concatMap fst cases
+makeName (TApp f xs)             = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
 makeName (RRef i)    {b = False} impossible
 makeName (FRef i)    {b = True } = "ref"
+
+-- Dealing with variables
+
+Ren : Nat -> Nat -> Type
+Ren n m = Fin n -> Fin m
+
+ext : Ren n m -> Ren (S n) (S m)
+ext s  FZ    = FZ
+ext s (FS x) = FS (s x)
+
+rename : Ren n m -> TDef' n b ->  TDef' m b
+rename r          T0                     = T0
+rename r          T1                     = T1
+rename r         (TSum ts)               = assert_total $ TSum $ map (rename r) ts
+rename r         (TProd ts)              = assert_total $ TProd $ map (rename r) ts
+rename r         (TMu cs)                = assert_total $ TMu $ map (map $ rename (ext r)) cs
+rename r         (TApp f xs)             = assert_total $ TApp f $ map (rename r) xs
+rename r {m=Z}   (RRef i)    {b = False} = absurd $ r i
+rename r {m=S m} (RRef i)    {b = False} = RRef $ r i
+rename r {m=Z}   (TVar v)                = absurd $ r v
+rename r {m=S m} (TVar v)                = TVar $ r v
+rename r         (FRef i)    {b = True}  = FRef i
 
 ||| Add 1 to all de Bruijn-indices in a `TDef`.
 ||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
 shiftVars : TDef' n a -> TDef' (S n) a
-shiftVars T0                      = T0
-shiftVars T1                      = T1
-shiftVars (TSum ts)               = assert_total $ TSum $ map shiftVars ts
-shiftVars (TProd ts)              = assert_total $ TProd $ map shiftVars ts
-shiftVars (TMu cs)                = assert_total $ TMu $ map (map shiftVars) cs
-shiftVars (TApp f xs)             = assert_total $ TApp f $ map shiftVars xs
-shiftVars (RRef i)    {a = False} = RRef $ weaken i --shift 1 i
-shiftVars (TVar v)                = TVar $ weaken v --shift 1 v
-shiftVars (FRef i)    {a = True}  = FRef i
+shiftVars = rename FS
 
 ||| Get a list of the De Bruijn indices that are actually used in a `TDef`.
 ||| /!\ TDefR n will count resolved references as variables /!\
@@ -157,13 +171,13 @@ getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 ||| Substitute all variables in a `TDef` with a vector of arguments.
 ||| This also replaces resolved references
 ap : TDef' n b -> Vect n (TDef' m b) -> TDef' m b
-ap T0          _    = T0
-ap T1          _    = T1
-ap (TSum ts)   args = assert_total $ TSum $ map (flip ap args) ts
-ap (TProd ts)  args = assert_total $ TProd $ map (flip ap args) ts
-ap (TVar v)    args = index v args
-ap (TMu cs)    args = assert_total $ TMu $ map (map (flip ap (TVar 0 :: map shiftVars args))) cs
-ap (TApp f xs) args = assert_total $ def f `ap` (map (flip ap args) xs)
+ap  T0         _                = T0
+ap  T1         _                = T1
+ap (TSum ts)   args             = assert_total $ TSum $ map (flip ap args) ts
+ap (TProd ts)  args             = assert_total $ TProd $ map (flip ap args) ts
+ap (TVar v)    args             = index v args
+ap (TMu cs)    args             = assert_total $ TMu $ map (map (flip ap (TVar FZ :: map shiftVars args))) cs
+ap (TApp f xs) args             = assert_total $ def f `ap` (map (flip ap args) xs)
 ap (RRef i)    args {b = False} = Vect.index i args
 ap (FRef i)    args {b = True } = FRef i
 
