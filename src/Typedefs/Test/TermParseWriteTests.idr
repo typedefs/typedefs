@@ -61,7 +61,7 @@ testSuite = spec $ do
       "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))"
 
     it "serialize nested mu" $
-      (serialize [] [] (TList `ap` [TNat]) (TermParseWriteTests.fromList {tdef=TNat} $ map fromNat [3,2,1]))
+      (serialize [] [] (TList `ap` [TNat]) (fromList {tdef=TNat} $ map fromNat [3,2,1]))
         `shouldBe`
       ("(inn (right (both (inn (right (inn (right (inn (right (inn (left ())))))))) " ++
        "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
@@ -95,7 +95,7 @@ testSuite = spec $ do
          "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
          "(inn (right (both (inn (right (inn (left ())))) (inn (left ())))))))))))"))
         `shouldBe`
-      (Just $ TermParseWriteTests.fromList {tdef=TNat} $ map fromNat [3,2,1])
+      (Just $ fromList {tdef=TNat} $ map fromNat [3,2,1])
 
     it "deserialize doubly nested mu specified via partial application" $
       (deserialize [] [] ((TList `ap` [TList]) `ap` [TNat])
