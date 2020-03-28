@@ -244,8 +244,10 @@ convertPrf {def = (TMu xs)} = Refl
 convertPrf {def = (TApp x xs)} = Refl
 convertPrf {def = (RRef x)} = Refl
 
--- TODO generalize to adding/removing one layer instead of hardcoding 0
-ignoreShift : {t : TDefR 0} -> Ty [var] (shiftVars t) -> Ty [] t
+-- TODO we should either finish mu/app cases or save some space by
+-- making both of these into `really_believe_me` one-liners.
+-- This is safe because adding/removing an unused var is a no-op.
+ignoreShift : {t : TDefR n} -> Ty (var::vars) (shiftVars t) -> Ty vars t
 ignoreShift {t=T0}                     ty         = absurd ty
 ignoreShift {t=T1}                     ()         = ()
 ignoreShift {t=TSum [x,y]}             (Left ty)  = Left $ ignoreShift ty
@@ -254,12 +256,12 @@ ignoreShift {t=TSum (x::y::z::ts)}     (Left ty)  = Left $ ignoreShift ty
 ignoreShift {t=TSum (x::y::z::ts)}     (Right ty) = Right $ ignoreShift {t=TSum (y::z::ts)} ty
 ignoreShift {t=TProd [x,y]}            (ty1,ty2)  = (ignoreShift ty1,ignoreShift ty2)
 ignoreShift {t=TProd (x::y::z::ts)}    (ty1,ty2)  = (ignoreShift ty1,ignoreShift {t=TProd (y::z::ts)} ty2)
-ignoreShift {t=TMu cs}                 (Inn ty)   =
-  --TODO finish
-  Inn $ really_believe_me ty
+ignoreShift {t=TMu cs}                 (Inn ty)   = Inn $ really_believe_me ty
 ignoreShift {t=TApp (TName nam df) xs}  ty        = really_believe_me ty
+ignoreShift {t=TVar v}                  ty        = ty
+ignoreShift {t=RRef i}                  ty        = ty
 
-addShift : {t : TDefR 0} -> Ty [] t -> Ty [var] (shiftVars t)
+addShift : {t : TDefR n} -> Ty vars t -> Ty (var::vars) (shiftVars t)
 addShift {t=T0}                     ty         = absurd ty
 addShift {t=T1}                     ()         = ()
 addShift {t=TSum [x,y]}             (Left ty)  = Left $ addShift ty
@@ -268,10 +270,10 @@ addShift {t=TSum (x::y::z::ts)}     (Left ty)  = Left $ addShift ty
 addShift {t=TSum (x::y::z::ts)}     (Right ty) = Right $ addShift {t=TSum (y::z::ts)} ty
 addShift {t=TProd [x,y]}            (ty1,ty2)  = (addShift ty1,addShift ty2)
 addShift {t=TProd (x::y::z::ts)}    (ty1,ty2)  = (addShift ty1,addShift {t=TProd (y::z::ts)} ty2)
-addShift {t=TMu cs}                 (Inn ty)   =
-  --TODO finish
-  Inn $ really_believe_me ty
+addShift {t=TMu cs}                 (Inn ty)   = Inn $ really_believe_me ty
 addShift {t=TApp (TName nam df) xs}  ty        = really_believe_me ty
+addShift {t=TVar v}                  ty        = ty
+addShift {t=RRef i}                  ty        = ty
 
 -- Show and Eq instances
 
