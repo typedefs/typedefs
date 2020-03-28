@@ -4,6 +4,7 @@ modules = Typedefs.Names
         , Typedefs.Text
         , Typedefs.Parse
         , Typedefs.Typedefs
+        , Typedefs.Library
         , Typedefs.TypedefsDecEq
         , Typedefs.TermParse
         , Typedefs.TermWrite

@@ -1,6 +1,7 @@
 module Typedefs.Test.TermParseWriteTests
 
 import Typedefs.Typedefs
+import Typedefs.Library
 import Typedefs.Names
 import Typedefs.TermParse
 import Typedefs.TermWrite
@@ -18,28 +19,6 @@ roundtrip1 td x = deserializeBinaryClosed td $ serializeBinaryClosed td x
 
 roundtrip2 : (td : TDefR 0) -> Bytes -> Maybe Bytes
 roundtrip2 td b = map (serializeBinaryClosed td . fst) (deserializeBinaryClosed td b)
-
-TNat : TDefR 0
-TNat = TMu [("Z", T1), ("S", TVar 0)]
-
-TList : TDefR 1
-TList = TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]
-
-toNat : Ty [] TNat -> Nat
-toNat (Inn (Left ()))   = Z
-toNat (Inn (Right inn)) = S $ toNat inn
-
-fromNat : Nat -> Ty [] TNat
-fromNat  Z    = Inn (Left ())
-fromNat (S n) = Inn (Right $ fromNat n)
-
-toList : Ty [] (TList `ap` [tdef]) -> List (Ty [] tdef)
-toList (Inn (Left ()))        = Nil
-toList (Inn (Right (hd, tl))) = ignoreShift hd :: toList tl
-
-fromList : List (Ty [] tdef) -> Ty [] (TList `ap` [tdef])
-fromList  Nil      = Inn (Left ())
-fromList (x :: xs) = Inn (Right (addShift x, fromList xs))
 
 testSuite : IO ()
 testSuite = spec $ do
