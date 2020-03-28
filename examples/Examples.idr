@@ -18,7 +18,7 @@ byte = pow 8 bit
 test : Type
 test = Ty [] bit
 
--- Example: maybe
+-- Example: anonymous maybe
 
 maybe : TDefR 1
 maybe = TSum [T1, TVar 0]
@@ -29,16 +29,7 @@ nothing _ = Left ()
 just : (a : Type) -> a -> Ty [a] Main.maybe
 just a = Right
 
-maybe2 : TNamedR 1
-maybe2 = TName "Maybe" $ TMu [("Nothing", T1), ("Just", TVar 1)]
-
-nothing2 : (a : Type) -> Ty [a] (def Main.maybe2)
-nothing2 a = Inn (Left ())
-
-just2 : (a : Type) -> a -> Ty [a] (def Main.maybe2)
-just2 a x = Inn (Right x)
-
--- Example: either
+-- Example: anonymous either
 
 either : TDefR 2
 either = TSum [TVar 0, TVar 1]
@@ -48,15 +39,6 @@ left a = Left a
 
 right : {a : Type} -> {b : Type} -> b -> Ty [a,b] Main.either
 right b = Right b
-
-either2 : TNamedR 2
-either2 = TName "Either" $ TMu [("Left", TVar 1), ("Right", TVar 2)]
-
-left2 : {a : Type} -> {b : Type} -> a -> Ty [a,b] (def Main.either2)
-left2 x = Inn (Left x)
-
-right2 : {a : Type} -> {b : Type} -> b -> Ty [a,b] (def Main.either2)
-right2 x = Inn (Right x)
 
 -- Example: list
 
@@ -132,5 +114,4 @@ serializeTest : String
 serializeTest = serialize [Int] [show] Main.maybe (Main.just Int 6)
 
 main : IO ()
-main = do
-     putStrLn $ showTDef (def Main.list)
+main = putStrLn $ showTDef (def Main.list)
