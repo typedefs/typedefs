@@ -1,10 +1,47 @@
-# Typedefs
+# Typedefs-Breakfast
 
 [![Build Status](https://travis-ci.com/typedefs/typedefs.svg?branch=master)](https://travis-ci.com/typedefs/typedefs)
 
+```
+                              `     ,            ``     ``.
+                               -     -'            ''',"-``.~;`
+                                -     ~`            `.'~     `
+                                ``    `;`           `.`
+                                 .     ',       ,.'      ```
+                                  '     ~'      _`,  ```.` ,
+                                   '     ~'      ~ ~'.`````
+                                    '    `;`     .'.'..`
+                                    ``    ';      ,`` `:                   `-',,
+                                     '`    _,        ``               `',~~'`
+                                      '`    ^`                    `',~,``
+                                       '    `^              `;(}]+,`
+                                    `   ,    ';         _*\)\+;'
+                                    ,::  ;    ;~  `,*((\~.
+                                    `` '``'`',:+:^^;,`
+                                 ` `:~`,;`-''''`  ``
+                                `: ,;_  `   ```    `..
+                               ``'-;`;,.       ```````'`
+                               ,.',, -'
+              `'''''''''''''-'~,;:::~;:,
+          .'''             `,'` ,_'`-` ..-`
+        `,`               ,`  ,'`,~`'''~  `,
+        ,'                `', '-,' -~'_' `',
+        ' `-.....`        `',' -~: `,:'..  '
+        ``       `...........'.'.'.`      '
+         '                               '
+          '`                            '
+           ``                         .'
+             .`                    `--
+               ``````````````````-``
+```
+
 ## About
 
-Typedefs is a programming language-agnostic, algebraic data type definition language, written in Idris.
+Typedefs-breakfast is a programming language allowing to define recipes for delicious breakfast
+leveraging the power of an f-algebra describing types! Each term in this algebra will define
+delicious cerealisation functions in your target language. Cereals wouldn't be complete without
+milk so each ceralisation function comes with a functionality to `pourMilk` in order to interpret
+the cereals back into hydration.
 
 See http://typedefs.com, or play around with examples at [Try Typedefs!](https://try.typedefs.com)
 
@@ -54,7 +91,7 @@ Clean up:
 
 ### Elba
 
-There is a complete tutorial on how to compile and install typedefs using the elba 
+There is a complete tutorial on how to compile and install typedefs using the elba
 package manager [here](docs/TUTORIAL_INSTALL.md).
 
 In most cases it should be just as easy as:

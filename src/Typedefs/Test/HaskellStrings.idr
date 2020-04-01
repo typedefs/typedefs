@@ -7,14 +7,14 @@ import Text.PrettyPrint.WL
 bitDoc : Doc
 bitDoc = text """type Bit = Either () ()
 
-encodeBit :: Serialiser Bit
+encodeBit :: Cerealiser Bit
 encodeBit x = case x of
                 Left z -> word8 (fromIntegral 0)
                 Right z -> word8 (fromIntegral 1)
 
-decodeBit :: Deserialiser Bit
+decodeBit :: PourMilk Bit
 decodeBit = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return (Left ())
                 1 -> return (Right ())
@@ -25,20 +25,20 @@ byteDoc = text """type Bit = Either () ()
 
 type Byte = (Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit)
 
-encodeBit :: Serialiser Bit
+encodeBit :: Cerealiser Bit
 encodeBit x = case x of
                 Left z -> word8 (fromIntegral 0)
                 Right z -> word8 (fromIntegral 1)
 
-decodeBit :: Deserialiser Bit
+decodeBit :: PourMilk Bit
 decodeBit = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return (Left ())
                 1 -> return (Right ())
                 _ -> failDecode
 
-encodeByte :: Serialiser Byte
+encodeByte :: Cerealiser Byte
 encodeByte x = case x of
                  (y,y0,y1,y2,y3,y4,y5,y6) -> mconcat [(encodeBit y)
                                                      ,(encodeBit y0)
@@ -49,7 +49,7 @@ encodeByte x = case x of
                                                      ,(encodeBit y5)
                                                      ,(encodeBit y6)]
 
-decodeByte :: Deserialiser Byte
+decodeByte :: PourMilk Byte
 decodeByte = do
                x <- decodeBit
                x0 <- decodeBit
@@ -64,15 +64,15 @@ decodeByte = do
 maybeDoc : Doc
 maybeDoc = text """type Maybe x0 = Either () x0
 
-encodeMaybe :: Serialiser x0 -> Serialiser (Maybe x0)
+encodeMaybe :: Cerealiser x0 -> Cerealiser (Maybe x0)
 encodeMaybe encodeX0 x = case x of
                            Left z -> word8 (fromIntegral 0)
                            Right z -> mconcat [(word8 (fromIntegral 1))
                                               ,(encodeX0 z)]
 
-decodeMaybe :: Deserialiser x0 -> Deserialiser (Maybe x0)
+decodeMaybe :: PourMilk x0 -> PourMilk (Maybe x0)
 decodeMaybe decodeX0 = do
-                         i <- deserialiseInt
+                         i <- pourmilkInt
                          case i of
                            0 -> return (Left ())
                            1 -> do
@@ -83,15 +83,15 @@ decodeMaybe decodeX0 = do
 listDoc : Doc
 listDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -103,13 +103,13 @@ decodeList decodeX0 = do
 muMaybeDoc : Doc
 muMaybeDoc = text """data Maybe2 x0 = Nothing | Just x0
 
-encodeMaybe2 :: Serialiser x0 -> Serialiser (Maybe2 x0)
+encodeMaybe2 :: Cerealiser x0 -> Cerealiser (Maybe2 x0)
 encodeMaybe2 encodeX0 Nothing = word8 (fromIntegral 0)
 encodeMaybe2 encodeX0 (Just x) = mconcat [(word8 (fromIntegral 1)),(encodeX0 x)]
 
-decodeMaybe2 :: Deserialiser x0 -> Deserialiser (Maybe2 x0)
+decodeMaybe2 :: PourMilk x0 -> PourMilk (Maybe2 x0)
 decodeMaybe2 decodeX0 = do
-                          i <- deserialiseInt
+                          i <- pourmilkInt
                           case i of
                             0 -> return Nothing
                             1 -> do
@@ -120,13 +120,13 @@ decodeMaybe2 decodeX0 = do
 natDoc : Doc
 natDoc = text """data Nat = Z | S Nat
 
-encodeNat :: Serialiser Nat
+encodeNat :: Cerealiser Nat
 encodeNat Z = word8 (fromIntegral 0)
 encodeNat (S x) = mconcat [(word8 (fromIntegral 1)),(encodeNat x)]
 
-decodeNat :: Deserialiser Nat
+decodeNat :: PourMilk Nat
 decodeNat = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return Z
                 1 -> do
@@ -139,13 +139,13 @@ listNatDoc = text """data Nat = Z | S Nat
 
 data ListNat = NilN | ConsN Nat ListNat
 
-encodeNat :: Serialiser Nat
+encodeNat :: Cerealiser Nat
 encodeNat Z = word8 (fromIntegral 0)
 encodeNat (S x) = mconcat [(word8 (fromIntegral 1)),(encodeNat x)]
 
-decodeNat :: Deserialiser Nat
+decodeNat :: PourMilk Nat
 decodeNat = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return Z
                 1 -> do
@@ -153,15 +153,15 @@ decodeNat = do
                        return (S x)
                 _ -> failDecode
 
-encodeListNat :: Serialiser ListNat
+encodeListNat :: Cerealiser ListNat
 encodeListNat NilN = word8 (fromIntegral 0)
 encodeListNat (ConsN x x0) = mconcat [(word8 (fromIntegral 1))
                                      ,(encodeNat x)
                                      ,(encodeListNat x0)]
 
-decodeListNat :: Deserialiser ListNat
+decodeListNat :: PourMilk ListNat
 decodeListNat = do
-                  i <- deserialiseInt
+                  i <- pourmilkInt
                   case i of
                     0 -> return NilN
                     1 -> do
@@ -175,15 +175,15 @@ parametricDoc = text """type Maybe x0 = Either () x0
 
 type ParSyn x0 = Maybe x0
 
-encodeMaybe :: Serialiser x0 -> Serialiser (Maybe x0)
+encodeMaybe :: Cerealiser x0 -> Cerealiser (Maybe x0)
 encodeMaybe encodeX0 x = case x of
                            Left z -> word8 (fromIntegral 0)
                            Right z -> mconcat [(word8 (fromIntegral 1))
                                               ,(encodeX0 z)]
 
-decodeMaybe :: Deserialiser x0 -> Deserialiser (Maybe x0)
+decodeMaybe :: PourMilk x0 -> PourMilk (Maybe x0)
 decodeMaybe decodeX0 = do
-                         i <- deserialiseInt
+                         i <- pourmilkInt
                          case i of
                            0 -> return (Left ())
                            1 -> do
@@ -191,10 +191,10 @@ decodeMaybe decodeX0 = do
                                   return (Right y0)
                            _ -> failDecode
 
-encodeParSyn :: Serialiser x0 -> Serialiser (ParSyn x0)
+encodeParSyn :: Cerealiser x0 -> Cerealiser (ParSyn x0)
 encodeParSyn encodeX0 x = encodeMaybe encodeX0 x
 
-decodeParSyn :: Deserialiser x0 -> Deserialiser (ParSyn x0)
+decodeParSyn :: PourMilk x0 -> PourMilk (ParSyn x0)
 decodeParSyn decodeX0 = decodeMaybe decodeX0"""
 
 parametric2Doc : Doc
@@ -202,13 +202,13 @@ parametric2Doc = text """data Maybe2 x0 = Nothing | Just x0
 
 type ParSyn2 x0 = Maybe2 x0
 
-encodeMaybe2 :: Serialiser x0 -> Serialiser (Maybe2 x0)
+encodeMaybe2 :: Cerealiser x0 -> Cerealiser (Maybe2 x0)
 encodeMaybe2 encodeX0 Nothing = word8 (fromIntegral 0)
 encodeMaybe2 encodeX0 (Just x) = mconcat [(word8 (fromIntegral 1)),(encodeX0 x)]
 
-decodeMaybe2 :: Deserialiser x0 -> Deserialiser (Maybe2 x0)
+decodeMaybe2 :: PourMilk x0 -> PourMilk (Maybe2 x0)
 decodeMaybe2 decodeX0 = do
-                          i <- deserialiseInt
+                          i <- pourmilkInt
                           case i of
                             0 -> return Nothing
                             1 -> do
@@ -216,16 +216,16 @@ decodeMaybe2 decodeX0 = do
                                    return (Just x)
                             _ -> failDecode
 
-encodeParSyn2 :: Serialiser x0 -> Serialiser (ParSyn2 x0)
+encodeParSyn2 :: Cerealiser x0 -> Cerealiser (ParSyn2 x0)
 encodeParSyn2 encodeX0 x = encodeMaybe2 encodeX0 x
 
-decodeParSyn2 :: Deserialiser x0 -> Deserialiser (ParSyn2 x0)
+decodeParSyn2 :: PourMilk x0 -> PourMilk (ParSyn2 x0)
 decodeParSyn2 decodeX0 = decodeMaybe2 decodeX0"""
 
 aplusbpluscplusdDoc : Doc
 aplusbpluscplusdDoc = text """type Aplusbpluscplusd x0 x1 x2 x3 = Either x0 (Either x1 (Either x2 x3))
 
-encodeAplusbpluscplusd :: Serialiser x0 -> Serialiser x1 -> Serialiser x2 -> Serialiser x3 -> Serialiser (Aplusbpluscplusd x0 x1 x2 x3)
+encodeAplusbpluscplusd :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser x2 -> Cerealiser x3 -> Cerealiser (Aplusbpluscplusd x0 x1 x2 x3)
 encodeAplusbpluscplusd encodeX0 encodeX1 encodeX2 encodeX3 x = case x of
                                                                  Left z -> mconcat [(word8 (fromIntegral 0))
                                                                                    ,(encodeX0 z)]
@@ -236,9 +236,9 @@ encodeAplusbpluscplusd encodeX0 encodeX1 encodeX2 encodeX3 x = case x of
                                                                  Right (Right (Right z1)) -> mconcat [(word8 (fromIntegral 3))
                                                                                                      ,(encodeX3 z1)]
 
-decodeAplusbpluscplusd :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser x2 -> Deserialiser x3 -> Deserialiser (Aplusbpluscplusd x0 x1 x2 x3)
+decodeAplusbpluscplusd :: PourMilk x0 -> PourMilk x1 -> PourMilk x2 -> PourMilk x3 -> PourMilk (Aplusbpluscplusd x0 x1 x2 x3)
 decodeAplusbpluscplusd decodeX0 decodeX1 decodeX2 decodeX3 = do
-                                                               i <- deserialiseInt
+                                                               i <- pourmilkInt
                                                                case i of
                                                                  0 -> do
                                                                         y <- decodeX0
@@ -258,16 +258,16 @@ decodeAplusbpluscplusd decodeX0 decodeX1 decodeX2 decodeX3 = do
 oneoneoneoneDoc : Doc
 oneoneoneoneDoc = text """type Oneoneoneone = Either () (Either () (Either () ()))
 
-encodeOneoneoneone :: Serialiser Oneoneoneone
+encodeOneoneoneone :: Cerealiser Oneoneoneone
 encodeOneoneoneone x = case x of
                          Left z -> word8 (fromIntegral 0)
                          Right (Left z0) -> word8 (fromIntegral 1)
                          Right (Right (Left z1)) -> word8 (fromIntegral 2)
                          Right (Right (Right z1)) -> word8 (fromIntegral 3)
 
-decodeOneoneoneone :: Deserialiser Oneoneoneone
+decodeOneoneoneone :: PourMilk Oneoneoneone
 decodeOneoneoneone = do
-                       i <- deserialiseInt
+                       i <- pourmilkInt
                        case i of
                          0 -> return (Left ())
                          1 -> return (Right (Left ()))
@@ -278,23 +278,23 @@ decodeOneoneoneone = do
 unusedFreeVarsDoc : Doc
 unusedFreeVarsDoc = text """type Id x0 = x0
 
-encodeId :: Serialiser x0 -> Serialiser (Id x0)
+encodeId :: Cerealiser x0 -> Cerealiser (Id x0)
 encodeId encodeX0 x = encodeX0 x
 
-decodeId :: Deserialiser x0 -> Deserialiser (Id x0)
+decodeId :: PourMilk x0 -> PourMilk (Id x0)
 decodeId decodeX0 = decodeX0"""
 
 voidOrUnitDoc : Doc
 voidOrUnitDoc = text """type VoidOrUnit = Either Void ()
 
-encodeVoidOrUnit :: Serialiser VoidOrUnit
+encodeVoidOrUnit :: Cerealiser VoidOrUnit
 encodeVoidOrUnit x = case x of
                        Left z -> mconcat [(word8 (fromIntegral 0)),(absurd z)]
                        Right z -> word8 (fromIntegral 1)
 
-decodeVoidOrUnit :: Deserialiser VoidOrUnit
+decodeVoidOrUnit :: PourMilk VoidOrUnit
 decodeVoidOrUnit = do
-                     i <- deserialiseInt
+                     i <- pourmilkInt
                      case i of
                        0 -> do
                               y <- failDecode
@@ -304,11 +304,11 @@ decodeVoidOrUnit = do
 nonlinearDoc : Doc
 nonlinearDoc = text """type Nonlinear x0 = (x0,x0)
 
-encodeNonlinear :: Serialiser x0 -> Serialiser (Nonlinear x0)
+encodeNonlinear :: Cerealiser x0 -> Cerealiser (Nonlinear x0)
 encodeNonlinear encodeX0 x = case x of
                                (y,y0) -> mconcat [(encodeX0 y),(encodeX0 y0)]
 
-decodeNonlinear :: Deserialiser x0 -> Deserialiser (Nonlinear x0)
+decodeNonlinear :: PourMilk x0 -> PourMilk (Nonlinear x0)
 decodeNonlinear decodeX0 = do
                              x <- decodeX0
                              x0 <- decodeX0
@@ -319,15 +319,15 @@ listAlphaOrBetaDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
 type ListAlphaOrBeta x0 x1 = List (Either x0 x1)
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -336,16 +336,16 @@ decodeList decodeX0 = do
                                  return (Cons x x0)
                           _ -> failDecode
 
-encodeSumx0x1 :: Serialiser x0 -> Serialiser x1 -> Serialiser (Either x0 x1)
+encodeSumx0x1 :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (Either x0 x1)
 encodeSumx0x1 encodeX0 encodeX1 x = case x of
                                       Left z -> mconcat [(word8 (fromIntegral 0))
                                                         ,(encodeX0 z)]
                                       Right z -> mconcat [(word8 (fromIntegral 1))
                                                          ,(encodeX1 z)]
 
-decodeSumx0x1 :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (Either x0 x1)
+decodeSumx0x1 :: PourMilk x0 -> PourMilk x1 -> PourMilk (Either x0 x1)
 decodeSumx0x1 decodeX0 decodeX1 = do
-                                    i <- deserialiseInt
+                                    i <- pourmilkInt
                                     case i of
                                       0 -> do
                                              y <- decodeX0
@@ -355,10 +355,10 @@ decodeSumx0x1 decodeX0 decodeX1 = do
                                              return (Right y0)
                                       _ -> failDecode
 
-encodeListAlphaOrBeta :: Serialiser x0 -> Serialiser x1 -> Serialiser (ListAlphaOrBeta x0 x1)
+encodeListAlphaOrBeta :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (ListAlphaOrBeta x0 x1)
 encodeListAlphaOrBeta encodeX0 encodeX1 x = encodeList (encodeSumx0x1 encodeX0 encodeX1) x
 
-decodeListAlphaOrBeta :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (ListAlphaOrBeta x0 x1)
+decodeListAlphaOrBeta :: PourMilk x0 -> PourMilk x1 -> PourMilk (ListAlphaOrBeta x0 x1)
 decodeListAlphaOrBeta decodeX0 decodeX1 = decodeList (decodeSumx0x1 decodeX0 decodeX1)"""
 
 listBitOrByteDoc : Doc
@@ -372,15 +372,15 @@ type Byte = (Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit)
 
 type ListBitOrByte = ListAlphaOrBeta Bit Byte
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -389,16 +389,16 @@ decodeList decodeX0 = do
                                  return (Cons x x0)
                           _ -> failDecode
 
-encodeSumx0x1 :: Serialiser x0 -> Serialiser x1 -> Serialiser (Either x0 x1)
+encodeSumx0x1 :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (Either x0 x1)
 encodeSumx0x1 encodeX0 encodeX1 x = case x of
                                       Left z -> mconcat [(word8 (fromIntegral 0))
                                                         ,(encodeX0 z)]
                                       Right z -> mconcat [(word8 (fromIntegral 1))
                                                          ,(encodeX1 z)]
 
-decodeSumx0x1 :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (Either x0 x1)
+decodeSumx0x1 :: PourMilk x0 -> PourMilk x1 -> PourMilk (Either x0 x1)
 decodeSumx0x1 decodeX0 decodeX1 = do
-                                    i <- deserialiseInt
+                                    i <- pourmilkInt
                                     case i of
                                       0 -> do
                                              y <- decodeX0
@@ -408,26 +408,26 @@ decodeSumx0x1 decodeX0 decodeX1 = do
                                              return (Right y0)
                                       _ -> failDecode
 
-encodeListAlphaOrBeta :: Serialiser x0 -> Serialiser x1 -> Serialiser (ListAlphaOrBeta x0 x1)
+encodeListAlphaOrBeta :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (ListAlphaOrBeta x0 x1)
 encodeListAlphaOrBeta encodeX0 encodeX1 x = encodeList (encodeSumx0x1 encodeX0 encodeX1) x
 
-decodeListAlphaOrBeta :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (ListAlphaOrBeta x0 x1)
+decodeListAlphaOrBeta :: PourMilk x0 -> PourMilk x1 -> PourMilk (ListAlphaOrBeta x0 x1)
 decodeListAlphaOrBeta decodeX0 decodeX1 = decodeList (decodeSumx0x1 decodeX0 decodeX1)
 
-encodeBit :: Serialiser Bit
+encodeBit :: Cerealiser Bit
 encodeBit x = case x of
                 Left z -> word8 (fromIntegral 0)
                 Right z -> word8 (fromIntegral 1)
 
-decodeBit :: Deserialiser Bit
+decodeBit :: PourMilk Bit
 decodeBit = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return (Left ())
                 1 -> return (Right ())
                 _ -> failDecode
 
-encodeByte :: Serialiser Byte
+encodeByte :: Cerealiser Byte
 encodeByte x = case x of
                  (y,y0,y1,y2,y3,y4,y5,y6) -> mconcat [(encodeBit y)
                                                      ,(encodeBit y0)
@@ -438,7 +438,7 @@ encodeByte x = case x of
                                                      ,(encodeBit y5)
                                                      ,(encodeBit y6)]
 
-decodeByte :: Deserialiser Byte
+decodeByte :: PourMilk Byte
 decodeByte = do
                x <- decodeBit
                x0 <- decodeBit
@@ -450,10 +450,10 @@ decodeByte = do
                x6 <- decodeBit
                return (x,x0,x1,x2,x3,x4,x5,x6)
 
-encodeListBitOrByte :: Serialiser ListBitOrByte
+encodeListBitOrByte :: Cerealiser ListBitOrByte
 encodeListBitOrByte x = encodeListAlphaOrBeta encodeBit encodeByte x
 
-decodeListBitOrByte :: Deserialiser ListBitOrByte
+decodeListBitOrByte :: PourMilk ListBitOrByte
 decodeListBitOrByte = decodeListAlphaOrBeta decodeBit decodeByte"""
 
 nestedMu1Doc : Doc
@@ -461,15 +461,15 @@ nestedMu1Doc = text """data List x0 = Nil | Cons x0 (List x0)
 
 data NestedMu1 x0 x1 = Foobar (List (Either x0 x1))
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -478,16 +478,16 @@ decodeList decodeX0 = do
                                  return (Cons x x0)
                           _ -> failDecode
 
-encodeSumx1x2 :: Serialiser x1 -> Serialiser x2 -> Serialiser (Either x1 x2)
+encodeSumx1x2 :: Cerealiser x1 -> Cerealiser x2 -> Cerealiser (Either x1 x2)
 encodeSumx1x2 encodeX1 encodeX2 x = case x of
                                       Left z -> mconcat [(word8 (fromIntegral 0))
                                                         ,(encodeX1 z)]
                                       Right z -> mconcat [(word8 (fromIntegral 1))
                                                          ,(encodeX2 z)]
 
-decodeSumx1x2 :: Deserialiser x1 -> Deserialiser x2 -> Deserialiser (Either x1 x2)
+decodeSumx1x2 :: PourMilk x1 -> PourMilk x2 -> PourMilk (Either x1 x2)
 decodeSumx1x2 decodeX1 decodeX2 = do
-                                    i <- deserialiseInt
+                                    i <- pourmilkInt
                                     case i of
                                       0 -> do
                                              y <- decodeX1
@@ -497,10 +497,10 @@ decodeSumx1x2 decodeX1 decodeX2 = do
                                              return (Right y0)
                                       _ -> failDecode
 
-encodeNestedMu1 :: Serialiser x0 -> Serialiser x1 -> Serialiser (NestedMu1 x0 x1)
+encodeNestedMu1 :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (NestedMu1 x0 x1)
 encodeNestedMu1 encodeX0 encodeX1 (Foobar x) = encodeList (encodeSumx1x2 encodeX0 encodeX1) x
 
-decodeNestedMu1 :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (NestedMu1 x0 x1)
+decodeNestedMu1 :: PourMilk x0 -> PourMilk x1 -> PourMilk (NestedMu1 x0 x1)
 decodeNestedMu1 decodeX0 decodeX1 = do
                                       x <- decodeList (decodeSumx1x2 decodeX0 decodeX1)
                                       return (Foobar x)"""
@@ -509,13 +509,13 @@ nestedMu2Doc = text """data Maybe2 x0 = Nothing | Just x0
 
 data NestedMu2 x0 = Foobar (Maybe2 x0)
 
-encodeMaybe2 :: Serialiser x0 -> Serialiser (Maybe2 x0)
+encodeMaybe2 :: Cerealiser x0 -> Cerealiser (Maybe2 x0)
 encodeMaybe2 encodeX0 Nothing = word8 (fromIntegral 0)
 encodeMaybe2 encodeX0 (Just x) = mconcat [(word8 (fromIntegral 1)),(encodeX0 x)]
 
-decodeMaybe2 :: Deserialiser x0 -> Deserialiser (Maybe2 x0)
+decodeMaybe2 :: PourMilk x0 -> PourMilk (Maybe2 x0)
 decodeMaybe2 decodeX0 = do
-                          i <- deserialiseInt
+                          i <- pourmilkInt
                           case i of
                             0 -> return Nothing
                             1 -> do
@@ -523,10 +523,10 @@ decodeMaybe2 decodeX0 = do
                                    return (Just x)
                             _ -> failDecode
 
-encodeNestedMu2 :: Serialiser x0 -> Serialiser (NestedMu2 x0)
+encodeNestedMu2 :: Cerealiser x0 -> Cerealiser (NestedMu2 x0)
 encodeNestedMu2 encodeX0 (Foobar x) = encodeMaybe2 encodeX0 x
 
-decodeNestedMu2 :: Deserialiser x0 -> Deserialiser (NestedMu2 x0)
+decodeNestedMu2 :: PourMilk x0 -> PourMilk (NestedMu2 x0)
 decodeNestedMu2 decodeX0 = do
                              x <- decodeMaybe2 decodeX0
                              return (Foobar x)"""
@@ -536,13 +536,13 @@ nestedMu3Doc = text """data Maybe2 x0 = Nothing | Just x0
 
 data NestedMu3 = Foobar (Maybe2 NestedMu3)
 
-encodeMaybe2 :: Serialiser x0 -> Serialiser (Maybe2 x0)
+encodeMaybe2 :: Cerealiser x0 -> Cerealiser (Maybe2 x0)
 encodeMaybe2 encodeX0 Nothing = word8 (fromIntegral 0)
 encodeMaybe2 encodeX0 (Just x) = mconcat [(word8 (fromIntegral 1)),(encodeX0 x)]
 
-decodeMaybe2 :: Deserialiser x0 -> Deserialiser (Maybe2 x0)
+decodeMaybe2 :: PourMilk x0 -> PourMilk (Maybe2 x0)
 decodeMaybe2 decodeX0 = do
-                          i <- deserialiseInt
+                          i <- pourmilkInt
                           case i of
                             0 -> return Nothing
                             1 -> do
@@ -550,10 +550,10 @@ decodeMaybe2 decodeX0 = do
                                    return (Just x)
                             _ -> failDecode
 
-encodeNestedMu3 :: Serialiser NestedMu3
+encodeNestedMu3 :: Cerealiser NestedMu3
 encodeNestedMu3 (Foobar x) = encodeMaybe2 encodeNestedMu3 x
 
-decodeNestedMu3 :: Deserialiser NestedMu3
+decodeNestedMu3 :: PourMilk NestedMu3
 decodeNestedMu3 = do
                     x <- decodeMaybe2 decodeNestedMu3
                     return (Foobar x)"""
@@ -563,15 +563,15 @@ nestedMu4Doc = text """data List x0 = Nil | Cons x0 (List x0)
 
 data NestedMu4 x0 = Foobar (List (Either (NestedMu4 x0) x0))
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -580,16 +580,16 @@ decodeList decodeX0 = do
                                  return (Cons x x0)
                           _ -> failDecode
 
-encodeSumx0x1 :: Serialiser x0 -> Serialiser x1 -> Serialiser (Either x0 x1)
+encodeSumx0x1 :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (Either x0 x1)
 encodeSumx0x1 encodeX0 encodeX1 x = case x of
                                       Left z -> mconcat [(word8 (fromIntegral 0))
                                                         ,(encodeX0 z)]
                                       Right z -> mconcat [(word8 (fromIntegral 1))
                                                          ,(encodeX1 z)]
 
-decodeSumx0x1 :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (Either x0 x1)
+decodeSumx0x1 :: PourMilk x0 -> PourMilk x1 -> PourMilk (Either x0 x1)
 decodeSumx0x1 decodeX0 decodeX1 = do
-                                    i <- deserialiseInt
+                                    i <- pourmilkInt
                                     case i of
                                       0 -> do
                                              y <- decodeX0
@@ -599,10 +599,10 @@ decodeSumx0x1 decodeX0 decodeX1 = do
                                              return (Right y0)
                                       _ -> failDecode
 
-encodeNestedMu4 :: Serialiser x0 -> Serialiser (NestedMu4 x0)
+encodeNestedMu4 :: Cerealiser x0 -> Cerealiser (NestedMu4 x0)
 encodeNestedMu4 encodeX0 (Foobar x) = encodeList (encodeSumx0x1 (encodeNestedMu4 encodeX0) encodeX0) x
 
-decodeNestedMu4 :: Deserialiser x0 -> Deserialiser (NestedMu4 x0)
+decodeNestedMu4 :: PourMilk x0 -> PourMilk (NestedMu4 x0)
 decodeNestedMu4 decodeX0 = do
                              x <- decodeList (decodeSumx0x1 (decodeNestedMu4 decodeX0) decodeX0)
                              return (Foobar x)"""
@@ -612,15 +612,15 @@ nestedMu5Doc = text """data NilCons x0 = Nil | Cons x0 (NilCons x0)
 
 data NestedMu5 = Foobar (NilCons NestedMu5)
 
-encodeNilCons :: Serialiser x0 -> Serialiser (NilCons x0)
+encodeNilCons :: Cerealiser x0 -> Cerealiser (NilCons x0)
 encodeNilCons encodeX0 Nil = word8 (fromIntegral 0)
 encodeNilCons encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                              ,(encodeX0 x)
                                              ,(encodeNilCons encodeX0 x0)]
 
-decodeNilCons :: Deserialiser x0 -> Deserialiser (NilCons x0)
+decodeNilCons :: PourMilk x0 -> PourMilk (NilCons x0)
 decodeNilCons decodeX0 = do
-                           i <- deserialiseInt
+                           i <- pourmilkInt
                            case i of
                              0 -> return Nil
                              1 -> do
@@ -629,10 +629,10 @@ decodeNilCons decodeX0 = do
                                     return (Cons x x0)
                              _ -> failDecode
 
-encodeNestedMu5 :: Serialiser NestedMu5
+encodeNestedMu5 :: Cerealiser NestedMu5
 encodeNestedMu5 (Foobar x) = encodeNilCons encodeNestedMu5 x
 
-decodeNestedMu5 :: Deserialiser NestedMu5
+decodeNestedMu5 :: PourMilk NestedMu5
 decodeNestedMu5 = do
                     x <- decodeNilCons decodeNestedMu5
                     return (Foobar x)"""
@@ -642,15 +642,15 @@ singleConstructorMuDoc = text """data List x0 = Nil | Cons x0 (List x0)
 
 data Foo = Bar (List Foo) (Either () Foo)
 
-encodeList :: Serialiser x0 -> Serialiser (List x0)
+encodeList :: Cerealiser x0 -> Cerealiser (List x0)
 encodeList encodeX0 Nil = word8 (fromIntegral 0)
 encodeList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                           ,(encodeX0 x)
                                           ,(encodeList encodeX0 x0)]
 
-decodeList :: Deserialiser x0 -> Deserialiser (List x0)
+decodeList :: PourMilk x0 -> PourMilk (List x0)
 decodeList decodeX0 = do
-                        i <- deserialiseInt
+                        i <- pourmilkInt
                         case i of
                           0 -> return Nil
                           1 -> do
@@ -659,18 +659,18 @@ decodeList decodeX0 = do
                                  return (Cons x x0)
                           _ -> failDecode
 
-encodeFoo :: Serialiser Foo
+encodeFoo :: Cerealiser Foo
 encodeFoo (Bar x x0) = mconcat [(encodeList encodeFoo x)
                                ,(case x0 of
                                    Left z -> word8 (fromIntegral 0)
                                    Right z -> mconcat [(word8 (fromIntegral 1))
                                                       ,(encodeFoo z)])]
 
-decodeFoo :: Deserialiser Foo
+decodeFoo :: PourMilk Foo
 decodeFoo = do
               x <- decodeList decodeFoo
               x0 <- do
-                      i <- deserialiseInt
+                      i <- pourmilkInt
                       case i of
                         0 -> return (Left ())
                         1 -> do
@@ -698,27 +698,27 @@ type Previous = Hash
 
 type RootTx = (Data,Previous)
 
-encodeBit :: Serialiser Bit
+encodeBit :: Cerealiser Bit
 encodeBit x = case x of
                 Left z -> word8 (fromIntegral 0)
                 Right z -> word8 (fromIntegral 1)
 
-decodeBit :: Deserialiser Bit
+decodeBit :: PourMilk Bit
 decodeBit = do
-              i <- deserialiseInt
+              i <- pourmilkInt
               case i of
                 0 -> return (Left ())
                 1 -> return (Right ())
                 _ -> failDecode
 
-encodeNibble :: Serialiser Nibble
+encodeNibble :: Cerealiser Nibble
 encodeNibble x = case x of
                    (y,y0,y1,y2) -> mconcat [(encodeBit y)
                                            ,(encodeBit y0)
                                            ,(encodeBit y1)
                                            ,(encodeBit y2)]
 
-decodeNibble :: Deserialiser Nibble
+decodeNibble :: PourMilk Nibble
 decodeNibble = do
                  x <- decodeBit
                  x0 <- decodeBit
@@ -726,51 +726,51 @@ decodeNibble = do
                  x2 <- decodeBit
                  return (x,x0,x1,x2)
 
-encodeByte :: Serialiser Byte
+encodeByte :: Cerealiser Byte
 encodeByte x = case x of
                  (y,y0) -> mconcat [(encodeNibble y),(encodeNibble y0)]
 
-decodeByte :: Deserialiser Byte
+decodeByte :: PourMilk Byte
 decodeByte = do
                x <- decodeNibble
                x0 <- decodeNibble
                return (x,x0)
 
-encodeChar :: Serialiser Char
+encodeChar :: Cerealiser Char
 encodeChar x = encodeByte x
 
-decodeChar :: Deserialiser Char
+decodeChar :: PourMilk Char
 decodeChar = decodeByte
 
-encodeHash :: Serialiser Hash
+encodeHash :: Cerealiser Hash
 encodeHash x = encodeByte x
 
-decodeHash :: Deserialiser Hash
+decodeHash :: PourMilk Hash
 decodeHash = decodeByte
 
-encodeTransitionId :: Serialiser TransitionId
+encodeTransitionId :: Cerealiser TransitionId
 encodeTransitionId x = encodeByte x
 
-decodeTransitionId :: Deserialiser TransitionId
+decodeTransitionId :: PourMilk TransitionId
 decodeTransitionId = decodeByte
 
-encodeData :: Serialiser Data
+encodeData :: Cerealiser Data
 encodeData x = encodeByte x
 
-decodeData :: Deserialiser Data
+decodeData :: PourMilk Data
 decodeData = decodeByte
 
-encodePrevious :: Serialiser Previous
+encodePrevious :: Cerealiser Previous
 encodePrevious x = encodeHash x
 
-decodePrevious :: Deserialiser Previous
+decodePrevious :: PourMilk Previous
 decodePrevious = decodeHash
 
-encodeRootTx :: Serialiser RootTx
+encodeRootTx :: Cerealiser RootTx
 encodeRootTx x = case x of
                    (y,y0) -> mconcat [(encodeData y),(encodePrevious y0)]
 
-decodeRootTx :: Deserialiser RootTx
+decodeRootTx :: PourMilk RootTx
 decodeRootTx = do
                  x <- decodeData
                  x0 <- decodePrevious
@@ -978,7 +978,7 @@ largeTupleDoc = text """type LargeTuple = (Either () ()
                      ,Either () ()
                      ,Either () ()))))
 
-encodeLargeTuple :: Serialiser LargeTuple
+encodeLargeTuple :: Cerealiser LargeTuple
 encodeLargeTuple x = case x of
                        (y
                        ,y0
@@ -1780,1204 +1780,1204 @@ encodeLargeTuple x = case x of
                                                    Left z198 -> word8 (fromIntegral 0)
                                                    Right z198 -> word8 (fromIntegral 1))]
 
-decodeLargeTuple :: Deserialiser LargeTuple
+decodeLargeTuple :: PourMilk LargeTuple
 decodeLargeTuple = do
                      x <- do
-                            i <- deserialiseInt
+                            i <- pourmilkInt
                             case i of
                               0 -> return (Left ())
                               1 -> return (Right ())
                               _ -> failDecode
                      x0 <- do
-                             i0 <- deserialiseInt
+                             i0 <- pourmilkInt
                              case i0 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x1 <- do
-                             i1 <- deserialiseInt
+                             i1 <- pourmilkInt
                              case i1 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x2 <- do
-                             i2 <- deserialiseInt
+                             i2 <- pourmilkInt
                              case i2 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x3 <- do
-                             i3 <- deserialiseInt
+                             i3 <- pourmilkInt
                              case i3 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x4 <- do
-                             i4 <- deserialiseInt
+                             i4 <- pourmilkInt
                              case i4 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x5 <- do
-                             i5 <- deserialiseInt
+                             i5 <- pourmilkInt
                              case i5 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x6 <- do
-                             i6 <- deserialiseInt
+                             i6 <- pourmilkInt
                              case i6 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x7 <- do
-                             i7 <- deserialiseInt
+                             i7 <- pourmilkInt
                              case i7 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x8 <- do
-                             i8 <- deserialiseInt
+                             i8 <- pourmilkInt
                              case i8 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x9 <- do
-                             i9 <- deserialiseInt
+                             i9 <- pourmilkInt
                              case i9 of
                                0 -> return (Left ())
                                1 -> return (Right ())
                                _ -> failDecode
                      x10 <- do
-                              i10 <- deserialiseInt
+                              i10 <- pourmilkInt
                               case i10 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x11 <- do
-                              i11 <- deserialiseInt
+                              i11 <- pourmilkInt
                               case i11 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x12 <- do
-                              i12 <- deserialiseInt
+                              i12 <- pourmilkInt
                               case i12 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x13 <- do
-                              i13 <- deserialiseInt
+                              i13 <- pourmilkInt
                               case i13 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x14 <- do
-                              i14 <- deserialiseInt
+                              i14 <- pourmilkInt
                               case i14 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x15 <- do
-                              i15 <- deserialiseInt
+                              i15 <- pourmilkInt
                               case i15 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x16 <- do
-                              i16 <- deserialiseInt
+                              i16 <- pourmilkInt
                               case i16 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x17 <- do
-                              i17 <- deserialiseInt
+                              i17 <- pourmilkInt
                               case i17 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x18 <- do
-                              i18 <- deserialiseInt
+                              i18 <- pourmilkInt
                               case i18 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x19 <- do
-                              i19 <- deserialiseInt
+                              i19 <- pourmilkInt
                               case i19 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x20 <- do
-                              i20 <- deserialiseInt
+                              i20 <- pourmilkInt
                               case i20 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x21 <- do
-                              i21 <- deserialiseInt
+                              i21 <- pourmilkInt
                               case i21 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x22 <- do
-                              i22 <- deserialiseInt
+                              i22 <- pourmilkInt
                               case i22 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x23 <- do
-                              i23 <- deserialiseInt
+                              i23 <- pourmilkInt
                               case i23 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x24 <- do
-                              i24 <- deserialiseInt
+                              i24 <- pourmilkInt
                               case i24 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x25 <- do
-                              i25 <- deserialiseInt
+                              i25 <- pourmilkInt
                               case i25 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x26 <- do
-                              i26 <- deserialiseInt
+                              i26 <- pourmilkInt
                               case i26 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x27 <- do
-                              i27 <- deserialiseInt
+                              i27 <- pourmilkInt
                               case i27 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x28 <- do
-                              i28 <- deserialiseInt
+                              i28 <- pourmilkInt
                               case i28 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x29 <- do
-                              i29 <- deserialiseInt
+                              i29 <- pourmilkInt
                               case i29 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x30 <- do
-                              i30 <- deserialiseInt
+                              i30 <- pourmilkInt
                               case i30 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x31 <- do
-                              i31 <- deserialiseInt
+                              i31 <- pourmilkInt
                               case i31 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x32 <- do
-                              i32 <- deserialiseInt
+                              i32 <- pourmilkInt
                               case i32 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x33 <- do
-                              i33 <- deserialiseInt
+                              i33 <- pourmilkInt
                               case i33 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x34 <- do
-                              i34 <- deserialiseInt
+                              i34 <- pourmilkInt
                               case i34 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x35 <- do
-                              i35 <- deserialiseInt
+                              i35 <- pourmilkInt
                               case i35 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x36 <- do
-                              i36 <- deserialiseInt
+                              i36 <- pourmilkInt
                               case i36 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x37 <- do
-                              i37 <- deserialiseInt
+                              i37 <- pourmilkInt
                               case i37 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x38 <- do
-                              i38 <- deserialiseInt
+                              i38 <- pourmilkInt
                               case i38 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x39 <- do
-                              i39 <- deserialiseInt
+                              i39 <- pourmilkInt
                               case i39 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x40 <- do
-                              i40 <- deserialiseInt
+                              i40 <- pourmilkInt
                               case i40 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x41 <- do
-                              i41 <- deserialiseInt
+                              i41 <- pourmilkInt
                               case i41 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x42 <- do
-                              i42 <- deserialiseInt
+                              i42 <- pourmilkInt
                               case i42 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x43 <- do
-                              i43 <- deserialiseInt
+                              i43 <- pourmilkInt
                               case i43 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x44 <- do
-                              i44 <- deserialiseInt
+                              i44 <- pourmilkInt
                               case i44 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x45 <- do
-                              i45 <- deserialiseInt
+                              i45 <- pourmilkInt
                               case i45 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x46 <- do
-                              i46 <- deserialiseInt
+                              i46 <- pourmilkInt
                               case i46 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x47 <- do
-                              i47 <- deserialiseInt
+                              i47 <- pourmilkInt
                               case i47 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x48 <- do
-                              i48 <- deserialiseInt
+                              i48 <- pourmilkInt
                               case i48 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x49 <- do
-                              i49 <- deserialiseInt
+                              i49 <- pourmilkInt
                               case i49 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x50 <- do
-                              i50 <- deserialiseInt
+                              i50 <- pourmilkInt
                               case i50 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x51 <- do
-                              i51 <- deserialiseInt
+                              i51 <- pourmilkInt
                               case i51 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x52 <- do
-                              i52 <- deserialiseInt
+                              i52 <- pourmilkInt
                               case i52 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x53 <- do
-                              i53 <- deserialiseInt
+                              i53 <- pourmilkInt
                               case i53 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x54 <- do
-                              i54 <- deserialiseInt
+                              i54 <- pourmilkInt
                               case i54 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x55 <- do
-                              i55 <- deserialiseInt
+                              i55 <- pourmilkInt
                               case i55 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x56 <- do
-                              i56 <- deserialiseInt
+                              i56 <- pourmilkInt
                               case i56 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x57 <- do
-                              i57 <- deserialiseInt
+                              i57 <- pourmilkInt
                               case i57 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x58 <- do
-                              i58 <- deserialiseInt
+                              i58 <- pourmilkInt
                               case i58 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x59 <- do
-                              i59 <- deserialiseInt
+                              i59 <- pourmilkInt
                               case i59 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x60 <- do
-                              i60 <- deserialiseInt
+                              i60 <- pourmilkInt
                               case i60 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x61 <- do
-                              i61 <- deserialiseInt
+                              i61 <- pourmilkInt
                               case i61 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x62 <- do
-                              i62 <- deserialiseInt
+                              i62 <- pourmilkInt
                               case i62 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x63 <- do
-                              i63 <- deserialiseInt
+                              i63 <- pourmilkInt
                               case i63 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x64 <- do
-                              i64 <- deserialiseInt
+                              i64 <- pourmilkInt
                               case i64 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x65 <- do
-                              i65 <- deserialiseInt
+                              i65 <- pourmilkInt
                               case i65 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x66 <- do
-                              i66 <- deserialiseInt
+                              i66 <- pourmilkInt
                               case i66 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x67 <- do
-                              i67 <- deserialiseInt
+                              i67 <- pourmilkInt
                               case i67 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x68 <- do
-                              i68 <- deserialiseInt
+                              i68 <- pourmilkInt
                               case i68 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x69 <- do
-                              i69 <- deserialiseInt
+                              i69 <- pourmilkInt
                               case i69 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x70 <- do
-                              i70 <- deserialiseInt
+                              i70 <- pourmilkInt
                               case i70 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x71 <- do
-                              i71 <- deserialiseInt
+                              i71 <- pourmilkInt
                               case i71 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x72 <- do
-                              i72 <- deserialiseInt
+                              i72 <- pourmilkInt
                               case i72 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x73 <- do
-                              i73 <- deserialiseInt
+                              i73 <- pourmilkInt
                               case i73 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x74 <- do
-                              i74 <- deserialiseInt
+                              i74 <- pourmilkInt
                               case i74 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x75 <- do
-                              i75 <- deserialiseInt
+                              i75 <- pourmilkInt
                               case i75 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x76 <- do
-                              i76 <- deserialiseInt
+                              i76 <- pourmilkInt
                               case i76 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x77 <- do
-                              i77 <- deserialiseInt
+                              i77 <- pourmilkInt
                               case i77 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x78 <- do
-                              i78 <- deserialiseInt
+                              i78 <- pourmilkInt
                               case i78 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x79 <- do
-                              i79 <- deserialiseInt
+                              i79 <- pourmilkInt
                               case i79 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x80 <- do
-                              i80 <- deserialiseInt
+                              i80 <- pourmilkInt
                               case i80 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x81 <- do
-                              i81 <- deserialiseInt
+                              i81 <- pourmilkInt
                               case i81 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x82 <- do
-                              i82 <- deserialiseInt
+                              i82 <- pourmilkInt
                               case i82 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x83 <- do
-                              i83 <- deserialiseInt
+                              i83 <- pourmilkInt
                               case i83 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x84 <- do
-                              i84 <- deserialiseInt
+                              i84 <- pourmilkInt
                               case i84 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x85 <- do
-                              i85 <- deserialiseInt
+                              i85 <- pourmilkInt
                               case i85 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x86 <- do
-                              i86 <- deserialiseInt
+                              i86 <- pourmilkInt
                               case i86 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x87 <- do
-                              i87 <- deserialiseInt
+                              i87 <- pourmilkInt
                               case i87 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x88 <- do
-                              i88 <- deserialiseInt
+                              i88 <- pourmilkInt
                               case i88 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x89 <- do
-                              i89 <- deserialiseInt
+                              i89 <- pourmilkInt
                               case i89 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x90 <- do
-                              i90 <- deserialiseInt
+                              i90 <- pourmilkInt
                               case i90 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x91 <- do
-                              i91 <- deserialiseInt
+                              i91 <- pourmilkInt
                               case i91 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x92 <- do
-                              i92 <- deserialiseInt
+                              i92 <- pourmilkInt
                               case i92 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x93 <- do
-                              i93 <- deserialiseInt
+                              i93 <- pourmilkInt
                               case i93 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x94 <- do
-                              i94 <- deserialiseInt
+                              i94 <- pourmilkInt
                               case i94 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x95 <- do
-                              i95 <- deserialiseInt
+                              i95 <- pourmilkInt
                               case i95 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x96 <- do
-                              i96 <- deserialiseInt
+                              i96 <- pourmilkInt
                               case i96 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x97 <- do
-                              i97 <- deserialiseInt
+                              i97 <- pourmilkInt
                               case i97 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x98 <- do
-                              i98 <- deserialiseInt
+                              i98 <- pourmilkInt
                               case i98 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x99 <- do
-                              i99 <- deserialiseInt
+                              i99 <- pourmilkInt
                               case i99 of
                                 0 -> return (Left ())
                                 1 -> return (Right ())
                                 _ -> failDecode
                      x100 <- do
-                               i100 <- deserialiseInt
+                               i100 <- pourmilkInt
                                case i100 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x101 <- do
-                               i101 <- deserialiseInt
+                               i101 <- pourmilkInt
                                case i101 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x102 <- do
-                               i102 <- deserialiseInt
+                               i102 <- pourmilkInt
                                case i102 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x103 <- do
-                               i103 <- deserialiseInt
+                               i103 <- pourmilkInt
                                case i103 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x104 <- do
-                               i104 <- deserialiseInt
+                               i104 <- pourmilkInt
                                case i104 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x105 <- do
-                               i105 <- deserialiseInt
+                               i105 <- pourmilkInt
                                case i105 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x106 <- do
-                               i106 <- deserialiseInt
+                               i106 <- pourmilkInt
                                case i106 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x107 <- do
-                               i107 <- deserialiseInt
+                               i107 <- pourmilkInt
                                case i107 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x108 <- do
-                               i108 <- deserialiseInt
+                               i108 <- pourmilkInt
                                case i108 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x109 <- do
-                               i109 <- deserialiseInt
+                               i109 <- pourmilkInt
                                case i109 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x110 <- do
-                               i110 <- deserialiseInt
+                               i110 <- pourmilkInt
                                case i110 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x111 <- do
-                               i111 <- deserialiseInt
+                               i111 <- pourmilkInt
                                case i111 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x112 <- do
-                               i112 <- deserialiseInt
+                               i112 <- pourmilkInt
                                case i112 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x113 <- do
-                               i113 <- deserialiseInt
+                               i113 <- pourmilkInt
                                case i113 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x114 <- do
-                               i114 <- deserialiseInt
+                               i114 <- pourmilkInt
                                case i114 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x115 <- do
-                               i115 <- deserialiseInt
+                               i115 <- pourmilkInt
                                case i115 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x116 <- do
-                               i116 <- deserialiseInt
+                               i116 <- pourmilkInt
                                case i116 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x117 <- do
-                               i117 <- deserialiseInt
+                               i117 <- pourmilkInt
                                case i117 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x118 <- do
-                               i118 <- deserialiseInt
+                               i118 <- pourmilkInt
                                case i118 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x119 <- do
-                               i119 <- deserialiseInt
+                               i119 <- pourmilkInt
                                case i119 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x120 <- do
-                               i120 <- deserialiseInt
+                               i120 <- pourmilkInt
                                case i120 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x121 <- do
-                               i121 <- deserialiseInt
+                               i121 <- pourmilkInt
                                case i121 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x122 <- do
-                               i122 <- deserialiseInt
+                               i122 <- pourmilkInt
                                case i122 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x123 <- do
-                               i123 <- deserialiseInt
+                               i123 <- pourmilkInt
                                case i123 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x124 <- do
-                               i124 <- deserialiseInt
+                               i124 <- pourmilkInt
                                case i124 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x125 <- do
-                               i125 <- deserialiseInt
+                               i125 <- pourmilkInt
                                case i125 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x126 <- do
-                               i126 <- deserialiseInt
+                               i126 <- pourmilkInt
                                case i126 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x127 <- do
-                               i127 <- deserialiseInt
+                               i127 <- pourmilkInt
                                case i127 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x128 <- do
-                               i128 <- deserialiseInt
+                               i128 <- pourmilkInt
                                case i128 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x129 <- do
-                               i129 <- deserialiseInt
+                               i129 <- pourmilkInt
                                case i129 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x130 <- do
-                               i130 <- deserialiseInt
+                               i130 <- pourmilkInt
                                case i130 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x131 <- do
-                               i131 <- deserialiseInt
+                               i131 <- pourmilkInt
                                case i131 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x132 <- do
-                               i132 <- deserialiseInt
+                               i132 <- pourmilkInt
                                case i132 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x133 <- do
-                               i133 <- deserialiseInt
+                               i133 <- pourmilkInt
                                case i133 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x134 <- do
-                               i134 <- deserialiseInt
+                               i134 <- pourmilkInt
                                case i134 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x135 <- do
-                               i135 <- deserialiseInt
+                               i135 <- pourmilkInt
                                case i135 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x136 <- do
-                               i136 <- deserialiseInt
+                               i136 <- pourmilkInt
                                case i136 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x137 <- do
-                               i137 <- deserialiseInt
+                               i137 <- pourmilkInt
                                case i137 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x138 <- do
-                               i138 <- deserialiseInt
+                               i138 <- pourmilkInt
                                case i138 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x139 <- do
-                               i139 <- deserialiseInt
+                               i139 <- pourmilkInt
                                case i139 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x140 <- do
-                               i140 <- deserialiseInt
+                               i140 <- pourmilkInt
                                case i140 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x141 <- do
-                               i141 <- deserialiseInt
+                               i141 <- pourmilkInt
                                case i141 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x142 <- do
-                               i142 <- deserialiseInt
+                               i142 <- pourmilkInt
                                case i142 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x143 <- do
-                               i143 <- deserialiseInt
+                               i143 <- pourmilkInt
                                case i143 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x144 <- do
-                               i144 <- deserialiseInt
+                               i144 <- pourmilkInt
                                case i144 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x145 <- do
-                               i145 <- deserialiseInt
+                               i145 <- pourmilkInt
                                case i145 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x146 <- do
-                               i146 <- deserialiseInt
+                               i146 <- pourmilkInt
                                case i146 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x147 <- do
-                               i147 <- deserialiseInt
+                               i147 <- pourmilkInt
                                case i147 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x148 <- do
-                               i148 <- deserialiseInt
+                               i148 <- pourmilkInt
                                case i148 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x149 <- do
-                               i149 <- deserialiseInt
+                               i149 <- pourmilkInt
                                case i149 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x150 <- do
-                               i150 <- deserialiseInt
+                               i150 <- pourmilkInt
                                case i150 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x151 <- do
-                               i151 <- deserialiseInt
+                               i151 <- pourmilkInt
                                case i151 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x152 <- do
-                               i152 <- deserialiseInt
+                               i152 <- pourmilkInt
                                case i152 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x153 <- do
-                               i153 <- deserialiseInt
+                               i153 <- pourmilkInt
                                case i153 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x154 <- do
-                               i154 <- deserialiseInt
+                               i154 <- pourmilkInt
                                case i154 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x155 <- do
-                               i155 <- deserialiseInt
+                               i155 <- pourmilkInt
                                case i155 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x156 <- do
-                               i156 <- deserialiseInt
+                               i156 <- pourmilkInt
                                case i156 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x157 <- do
-                               i157 <- deserialiseInt
+                               i157 <- pourmilkInt
                                case i157 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x158 <- do
-                               i158 <- deserialiseInt
+                               i158 <- pourmilkInt
                                case i158 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x159 <- do
-                               i159 <- deserialiseInt
+                               i159 <- pourmilkInt
                                case i159 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x160 <- do
-                               i160 <- deserialiseInt
+                               i160 <- pourmilkInt
                                case i160 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x161 <- do
-                               i161 <- deserialiseInt
+                               i161 <- pourmilkInt
                                case i161 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x162 <- do
-                               i162 <- deserialiseInt
+                               i162 <- pourmilkInt
                                case i162 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x163 <- do
-                               i163 <- deserialiseInt
+                               i163 <- pourmilkInt
                                case i163 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x164 <- do
-                               i164 <- deserialiseInt
+                               i164 <- pourmilkInt
                                case i164 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x165 <- do
-                               i165 <- deserialiseInt
+                               i165 <- pourmilkInt
                                case i165 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x166 <- do
-                               i166 <- deserialiseInt
+                               i166 <- pourmilkInt
                                case i166 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x167 <- do
-                               i167 <- deserialiseInt
+                               i167 <- pourmilkInt
                                case i167 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x168 <- do
-                               i168 <- deserialiseInt
+                               i168 <- pourmilkInt
                                case i168 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x169 <- do
-                               i169 <- deserialiseInt
+                               i169 <- pourmilkInt
                                case i169 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x170 <- do
-                               i170 <- deserialiseInt
+                               i170 <- pourmilkInt
                                case i170 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x171 <- do
-                               i171 <- deserialiseInt
+                               i171 <- pourmilkInt
                                case i171 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x172 <- do
-                               i172 <- deserialiseInt
+                               i172 <- pourmilkInt
                                case i172 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x173 <- do
-                               i173 <- deserialiseInt
+                               i173 <- pourmilkInt
                                case i173 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x174 <- do
-                               i174 <- deserialiseInt
+                               i174 <- pourmilkInt
                                case i174 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x175 <- do
-                               i175 <- deserialiseInt
+                               i175 <- pourmilkInt
                                case i175 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x176 <- do
-                               i176 <- deserialiseInt
+                               i176 <- pourmilkInt
                                case i176 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x177 <- do
-                               i177 <- deserialiseInt
+                               i177 <- pourmilkInt
                                case i177 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x178 <- do
-                               i178 <- deserialiseInt
+                               i178 <- pourmilkInt
                                case i178 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x179 <- do
-                               i179 <- deserialiseInt
+                               i179 <- pourmilkInt
                                case i179 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x180 <- do
-                               i180 <- deserialiseInt
+                               i180 <- pourmilkInt
                                case i180 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x181 <- do
-                               i181 <- deserialiseInt
+                               i181 <- pourmilkInt
                                case i181 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x182 <- do
-                               i182 <- deserialiseInt
+                               i182 <- pourmilkInt
                                case i182 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x183 <- do
-                               i183 <- deserialiseInt
+                               i183 <- pourmilkInt
                                case i183 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x184 <- do
-                               i184 <- deserialiseInt
+                               i184 <- pourmilkInt
                                case i184 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x185 <- do
-                               i185 <- deserialiseInt
+                               i185 <- pourmilkInt
                                case i185 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x186 <- do
-                               i186 <- deserialiseInt
+                               i186 <- pourmilkInt
                                case i186 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x187 <- do
-                               i187 <- deserialiseInt
+                               i187 <- pourmilkInt
                                case i187 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x188 <- do
-                               i188 <- deserialiseInt
+                               i188 <- pourmilkInt
                                case i188 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x189 <- do
-                               i189 <- deserialiseInt
+                               i189 <- pourmilkInt
                                case i189 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x190 <- do
-                               i190 <- deserialiseInt
+                               i190 <- pourmilkInt
                                case i190 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x191 <- do
-                               i191 <- deserialiseInt
+                               i191 <- pourmilkInt
                                case i191 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x192 <- do
-                               i192 <- deserialiseInt
+                               i192 <- pourmilkInt
                                case i192 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x193 <- do
-                               i193 <- deserialiseInt
+                               i193 <- pourmilkInt
                                case i193 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x194 <- do
-                               i194 <- deserialiseInt
+                               i194 <- pourmilkInt
                                case i194 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x195 <- do
-                               i195 <- deserialiseInt
+                               i195 <- pourmilkInt
                                case i195 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x196 <- do
-                               i196 <- deserialiseInt
+                               i196 <- pourmilkInt
                                case i196 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x197 <- do
-                               i197 <- deserialiseInt
+                               i197 <- pourmilkInt
                                case i197 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())
                                  _ -> failDecode
                      x198 <- do
-                               i198 <- deserialiseInt
+                               i198 <- pourmilkInt
                                case i198 of
                                  0 -> return (Left ())
                                  1 -> return (Right ())

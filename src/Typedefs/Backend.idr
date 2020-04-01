@@ -39,7 +39,7 @@ interface ASTGen def type (freeVars : Bool) | def where
   ||| Generate definitions for a list of `TNamed`.
   generateTyDefs   : List Name -> NEList (ZeroOrUnbounded TNamedR freeVars) -> Either CompilerError (List def)
 
-  ||| Generate serialisation and deserialisation term definitions for a
+  ||| Generate cerealisation and decerealisation term definitions for a
   ||| a `TNamed` and all its helper definitions.
   generateTermDefs : NEList (ZeroOrUnbounded TNamedR freeVars) -> Either CompilerError (List def)
 

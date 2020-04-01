@@ -6,38 +6,38 @@ import Data.ByteString.Builder
 
 import Data.Void
 
-type Serialiser a = a -> Builder
+type Cerealiser a = a -> Builder
 
-runSerialiser :: Serialiser a -> a -> ByteString
-runSerialiser f = toLazyByteString . f
+runCerealiser :: Cerealiser a -> a -> ByteString
+runCerealiser f = toLazyByteString . f
 
-newtype Deserialiser a = MkDeserialiser (ByteString -> Maybe (a, ByteString))
+newtype PourMilk a = MkPourMilk (ByteString -> Maybe (a, ByteString))
 
-runDeserialiser :: Deserialiser a -> ByteString -> Maybe (a, ByteString)
-runDeserialiser (MkDeserialiser f) = f
+runPourMilk :: PourMilk a -> ByteString -> Maybe (a, ByteString)
+runPourMilk (MkPourMilk f) = f
 
-instance Functor Deserialiser where
-  fmap f da = MkDeserialiser (\ bs -> do
-    (a, bs') <- runDeserialiser da bs
+instance Functor PourMilk where
+  fmap f da = MkPourMilk (\ bs -> do
+    (a, bs') <- runPourMilk da bs
     Just (f a, bs'))
 
-instance Applicative Deserialiser where
-  pure x = MkDeserialiser (\ bs -> Just (x, bs))
-  df <*> da =  MkDeserialiser (\ bs -> do
-    (f, bs') <- runDeserialiser df bs
-    (a, bs'') <- runDeserialiser da bs'
+instance Applicative PourMilk where
+  pure x = MkPourMilk (\ bs -> Just (x, bs))
+  df <*> da =  MkPourMilk (\ bs -> do
+    (f, bs') <- runPourMilk df bs
+    (a, bs'') <- runPourMilk da bs'
     Just (f a, bs''))
 
-instance Monad Deserialiser where
-  da >>= g = MkDeserialiser (\ bs -> do
-    (a, bs') <- runDeserialiser da bs
-    runDeserialiser (g a) bs')
+instance Monad PourMilk where
+  da >>= g = MkPourMilk (\ bs -> do
+    (a, bs') <- runPourMilk da bs
+    runPourMilk (g a) bs')
 
-failDecode :: Deserialiser a
-failDecode = MkDeserialiser (\ bs -> Nothing)
+failDecode :: PourMilk a
+failDecode = MkPourMilk (\ bs -> Nothing)
 
-deserialiseInt :: Deserialiser Integer
-deserialiseInt = MkDeserialiser (\ bs -> fmap go (uncons bs))
+pourmilkInt :: PourMilk Integer
+pourmilkInt = MkPourMilk (\ bs -> fmap go (uncons bs))
   where go :: (Word8, ByteString) -> (Integer, ByteString)
         go (b, bs') = (toInteger b, bs')
 
@@ -47,28 +47,28 @@ type Try x0 x1 = Either x0 x1
 
 data LinkedList x0 = Nil | Cons x0 (LinkedList x0) deriving (Show, Eq)
 
-encodeBoolean :: Serialiser Boolean
+encodeBoolean :: Cerealiser Boolean
 encodeBoolean Example.True = word8 (fromIntegral 0)
 encodeBoolean Example.False = word8 (fromIntegral 1)
 
-decodeBoolean :: Deserialiser Boolean
+decodeBoolean :: PourMilk Boolean
 decodeBoolean = do
-                  i <- deserialiseInt
+                  i <- pourmilkInt
                   case i of
                     0 -> return Example.True
                     1 -> return Example.False
                     _ -> failDecode
 
-encodeTry :: Serialiser x0 -> Serialiser x1 -> Serialiser (Try x0 x1)
+encodeTry :: Cerealiser x0 -> Cerealiser x1 -> Cerealiser (Try x0 x1)
 encodeTry encodeX0 encodeX1 x = case x of
                                   Left z -> mconcat [(word8 (fromIntegral 0))
                                                     ,(encodeX0 z)]
                                   Right z -> mconcat [(word8 (fromIntegral 1))
                                                      ,(encodeX1 z)]
 
-decodeTry :: Deserialiser x0 -> Deserialiser x1 -> Deserialiser (Try x0 x1)
+decodeTry :: PourMilk x0 -> PourMilk x1 -> PourMilk (Try x0 x1)
 decodeTry decodeX0 decodeX1 = do
-                                i <- deserialiseInt
+                                i <- pourmilkInt
                                 case i of
                                   0 -> do
                                          y <- decodeX0
@@ -78,15 +78,15 @@ decodeTry decodeX0 decodeX1 = do
                                          return (Right y0)
                                   _ -> failDecode
 
-encodeLinkedList :: Serialiser x0 -> Serialiser (LinkedList x0)
+encodeLinkedList :: Cerealiser x0 -> Cerealiser (LinkedList x0)
 encodeLinkedList encodeX0 Nil = word8 (fromIntegral 0)
 encodeLinkedList encodeX0 (Cons x x0) = mconcat [(word8 (fromIntegral 1))
                                                 ,(encodeX0 x)
                                                 ,(encodeLinkedList encodeX0 x0)]
 
-decodeLinkedList :: Deserialiser x0 -> Deserialiser (LinkedList x0)
+decodeLinkedList :: PourMilk x0 -> PourMilk (LinkedList x0)
 decodeLinkedList decodeX0 = do
-                              i <- deserialiseInt
+                              i <- pourmilkInt
                               case i of
                                 0 -> return Nil
                                 1 -> do

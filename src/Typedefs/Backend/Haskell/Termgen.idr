@@ -318,28 +318,28 @@ export
 hsEmpty : HsTerm
 hsEmpty = HsFun "mempty"
 
--- `Deserialiser` type family
+-- `PourMilk` type family
 export
-hsDeserialiser : HsType -> HsType
-hsDeserialiser a = HsParam "Deserialiser" [a]
+hsPourMilk : HsType -> HsType
+hsPourMilk a = HsParam "PourMilk" [a]
 
--- `Serialiser` type family
+-- `Cerealiser` type family
 export
-hsSerialiser : HsType -> HsType
-hsSerialiser a = HsParam "Serialiser" [a]
+hsCerealiser : HsType -> HsType
+hsCerealiser a = HsParam "Cerealiser" [a]
 
--- `deserialiseInt :: Deserialiser Integer`
+-- `pourmilkInt :: PourMilk Integer`
 -- @k how many bits should be read (currently ignored)
 export
 hsReadInt : Integer -> HsTerm
-hsReadInt k = HsApp (HsFun "deserialiseInt") [] -- [HsInt k]
+hsReadInt k = HsApp (HsFun "pourmilkInt") [] -- [HsInt k]
 
--- `failDecode :: Deserialiser a`
+-- `failDecode :: PourMilk a`
 export
 hsFailDecode : HsTerm
 hsFailDecode = HsFun "failDecode"
 
--- `return :: a -> Deserialiser a`
+-- `return :: a -> PourMilk a`
 export
 hsReturn : HsTerm -> HsTerm
 hsReturn x = HsApp (HsFun "return") [x]

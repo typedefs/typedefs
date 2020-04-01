@@ -1,19 +1,19 @@
 
 # Typedefs binary format
 
-Terms are serialised in a type-directed way, given a Typedefs
+Terms are cerealised in a type-directed way, given a Typedefs
 description --- terms make no sense on their own. If the type is
-unknown, a description of the type could first be serialised, followed
-by the serialisation of the term --- this is future work.
+unknown, a description of the type could first be cerealised, followed
+by the cerealisation of the term --- this is future work.
 
-Terms are serialised as follows:
+Terms are cerealised as follows:
 
-- Terms of type `T0` or `T1` do not need to be serialised --- the former does not exist, and the latter are trivial.
-- Terms of type `TSum ts` with `|ts| = 2 + k` are serialised as an integer `i` (with `i < 2 + k`, but this is not exploited), followed by the serialisation of a term of type `ts[i]`.
-- Terms of type `TProd ts` with `|ts| = 2 + k` are serialised as the serialisation of `ts[0]`, ..., `ts[1+k]`. This relies on being able to compute the width of each serialised term.
-- Terms of type `Tvar j` are serialised with a given "parameter" serialiser --- this is used to serialise `TMu`s.
-- Terms of type `TMu ts` with |ts| = k are serialised as an integer `i` (with `i < k`, but this is not exploited), followed by the serialisation of a term of type ts[i], where the "parameter" serialiser for the new type variable is instantiated to this described procedure.
-- Terms of type `TApp f xs` with `|xs| = k` are serialised as terms of type `f`, with "parameter" serialisers given by the `k` serialisations of terms of type `xs[k]`.
+- Terms of type `T0` or `T1` do not need to be cerealised --- the former does not exist, and the latter are trivial.
+- Terms of type `TSum ts` with `|ts| = 2 + k` are cerealised as an integer `i` (with `i < 2 + k`, but this is not exploited), followed by the cerealisation of a term of type `ts[i]`.
+- Terms of type `TProd ts` with `|ts| = 2 + k` are cerealised as the cerealisation of `ts[0]`, ..., `ts[1+k]`. This relies on being able to compute the width of each cerealised term.
+- Terms of type `Tvar j` are cerealised with a given "parameter" cerealiser --- this is used to cerealise `TMu`s.
+- Terms of type `TMu ts` with |ts| = k are cerealised as an integer `i` (with `i < k`, but this is not exploited), followed by the cerealisation of a term of type ts[i], where the "parameter" cerealiser for the new type variable is instantiated to this described procedure.
+- Terms of type `TApp f xs` with `|xs| = k` are cerealised as terms of type `f`, with "parameter" cerealisers given by the `k` cerealisations of terms of type `xs[k]`.
 
 
 # Example
@@ -29,8 +29,8 @@ Given this typedef:
 ```
 _You can find this definition in the `example.tdef` file_
 
-We can generate a new Haskell file that will define those types in Haskell and will create serialisers and
-deserialisers for terms of those types.
+We can generate a new Haskell file that will define those types in Haskell and will create cerealisers and
+pourmilks for terms of those types.
 
 We generate the Haskell code using the `typedefs` command line tool. See the [installation tutorial][INSTALL].
 
@@ -81,7 +81,7 @@ main = do print $ "true : " ++ (displayBytes $ encodeBool true)
           let value = false
           let encoded = encodeBool value
           print $ displayBytes encoded
-          let decoded = runDeserialiser decodeBoolean encoded
+          let decoded = runPourMilk decodeBoolean encoded
           print $ decoded
           case decoded of
             Nothing -> print "decoding failed"
@@ -89,14 +89,14 @@ main = do print $ "true : " ++ (displayBytes $ encodeBool true)
                                          else print "values are inconsistent"
           let encodedList = encodeList listBool
           print $ displayBytes encodedList
-          let decodedList = runDeserialiser (decodeLinkedList decodeBoolean) encodedList
+          let decodedList = runPourMilk (decodeLinkedList decodeBoolean) encodedList
           case decodedList of
             Nothing -> print "decoding failed"
             Just (d, _) -> if d == listBool then print "decoding succeeded"
                                             else print "values are inconsistent"
           let encodedTry = Main.encodeTry success
           print $ displayBytes encodedTry
-          let decodedTry = runDeserialiser (decodeTry decodeBoolean (decodeLinkedList decodeBoolean)) encodedTry
+          let decodedTry = runPourMilk (decodeTry decodeBoolean (decodeLinkedList decodeBoolean)) encodedTry
           case decodedTry of
             Nothing -> print "decoding failed"
             Just (d, _) -> if d == success then print "decoding succeeded"
@@ -133,7 +133,7 @@ Just (False,"")
 "decoding succeeded"
 ```
 
-Here is a table that recaps how those types are being serialised: 
+Here is a table that recaps how those types are being cerealised: 
 
 | Term                         | Binary    |
 |------------------------------|-----------|

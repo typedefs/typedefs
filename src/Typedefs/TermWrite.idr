@@ -19,44 +19,44 @@ data HasWriters : Vect n Type -> Type where
 
 mutual
 
-  serializeMu : (ts : Vect n Type) -> HasWriters ts -> Mu ts td -> String
-  serializeMu ts ws {td} (Inn x) = parens $ "inn " ++
-    (assert_total $ serialize ((Mu ts td)::ts) ((serializeMu {td} ts ws)::ws) td x)
+  cerealiseMu : (ts : Vect n Type) -> HasWriters ts -> Mu ts td -> String
+  cerealiseMu ts ws {td} (Inn x) = parens $ "inn " ++
+    (assert_total $ cerealise ((Mu ts td)::ts) ((cerealiseMu {td} ts ws)::ws) td x)
 
-  serialize : (ts : Vect n Type) -> HasWriters ts -> (t : TDefR n) -> (tm : Ty ts t) -> String
-  serialize  ts       ws        T1                    ()        = "()"
-  serialize  ts       ws        (TSum [x,_])          (Left l)  =
-    parens $ "left "  ++ serialize ts ws x l
-  serialize  ts       ws        (TSum [_,y])          (Right r) =
-    parens $ "right " ++ serialize ts ws y r
-  serialize  ts       ws        (TSum (x::_::_::_))   (Left l)  =
-    parens $ "left "  ++ serialize ts ws x l
-  serialize  ts       ws        (TSum (_::y::z::zs))  (Right r) =
-    parens $ "right " ++ serialize ts ws (TSum (y::z::zs)) r
-  serialize  ts       ws        (TProd [x,y])         (a, b)    =
-    parens $ "both "  ++ serialize ts ws x a ++ " " ++ serialize ts ws y b
-  serialize  ts       ws        (TProd (x::y::z::zs)) (a, b)    =
-    parens $ "both "  ++ serialize ts ws x a ++ " " ++ serialize ts ws (TProd (y::z::zs)) b
-  serialize (_::_)    (w::_)    (RRef FZ)             x         = w x
-  serialize (_::_::_) (_::w::_) (RRef (FS FZ))        x         = w x
-  serialize (_::ts)   (_::ws)   (RRef (FS (FS i)))    x         = serialize ts ws (TVar (FS i)) x
-  serialize (_::_)    (w::_)    (TVar FZ)             x         = w x
-  serialize (_::_::_) (_::w::_) (TVar (FS FZ))        x         = w x
-  serialize (_::ts)   (_::ws)   (TVar (FS (FS i)))    x         = serialize ts ws (TVar (FS i)) x
-  serialize ts        ws        (TApp f ys)           x         =
-    assert_total $ serialize ts ws (ap (def f) ys) (convertTy' x)
-  serialize ts        ws        (TMu td)              (Inn x)   =
+  cerealise : (ts : Vect n Type) -> HasWriters ts -> (t : TDefR n) -> (tm : Ty ts t) -> String
+  cerealise  ts       ws        T1                    ()        = "()"
+  cerealise  ts       ws        (TSum [x,_])          (Left l)  =
+    parens $ "left "  ++ cerealise ts ws x l
+  cerealise  ts       ws        (TSum [_,y])          (Right r) =
+    parens $ "right " ++ cerealise ts ws y r
+  cerealise  ts       ws        (TSum (x::_::_::_))   (Left l)  =
+    parens $ "left "  ++ cerealise ts ws x l
+  cerealise  ts       ws        (TSum (_::y::z::zs))  (Right r) =
+    parens $ "right " ++ cerealise ts ws (TSum (y::z::zs)) r
+  cerealise  ts       ws        (TProd [x,y])         (a, b)    =
+    parens $ "both "  ++ cerealise ts ws x a ++ " " ++ cerealise ts ws y b
+  cerealise  ts       ws        (TProd (x::y::z::zs)) (a, b)    =
+    parens $ "both "  ++ cerealise ts ws x a ++ " " ++ cerealise ts ws (TProd (y::z::zs)) b
+  cerealise (_::_)    (w::_)    (RRef FZ)             x         = w x
+  cerealise (_::_::_) (_::w::_) (RRef (FS FZ))        x         = w x
+  cerealise (_::ts)   (_::ws)   (RRef (FS (FS i)))    x         = cerealise ts ws (TVar (FS i)) x
+  cerealise (_::_)    (w::_)    (TVar FZ)             x         = w x
+  cerealise (_::_::_) (_::w::_) (TVar (FS FZ))        x         = w x
+  cerealise (_::ts)   (_::ws)   (TVar (FS (FS i)))    x         = cerealise ts ws (TVar (FS i)) x
+  cerealise ts        ws        (TApp f ys)           x         =
+    assert_total $ cerealise ts ws (ap (def f) ys) (convertTy' x)
+  cerealise ts        ws        (TMu td)              (Inn x)   =
     "(inn " ++
-      serialize ((Mu ts (args td))::ts) ((serializeMu {td=args td} ts ws)::ws) (args td) x
+      cerealise ((Mu ts (args td))::ts) ((cerealiseMu {td=args td} ts ws)::ws) (args td) x
       ++ ")"
 
--- Binary serialisation
+-- Binary cerealisation
 
-Serialiser : Type -> Type
-Serialiser a = a -> Bytes
+Cerealiser : Type -> Type
+Cerealiser a = a -> Bytes
 
-serializeInt : {n : Nat} -> Serialiser (Fin n)
-serializeInt x = pack [prim__truncBigInt_B8 (finToInteger x)]
+cerealiseInt : {n : Nat} -> Cerealiser (Fin n)
+cerealiseInt x = pack [prim__truncBigInt_B8 (finToInteger x)]
 
 injectionInv : (ts : Vect (2 + k) (TDefR n)) -> Tnary tvars ts Either -> (i : Fin (2 + k) ** Ty tvars (index i ts))
 injectionInv [a,b] (Left x) = (0 ** x)
@@ -65,25 +65,25 @@ injectionInv (a::b::c::tds) (Left x) = (0 ** x)
 injectionInv (a::b::c::tds) (Right y) =
   let (i' ** y') = injectionInv (b::c::tds) y in (FS i' ** y')
 
-serializeBinary : (t : TDefR n) -> (ts : Vect n (a ** Serialiser a)) -> Serialiser (Ty (map DPair.fst ts) t)
-serializeBinary T0 ts x impossible
-serializeBinary T1 ts x = empty
-serializeBinary (TSum {k = k} tds) ts x =
+cerealiseBinary : (t : TDefR n) -> (ts : Vect n (a ** Cerealiser a)) -> Cerealiser (Ty (map DPair.fst ts) t)
+cerealiseBinary T0 ts x impossible
+cerealiseBinary T1 ts x = empty
+cerealiseBinary (TSum {k = k} tds) ts x =
    let (i ** x') = injectionInv tds x in
-   (serializeInt i) ++ (assert_total $ serializeBinary (index i tds) ts x')
-serializeBinary (TProd [a, b]) ts (x, y) =
-  (serializeBinary a ts x) ++ (serializeBinary b ts y)
-serializeBinary (TProd (a::b::c::tds)) ts (x, y) =
-  (serializeBinary a ts x) ++ (serializeBinary (TProd (b::c::tds))) ts y
-serializeBinary (TMu tds) ts (Inn x) = assert_total $  serializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** serializeBinary (TMu tds) ts)::ts) x
-serializeBinary (TVar FZ) (t::ts) x = snd t x
-serializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
-  serializeBinary {n = (S n')} (TVar i) ts x
-serializeBinary (RRef FZ) (t::ts) x = snd t x
-serializeBinary {n = S (S n')} (RRef (FS i)) (t::ts) x =
-  serializeBinary {n = (S n')} (RRef i) ts x
-serializeBinary (TApp (TName n d) xs) ts x =
-  assert_total $ serializeBinary (ap d xs) ts (convertTy {n=n} {v=map DPair.fst ts} {def=d} {xs=xs} x)
+   (cerealiseInt i) ++ (assert_total $ cerealiseBinary (index i tds) ts x')
+cerealiseBinary (TProd [a, b]) ts (x, y) =
+  (cerealiseBinary a ts x) ++ (cerealiseBinary b ts y)
+cerealiseBinary (TProd (a::b::c::tds)) ts (x, y) =
+  (cerealiseBinary a ts x) ++ (cerealiseBinary (TProd (b::c::tds))) ts y
+cerealiseBinary (TMu tds) ts (Inn x) = assert_total $  cerealiseBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** cerealiseBinary (TMu tds) ts)::ts) x
+cerealiseBinary (TVar FZ) (t::ts) x = snd t x
+cerealiseBinary {n = S (S n')} (TVar (FS i)) (t::ts) x =
+  cerealiseBinary {n = (S n')} (TVar i) ts x
+cerealiseBinary (RRef FZ) (t::ts) x = snd t x
+cerealiseBinary {n = S (S n')} (RRef (FS i)) (t::ts) x =
+  cerealiseBinary {n = (S n')} (RRef i) ts x
+cerealiseBinary (TApp (TName n d) xs) ts x =
+  assert_total $ cerealiseBinary (ap d xs) ts (convertTy {n=n} {v=map DPair.fst ts} {def=d} {xs=xs} x)
 
-serializeBinaryClosed : (t : TDefR 0) -> Serialiser (Ty [] t)
-serializeBinaryClosed t = serializeBinary t []
+cerealiseBinaryClosed : (t : TDefR 0) -> Cerealiser (Ty [] t)
+cerealiseBinaryClosed t = cerealiseBinary t []

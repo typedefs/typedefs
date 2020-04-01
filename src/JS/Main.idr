@@ -17,8 +17,8 @@ import        Typedefs.Backend.Haskell
 import        Typedefs.Backend.JSON
 import        Typedefs.Backend.ReasonML
 
-generateTermSerialisers : String -> String -> Either String String
-generateTermSerialisers backend tdef = (resultToEither $ parseTopLevel tdef) >>= (genCode backend)
+generateTermCerealisers : String -> String -> Either String String
+generateTermCerealisers backend tdef = (resultToEither $ parseTopLevel tdef) >>= (genCode backend)
   where
   genCode : String -> TopLevelDef -> Either String String
   genCode "haskell"  nel = printOrShowError $ generateDefs Haskell nel
@@ -35,6 +35,6 @@ generateType backend tdef = (resultToEither $ parseTopLevel tdef) >>= (genType b
 
 lib : FFI_Export FFI_JS "" []
 lib = Data (Either String String) "EitherStringString" $
-      Fun generateTermSerialisers "generateTermSerialisers" $
+      Fun generateTermCerealisers "generateTermCerealisers" $
       Fun Main.generateType "generateType" $
       End

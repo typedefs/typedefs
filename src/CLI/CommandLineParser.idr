@@ -102,7 +102,7 @@ fallbackMessage = """
 No arguments supplied, expected --help or -s SOURCE -d DEST.
 
 Typedefs allows you to define types using very general operations and
-generate seralisers and deserialisers for a target language.
+generate seralisers and pourmilks for a target language.
 
 If this is your first time head to https://typedefs.com for more information or use --help.
 """

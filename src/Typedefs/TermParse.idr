@@ -59,45 +59,45 @@ mutual
                   (withSpaces $ assert_total $ chooseParser (args td) ((Mu ts (args td))::ts)
                                                                       ((muParser ts ps)::ps)))
 
-deserialize : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDefR n) -> String -> Maybe (Ty ts td)
-deserialize ts ps td s  = parseMaybe s (chooseParser td ts ps)
+pourmilk : (ts : Vect n Type) -> All (HasParsers ts) -> (td : TDefR n) -> String -> Maybe (Ty ts td)
+pourmilk ts ps td s  = parseMaybe s (chooseParser td ts ps)
 
 -- Binary deserialization
 
 
-data Deserialiser : Type -> Type where
-  MkDeserialiser : (Bytes -> Maybe (a, Bytes)) -> Deserialiser a
+data PourMilk : Type -> Type where
+  MkPourMilk : (Bytes -> Maybe (a, Bytes)) -> PourMilk a
 
-runDeserialiser : Deserialiser a -> Bytes -> Maybe (a, Bytes)
-runDeserialiser (MkDeserialiser d) = d
+runPourMilk : PourMilk a -> Bytes -> Maybe (a, Bytes)
+runPourMilk (MkPourMilk d) = d
 
-Functor Deserialiser where
-  map f ma = MkDeserialiser (\ bs => do
-    (a', bs') <- runDeserialiser ma bs
+Functor PourMilk where
+  map f ma = MkPourMilk (\ bs => do
+    (a', bs') <- runPourMilk ma bs
     pure (f a', bs'))
 
-Applicative Deserialiser where
-  pure x = MkDeserialiser (pure . MkPair x)
-  mf <*> ma =  MkDeserialiser (\ bs => do
-    (f', bs') <- runDeserialiser mf bs
-    (a', bs'') <- runDeserialiser ma bs'
+Applicative PourMilk where
+  pure x = MkPourMilk (pure . MkPair x)
+  mf <*> ma =  MkPourMilk (\ bs => do
+    (f', bs') <- runPourMilk mf bs
+    (a', bs'') <- runPourMilk ma bs'
     pure (f' a', bs''))
 
-Monad Deserialiser where
-  ma >>= g = MkDeserialiser (\ bs => do
-    (a', bs') <- runDeserialiser ma bs
-    runDeserialiser (g a') bs')
+Monad PourMilk where
+  ma >>= g = MkPourMilk (\ bs => do
+    (a', bs') <- runPourMilk ma bs
+    runPourMilk (g a') bs')
 
-  join ma = MkDeserialiser (\ bs => do
-    (ma', bs') <- runDeserialiser ma bs
-    runDeserialiser ma' bs')
+  join ma = MkPourMilk (\ bs => do
+    (ma', bs') <- runPourMilk ma bs
+    runPourMilk ma' bs')
 
-fail : Deserialiser a
-fail = MkDeserialiser (const Nothing)
+fail : PourMilk a
+fail = MkPourMilk (const Nothing)
 
 -- ||| Interprets the first byte as an Int, and returns the rest of the bytestring, if possible
-deserializeInt : (n : Nat) -> Deserialiser (Fin n)
-deserializeInt n = MkDeserialiser (\ bs => case (consView bs) of
+pourmilkInt : (n : Nat) -> PourMilk (Fin n)
+pourmilkInt n = MkPourMilk (\ bs => case (consView bs) of
     Nil => Nothing
     Cons b bs' => map (flip MkPair bs') $ integerToFin (prim__zextB8_BigInt b) n)
 
@@ -107,28 +107,28 @@ injection (FS FZ) [a, b]             x = Right x
 injection FZ     (a :: b :: c :: ts) x = Left x
 injection (FS i) (a :: b :: c :: ts) x = Right (injection i (b :: c :: ts) x)
 
-deserializeBinary : (t : TDefR n) -> (ts : Vect n (a ** Deserialiser a)) -> Deserialiser (Ty (map DPair.fst ts) t)
-deserializeBinary T0 ts = fail -- will never happen!
-deserializeBinary T1 ts = pure ()
-deserializeBinary td@(TSum {k = k} tds) ts = do
-  i <- deserializeInt (2 + k)
-  t' <- deserializeBinary (assert_smaller td (index i tds)) ts
+pourmilkBinary : (t : TDefR n) -> (ts : Vect n (a ** PourMilk a)) -> PourMilk (Ty (map DPair.fst ts) t)
+pourmilkBinary T0 ts = fail -- will never happen!
+pourmilkBinary T1 ts = pure ()
+pourmilkBinary td@(TSum {k = k} tds) ts = do
+  i <- pourmilkInt (2 + k)
+  t' <- pourmilkBinary (assert_smaller td (index i tds)) ts
   pure (injection i tds t')
-deserializeBinary (TProd [a, b]) ts = do
-  ta <- deserializeBinary a ts
-  tb <- deserializeBinary b ts
+pourmilkBinary (TProd [a, b]) ts = do
+  ta <- pourmilkBinary a ts
+  tb <- pourmilkBinary b ts
   pure (ta, tb)
-deserializeBinary td@(TProd (a ::  b :: c :: tds)) ts = do
-  ta <- deserializeBinary a ts
-  t' <- deserializeBinary (assert_smaller td (TProd (b :: c :: tds))) ts
+pourmilkBinary td@(TProd (a ::  b :: c :: tds)) ts = do
+  ta <- pourmilkBinary a ts
+  t' <- pourmilkBinary (assert_smaller td (TProd (b :: c :: tds))) ts
   pure (ta, t')
-deserializeBinary (TMu tds) ts = do
-  t <- assert_total $ deserializeBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** assert_total $ deserializeBinary (TMu tds) ts)::ts)
+pourmilkBinary (TMu tds) ts = do
+  t <- assert_total $ pourmilkBinary (args tds) ((Mu (map DPair.fst ts) (args tds) ** assert_total $ pourmilkBinary (TMu tds) ts)::ts)
   pure (Inn t)
-deserializeBinary (TVar FZ) (t::ts) = snd t
-deserializeBinary {n = S (S n')} (TVar (FS i)) (t::ts) = deserializeBinary {n = S n'} (TVar i) ts
-deserializeBinary (TApp (TName name def) xs) ts = assert_total $ deserializeBinary (ap def xs) (ts)
-deserializeBinary (RRef n) ts = fail -- we dont' support reference types
+pourmilkBinary (TVar FZ) (t::ts) = snd t
+pourmilkBinary {n = S (S n')} (TVar (FS i)) (t::ts) = pourmilkBinary {n = S n'} (TVar i) ts
+pourmilkBinary (TApp (TName name def) xs) ts = assert_total $ pourmilkBinary (ap def xs) (ts)
+pourmilkBinary (RRef n) ts = fail -- we dont' support reference types
 
-deserializeBinaryClosed : (t : TDefR 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
-deserializeBinaryClosed t = runDeserialiser (deserializeBinary t [])
+pourmilkBinaryClosed : (t : TDefR 0) -> Bytes-> Maybe ((Ty [] t), Bytes)
+pourmilkBinaryClosed t = runPourMilk (pourmilkBinary t [])

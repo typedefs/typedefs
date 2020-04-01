@@ -110,7 +110,7 @@ encode t@(TApp f xs)    y =
 encode   (RRef i)       t =
      pure $ HsApp (index i !envTerms) [t]
 
-||| Given a TDef t, gives a Haskell term of type Deserialiser [[ t ]]
+||| Given a TDef t, gives a Haskell term of type PourMilk [[ t ]]
 ||| where [[ t ]] is the interpretation of t as a type
 decode : TDefR n -> HaskellTermGen n HsTerm
 decode    T0            = pure hsFailDecode
@@ -159,7 +159,7 @@ encodeDef {n} t@(TName tname td) =
                  then makeType envTypes td
                  else HsParam tname []
     init = makeType' envTypes t
-    funType = foldr HsArrow (hsSerialiser init) (map hsSerialiser (getUsedVars envTypes td))
+    funType = foldr HsArrow (hsCerealiser init) (map hsCerealiser (getUsedVars envTypes td))
    in
   do clauses <- toHaskellLookupM $ genClauses n currType currTerm env varEncs td
      pure $ FunDef funName funType clauses
@@ -212,7 +212,7 @@ decodeDef {n} t@(TName tname td) =
                  then makeType envTypes td
                  else HsParam tname []
     init = makeType' envTypes t
-    funType = foldr HsArrow (hsDeserialiser init) (map hsDeserialiser (getUsedVars envTypes td))
+    funType = foldr HsArrow (hsPourMilk init) (map hsPourMilk (getUsedVars envTypes td))
    in
   do rhs <- genCase n currType currTerm env td
      pure $ FunDef funName funType [(varEncs, rhs)]
@@ -281,37 +281,37 @@ import Data.ByteString.Builder
 
 import Data.Void
 
-type Serialiser a = a -> Builder
+type Cerealiser a = a -> Builder
 
-runSerialiser :: Serialiser a -> a -> ByteString
-runSerialiser f = toLazyByteString . f
+runCerealiser :: Cerealiser a -> a -> ByteString
+runCerealiser f = toLazyByteString . f
 
-newtype Deserialiser a = MkDeserialiser (ByteString -> Maybe (a, ByteString))
+newtype PourMilk a = MkPourMilk (ByteString -> Maybe (a, ByteString))
 
-runDeserialiser :: Deserialiser a -> ByteString -> Maybe (a, ByteString)
-runDeserialiser (MkDeserialiser f) = f
+runPourMilk :: PourMilk a -> ByteString -> Maybe (a, ByteString)
+runPourMilk (MkPourMilk f) = f
 
-instance Functor Deserialiser where
-  fmap f da = MkDeserialiser (\ bs -> do
-    (a, bs') <- runDeserialiser da bs
+instance Functor PourMilk where
+  fmap f da = MkPourMilk (\ bs -> do
+    (a, bs') <- runPourMilk da bs
     Just (f a, bs'))
 
-instance Applicative Deserialiser where
-  pure x = MkDeserialiser (\ bs -> Just (x, bs))
-  df <*> da =  MkDeserialiser (\ bs -> do
-    (f, bs') <- runDeserialiser df bs
-    (a, bs'') <- runDeserialiser da bs'
+instance Applicative PourMilk where
+  pure x = MkPourMilk (\ bs -> Just (x, bs))
+  df <*> da =  MkPourMilk (\ bs -> do
+    (f, bs') <- runPourMilk df bs
+    (a, bs'') <- runPourMilk da bs'
     Just (f a, bs''))
 
-instance Monad Deserialiser where
-  da >>= g = MkDeserialiser (\ bs -> do
-    (a, bs') <- runDeserialiser da bs
-    runDeserialiser (g a) bs')
+instance Monad PourMilk where
+  da >>= g = MkPourMilk (\ bs -> do
+    (a, bs') <- runPourMilk da bs
+    runPourMilk (g a) bs')
 
-failDecode :: Deserialiser a
-failDecode = MkDeserialiser (\ bs -> Nothing)
+failDecode :: PourMilk a
+failDecode = MkPourMilk (\ bs -> Nothing)
 
-deserialiseInt :: Deserialiser Integer
-deserialiseInt = MkDeserialiser (\ bs -> fmap go (uncons bs))
+pourmilkInt :: PourMilk Integer
+pourmilkInt = MkPourMilk (\ bs -> fmap go (uncons bs))
   where go :: (Word8, ByteString) -> (Integer, ByteString)
         go (b, bs') = (toInteger b, bs')"""

@@ -15,76 +15,76 @@ import Specdris.Spec
 %access public export
 
 roundtrip1 : (td : TDefR 0) -> Ty [] td -> Maybe ((Ty [] td), Bytes)
-roundtrip1 td x = deserializeBinaryClosed td $ serializeBinaryClosed td x
+roundtrip1 td x = pourmilkBinaryClosed td $ cerealiseBinaryClosed td x
 
 roundtrip2 : (td : TDefR 0) -> Bytes -> Maybe Bytes
-roundtrip2 td b = map (serializeBinaryClosed td . fst) (deserializeBinaryClosed td b)
+roundtrip2 td b = map (cerealiseBinaryClosed td . fst) (pourmilkBinaryClosed td b)
 
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "TermWrite" $ do
 
-    it "serialize unit" $
-      (serialize [] [] T1 ()) `shouldBe` "()"
+    it "cerealise unit" $
+      (cerealise [] [] T1 ()) `shouldBe` "()"
 
-    it "serialize sum" $
-      (serialize [] [] (TSum [T1, T1]) (Left ())) `shouldBe` "(left ())"
+    it "cerealise sum" $
+      (cerealise [] [] (TSum [T1, T1]) (Left ())) `shouldBe` "(left ())"
 
-    it "serialize prod with var" $
-      (serialize [Integer] [show] (TProd [T1, TVar 0]) ((), 2)) `shouldBe` "(both () 2)"
+    it "cerealise prod with var" $
+      (cerealise [Integer] [show] (TProd [T1, TVar 0]) ((), 2)) `shouldBe` "(both () 2)"
 
-    it "serialize mu" $
-      (serialize [Integer] [show] TList (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
+    it "cerealise mu" $
+      (cerealise [Integer] [show] TList (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
       `shouldBe`
       "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))"
 
-    it "serialize nested mu" $
-      (serialize [] [] (TList `ap` [TNat]) (fromList {tdef=TNat} $ map fromNat [3,2,1]))
+    it "cerealise nested mu" $
+      (cerealise [] [] (TList `ap` [TNat]) (fromList {tdef=TNat} $ map fromNat [3,2,1]))
         `shouldBe`
       ("(inn (right (both (inn (right (inn (right (inn (right (inn (left ())))))))) " ++
        "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
        "(inn (right (both (inn (right (inn (left ())))) (inn (left ())))))))))))")
 
-    it "serialize doubly nested mu specified via partial application" $
-      (serialize [] [] ((TList `ap` [TList]) `ap` [TNat]) (fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]])))
+    it "cerealise doubly nested mu specified via partial application" $
+      (cerealise [] [] ((TList `ap` [TList]) `ap` [TNat]) (fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]])))
         `shouldBe`
       ("(inn (right (both (inn (right (both (inn (right (inn (left ())))) (inn (left ()))))) " ++
        "(inn (right (both (inn (right (both (inn (right (inn (right (inn (left ())))))) (inn (left ()))))) (inn (left ()))))))))")
 
   describe "TermParse" $ do
 
-    it "deserialize unit" $
-      (deserialize [] [] T1 "()") `shouldBe` (Just ())
+    it "pourmilk unit" $
+      (pourmilk [] [] T1 "()") `shouldBe` (Just ())
 
-    it "deserialize sum" $
-      (deserialize [] [] (TSum [T1, T1]) "(left ())") `shouldBe` (Just (Left ()))
+    it "pourmilk sum" $
+      (pourmilk [] [] (TSum [T1, T1]) "(left ())") `shouldBe` (Just (Left ()))
 
-    it "deserialize prod with var" $
-      (deserialize [Integer] [decimalInteger] (TProd [T1, TVar 0]) "(both () 2)") `shouldBe` (Just ((), 2))
+    it "pourmilk prod with var" $
+      (pourmilk [Integer] [decimalInteger] (TProd [T1, TVar 0]) "(both () 2)") `shouldBe` (Just ((), 2))
 
---    it "deserialize mu" $
---      (deserialize [Integer] [decimalInteger] (TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))")
+--    it "pourmilk mu" $
+--      (pourmilk [Integer] [decimalInteger] (TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))")
 --      `shouldBe`
 --      (Just (Inn (Right (1, Inn (Right (2, Inn (Left ())))))))
 
-    it "deserialize nested mu" $
-      (deserialize [] [] (TList `ap` [TNat])
+    it "pourmilk nested mu" $
+      (pourmilk [] [] (TList `ap` [TNat])
         ("(inn (right (both (inn (right (inn (right (inn (right (inn (left ())))))))) " ++
          "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
          "(inn (right (both (inn (right (inn (left ())))) (inn (left ())))))))))))"))
         `shouldBe`
       (Just $ fromList {tdef=TNat} $ map fromNat [3,2,1])
 
-    it "deserialize doubly nested mu specified via partial application" $
-      (deserialize [] [] ((TList `ap` [TList]) `ap` [TNat])
+    it "pourmilk doubly nested mu specified via partial application" $
+      (pourmilk [] [] ((TList `ap` [TList]) `ap` [TNat])
         ("(inn (right (both (inn (right (both (inn (right (inn (left ())))) (inn (left ()))))) " ++
          "(inn (right (both (inn (right (both (inn (right (inn (right (inn (left ())))))) (inn (left ()))))) (inn (left ()))))))))"))
         `shouldBe`
        (Just $ fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]]))
 
 {-
-  describe "Binary serialisation/deserialisation" $ do
+  describe "Binary cerealisation/decerealisation" $ do
 
     it "round1 unit" $ roundtrip1 T1 () `shouldBe` (Just ((), empty))
 
