@@ -90,9 +90,6 @@ Show TopLevelDef where
 
 -- Eq instances
 
-Eq a => Eq (NEList a) where
-  a == b = (NEList.toList a) == (NEList.toList b)
-
 mutual
   Eq Appli where
     (==) (AEmb x ) (AEmb y ) = x == y

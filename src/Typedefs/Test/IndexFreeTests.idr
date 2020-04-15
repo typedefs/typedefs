@@ -11,9 +11,6 @@ import Data.NEList
 
 import Specdris.Spec
 
-Traversable NEList where
-  traverse f (MkNEList x xs) = [| MkNEList (f x) (traverse f xs) |]
-
 quote : String -> String
 quote s = "\"" ++ s ++ "\""
 
