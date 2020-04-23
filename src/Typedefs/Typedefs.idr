@@ -218,6 +218,8 @@ mutual
     assert_total $ Ty tvars $ def `ap` xs -- TODO: could be done properly
   Ty     tvars (RRef i)                = Vect.index i tvars
 
+-- Proofs regarding Ty
+
 ||| Since `convertTy` is an identity function it is safe to assume this one is too
 convertTy' : Ty ts (TApp f ys) -> Ty ts (ap (def f) ys)
 convertTy' x = believe_me x
@@ -392,12 +394,52 @@ mutual
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m ) :: weakenNTDefs xs m lte
 
+weakenTDefN : TDef' n a -> (m : Nat) -> TDef' (n + m) a
+weakenTDefN tdef m {n} = weakenTDef tdef (n + m) {prf = lteAddRight n}
+
 ||| Increase the type index representing the number of variables accessible
 ||| to a `TNamed`, without actually changing the variables that are used by it.
 |||
 ||| @m The new amount of variables.
 weakenTNamed : TNamed' n a -> (m : Nat) -> {auto prf : LTE n m} -> TNamed' m a
 weakenTNamed (TName n t) m = TName n (weakenTDef t m)
+
+
+apply : (a = b) -> a -> b
+apply Refl v = v
+
+
+||| If we're looking up an element in the prefix of a vector we can drop the rest of the vector
+lookupBegining : (i : Fin (S n)) -> index (weakenLTE i (LTESucc (lteAddRight n))) (a ++ b) = index i a
+lookupBegining FZ {a=(x :: xs)}= Refl
+lookupBegining (FS i) {a=x :: xs} {n=Z} = absurd i
+lookupBegining (FS i) {a=x :: xs} {n=S n} = lookupBegining i
+
+mutual
+  strengthenMu : Ty (Mu (front ++ back)
+                        (args (weakenNTDefs xs (S (plus k l)) (LTESucc (lteAddRight k)))) :: front ++ back)
+                    (args (weakenNTDefs xs (S (plus k l)) (LTESucc (lteAddRight k))))
+              -> Ty (Mu front (args xs) :: front) (args xs)
+  strengthenMu v {xs=[]} = v
+  strengthenMu v {xs=[(a, m)]} = strengthen v
+  strengthenMu v {xs=(x::y::zs)} = ?wat_3
+
+  ||| Given a weakend TDef, strenghen it back and drop the extra context
+  strengthen : {front : Vect k Type} -> {back : Vect l Type}
+            -> Ty (front ++ back) (weakenTDefN tdef l) -> Ty front tdef
+  strengthen val {tdef = T0} = val
+  strengthen val {tdef = T1} = val
+  strengthen (Left  v) {tdef = (TSum (x :: (y :: [])))} = Left (strengthen v)
+  strengthen (Right v) {tdef = (TSum (x :: (y :: [])))} = Right (strengthen v)
+  strengthen (Left  v) {tdef = (TSum (x :: (y :: (z :: xs))))} = Left (strengthen v)
+  strengthen (Right v) {tdef = (TSum (x :: (y :: (z :: xs))))} =
+    Right (strengthen v {tdef=TSum (y :: z :: xs)})
+  strengthen (a, b) {tdef = (TProd (x :: y :: []))} = (strengthen a, strengthen b)
+  strengthen (a, b) {tdef = (TProd (x :: y :: z :: zs))} = (strengthen a, strengthen b {tdef = TProd (y :: z :: zs)})
+  strengthen val {tdef = (TVar i)} = replace (lookupBegining i) {P=id} val
+  strengthen (Inn x) {tdef = (TMu xs)} {front} = Inn (strengthenMu x)
+  strengthen val {tdef = (TApp x xs)} = ?wat_7
+  strengthen val {tdef = (RRef i)} = replace (lookupBegining i) {P=id} val
 
 -------- printing -------
 
@@ -466,6 +508,7 @@ mutual
     (==) (RRef n)    (RRef n')     {a = True}  impossible
     (==) (FRef n)    (FRef n')     {a = True}  = n == n'
     (==) _           _             {a = a} = False
+
 
 implementation Eq (TNamed' n a) where
   (TName n t) == (TName n' t')       = n == n' && t == t'
