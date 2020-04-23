@@ -372,32 +372,32 @@ mutual
   ||| to a `TDef`, without actually changing the variables that are used by it.
   |||
   ||| @m The new amount of variables.
-  weakenTDef : TDef' n a -> (m : Nat) -> LTE n m -> TDef' m a
-  weakenTDef T0             _    _   = T0
-  weakenTDef T1             _    _   = T1
-  weakenTDef (TSum xs)      m    prf = TSum $ weakenTDefs xs m prf
-  weakenTDef (TProd xs)     m    prf = TProd $ weakenTDefs xs m prf
-  weakenTDef (TVar _)       Z    prf = absurd prf
-  weakenTDef (TVar i)    (S m)   prf = TVar $ weakenLTE i prf
-  weakenTDef (TMu xs)       m    prf = TMu $ weakenNTDefs xs (S m) (LTESucc prf)
-  weakenTDef (TApp f xs)    m    prf = TApp f $ weakenTDefs xs m prf
-  weakenTDef (RRef x)    (S m)   prf {a = False} = RRef $ weakenLTE x prf
-  weakenTDef (FRef x)       m    prf {a = True } = FRef x
+  weakenTDef : TDef' n a -> (m : Nat) -> {auto prf : LTE n m} -> TDef' m a
+  weakenTDef T0             _        = T0
+  weakenTDef T1             _        = T1
+  weakenTDef (TSum xs)      m  {prf} = TSum $ weakenTDefs xs m prf
+  weakenTDef (TProd xs)     m  {prf} = TProd $ weakenTDefs xs m prf
+  weakenTDef (TVar _)       Z  {prf} = absurd prf
+  weakenTDef (TVar i)    (S m) {prf} = TVar $ weakenLTE i prf
+  weakenTDef (TMu xs)       m  {prf} = TMu $ weakenNTDefs xs (S m) (LTESucc prf)
+  weakenTDef (TApp f xs)    m  {prf} = TApp f $ weakenTDefs xs m prf
+  weakenTDef (RRef x)    (S m) {prf} {a = False} = RRef $ weakenLTE x prf
+  weakenTDef (FRef x)       m  {prf} {a = True } = FRef x
 
   weakenTDefs : Vect k (TDef' n a) -> (m : Nat) -> LTE n m -> Vect k (TDef' m a)
   weakenTDefs []      _ _   = []
-  weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
+  weakenTDefs (x::xs) m lte = weakenTDef x m :: weakenTDefs xs m lte
 
   weakenNTDefs : Vect k (Name, TDef' n a) -> (m : Nat) -> LTE n m -> Vect k (Name, TDef' m a)
   weakenNTDefs []          _ _   = []
-  weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
+  weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m ) :: weakenNTDefs xs m lte
 
 ||| Increase the type index representing the number of variables accessible
 ||| to a `TNamed`, without actually changing the variables that are used by it.
 |||
 ||| @m The new amount of variables.
-weakenTNamed : TNamed' n a -> (m : Nat) -> LTE n m -> TNamed' m a
-weakenTNamed (TName n t) m prf = TName n (weakenTDef t m prf)
+weakenTNamed : TNamed' n a -> (m : Nat) -> {auto prf : LTE n m} -> TNamed' m a
+weakenTNamed (TName n t) m = TName n (weakenTDef t m)
 
 -------- printing -------
 
@@ -444,8 +444,10 @@ mutual
 
   heteroEq : {n, m : Nat} -> TDef' n a -> TDef' m a -> Bool
   heteroEq {n} {m} tn tm with (cmp n m)
-    heteroEq {n}     tn tm | (CmpLT y) = tm == (weakenTDef tn _ (lteAddRight n)) -- or should this be `False`?
-    heteroEq     {m} tn tm | (CmpGT x) = tn == (weakenTDef tm _ (lteAddRight m)) -- or should this be `False`?
+                                       -- or should this be `False`?
+    heteroEq {n}     tn tm | (CmpLT y) = tm == weakenTDef tn (n + S y) {prf=lteAddRight n}
+                                       -- or should this be `False`?
+    heteroEq     {m} tn tm | (CmpGT x) = tn == weakenTDef tm (m + S x) {prf=lteAddRight m}
     heteroEq         tn tm | (CmpEQ)   = tn == tm
 
   heteroEqNamed : {n : Nat} -> {m : Nat} -> TNamed' n a -> TNamed' m a -> Bool
