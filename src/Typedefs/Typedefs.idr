@@ -218,6 +218,46 @@ mutual
     assert_total $ Ty tvars $ def `ap` xs -- TODO: could be done properly
   Ty     tvars (RRef i)                = Vect.index i tvars
 
+TypeConstructor : Nat -> Type
+TypeConstructor Z = Type
+TypeConstructor (S n) = Type -> TypeConstructor n
+
+ApplyVect : Vect n Type -> TypeConstructor n -> Type
+ApplyVect [] c = c
+ApplyVect (x :: xs) c {n = S k} = ApplyVect xs (c x)
+
+ReverseVect : (mkType : Vect n Type -> Type) -> TypeConstructor n
+ReverseVect mkType {n = Z} = mkType []
+ReverseVect mkType {n = (S k)} = \arg => ReverseVect (popHead mkType arg)
+  where
+    popHead : (Vect (S n) Type -> Type) -> Type -> Vect n Type -> Type
+    popHead f t ts = f (t :: ts)
+
+||| Converts a typedefs of `n` free variables into a type constructor that expects n arguments
+AlphaTy : TDefR n -> TypeConstructor n
+AlphaTy tdef = ReverseVect (flip Ty tdef)
+
+NatSum : {f : Nat -> Type} -> Vect n (k : Nat ** f k) -> Nat
+NatSum [] = Z
+NatSum ((x ** _) :: xs) = x + NatSum xs
+
+constructTypes : (types : Vect n (k ** TypeConstructor k)) -> Vect (NatSum types) Type -> Vect n Type
+constructTypes [] [] = []
+constructTypes ((k ** tc) :: xs) args = let
+  (pre, post) = splitAt k args
+  in ApplyVect pre tc :: constructTypes xs post
+
+||| Given a vector of type constructors and a TDef construct the Idris type
+||| from it using the second vector to instanciate the constructors
+BetaTy : (types : Vect n (k ** TypeConstructor k)) -> TDefR n
+     -> Vect (NatSum types) Type -> Type
+BetaTy types tdef args = Ty (constructTypes types args) tdef
+
+||| Given a list of type constructors fill the holes with them and return a new type constructor
+GammaTy : (types : Vect n (k ** TypeConstructor k)) -> TDefR n
+     -> TypeConstructor (NatSum types)
+GammaTy types tdef = ReverseVect {n=NatSum types} (BetaTy types tdef)
+
 ||| Since `convertTy` is an identity function it is safe to assume this one is too
 convertTy' : Ty ts (TApp f ys) -> Ty ts (ap (def f) ys)
 convertTy' x = believe_me x

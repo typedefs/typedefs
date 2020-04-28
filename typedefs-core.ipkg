@@ -27,6 +27,7 @@ modules = Typedefs.Names
         , Typedefs.Test.ParseTests
         , Typedefs.Test.ReasonMLTests
         , Typedefs.Test.TermParseWriteTests
+        , Typedefs.Test.IdrisReferences
         , Typedefs.Test.JSONFormatTests
 
 tests = Typedefs.Test.TypedefsSuite.testSuite

@@ -61,3 +61,8 @@ TLeft = Inn . Left
 
 TRight : b -> Ty [a,b] TEither
 TRight = Inn . Right
+
+-- PAIR
+
+TPair : TDefR 2
+TPair = TProd [TVar 0, TVar 1]
