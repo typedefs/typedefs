@@ -6,6 +6,7 @@ import Typedefs.Test.HaskellTests
 import Typedefs.Test.JSONTests
 import Typedefs.Test.ReasonMLTests
 import Typedefs.Test.TermParseWriteTests
+import Typedefs.Test.JSONFormatTests
 
 export
 testSuite : IO ()
@@ -16,3 +17,4 @@ testSuite =
      JSONTests.testSuite
      TermParseWriteTests.testSuite
      DebugTests.testSuite
+     JSONFormatTests.testSuite
