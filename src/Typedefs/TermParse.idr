@@ -29,7 +29,7 @@ data HasParsers : Vect n Type -> Nat -> Type where
 
 mutual
   muParser : {td : TDefR (S n)} -> (ts : Vect n Type) -> All (HasParsers ts :-> Parser' (Mu ts td))
-  muParser {td} ts ps = assert_total $ map (\ty => Inn {tvars = ts} {m = td} ty) $
+  muParser {td} ts ps = assert_total $ map (\ty => Inn' {tvars = ts} {m = td} ty) $
                         parens (rand (string "inn")
                                      (withSpaces $ chooseParser td ((Mu ts td)::ts) ((muParser ts ps)::ps)))
 
@@ -57,7 +57,7 @@ mutual
   chooseParser (RRef (FS FZ))        (_::_::_) (_::p::_) = p
   chooseParser (RRef (FS (FS i)))    (_::ts)   (_::ps)   = chooseParser (RRef (FS i)) ts ps
   chooseParser (TMu td)              ts        ps        =
-     map (\ty => Inn {tvars = ts} {m = args td} ty) $
+     map (\ty => Inn' {tvars = ts} {m = args td} ty) $
      parens (rand (string "inn")
                   (withSpaces $ assert_total $ chooseParser (args td) ((Mu ts (args td))::ts)
                                                                       ((muParser ts ps)::ps)))
