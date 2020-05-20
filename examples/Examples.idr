@@ -1,8 +1,7 @@
 import Data.Vect
 import Data.Fin
 
-import Typedefs.Names
-import Typedefs.Typedefs
+import Typedefs.Idris
 import Typedefs.TermWrite
 import Typedefs.Backend.Haskell
 import Typedefs.Backend.ReasonML

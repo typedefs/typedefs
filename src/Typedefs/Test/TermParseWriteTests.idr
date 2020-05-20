@@ -1,8 +1,7 @@
 module Typedefs.Test.TermParseWriteTests
 
-import Typedefs.Typedefs
+import Typedefs.Idris
 import Typedefs.Library
-import Typedefs.Names
 import Typedefs.TermParse
 import Typedefs.TermWrite
 

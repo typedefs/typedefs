@@ -1,7 +1,7 @@
 module Typedefs.Test.IdrisReferences
 
 import Data.Vect
-import Typedefs.Typedefs
+import Typedefs.Idris
 import Typedefs.Library
 
 Var0 : TDefR 1

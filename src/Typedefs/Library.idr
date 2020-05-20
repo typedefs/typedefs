@@ -2,7 +2,7 @@ module Typedefs.Library
 
 import Data.Vect
 
-import Typedefs.Typedefs
+import Typedefs.Idris
 import Typedefs.Names
 
 %default total

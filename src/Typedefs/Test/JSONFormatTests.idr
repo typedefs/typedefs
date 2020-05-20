@@ -1,7 +1,6 @@
 module Typedefs.Test.JSONFormatTests
 
-import Typedefs.Typedefs
-import Typedefs.Names
+import Typedefs.Idris
 import Typedefs.TermParse
 import Typedefs.TermWrite
 
