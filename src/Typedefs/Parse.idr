@@ -8,8 +8,7 @@ import Control.Monad.State
 import TParsec
 import TParsec.Running
 
-import Typedefs.Typedefs
-import Typedefs.Typedefs
+import Typedefs.Idris
 import Typedefs.Names
 
 import Data.Vect

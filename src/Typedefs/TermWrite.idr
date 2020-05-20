@@ -1,7 +1,6 @@
 module Typedefs.TermWrite
 
-import Typedefs.Typedefs
-import Typedefs.Names
+import Typedefs.Idris
 
 import Data.Vect
 

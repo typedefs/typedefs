@@ -3,8 +3,7 @@ module Typedefs.TermParse
 import TParsec
 import TParsec.Running
 
-import Typedefs.Typedefs
-import Typedefs.Names
+import Typedefs.Idris
 
 import Data.Vect
 import Data.Fin
