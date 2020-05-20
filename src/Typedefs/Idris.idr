@@ -56,9 +56,9 @@ mutual
   ||| The replacement mapping can only replace types in Mu or App Position.
   ||| Products, Sums, 0, 1 and variables are never replaced.
   |||
-  ||| @rep : The mapping between TDefs and the specialised version as an Idris type
+  ||| @sp : The mapping between TDefs and the specialised version as an Idris type
   ||| @tvars : The list of types that will be used to fill all free variables
-  Ty' : (rep : SpecialList) -> (tvars : Vect n Type) ->  TDefR n -> Type
+  Ty' : (sp : SpecialList) -> (tvars : Vect n Type) ->  TDefR n -> Type
   Ty' sp tvars T0             = Void
   Ty' sp tvars T1             = Unit
   Ty' sp tvars (TSum xs) {n}  = Tnary' sp tvars xs Either
