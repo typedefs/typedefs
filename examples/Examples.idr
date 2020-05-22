@@ -109,8 +109,8 @@ listNullBit = (def list) `ap` [nullBit]
 nestedMu : TNamedR 0
 nestedMu = TName "Foo" $ TMu [("Bar", nat1)]
 
-serializeTest : String
-serializeTest = serialize [show] Main.maybe (Main.just Int 6)
+serialiseTest : String
+serialiseTest = serialise [] [show] Main.maybe (Main.just Int 6)
 
 main : IO ()
 main = putStrLn $ showTDef (def Main.list)

@@ -6,25 +6,26 @@ import Typedefs.Typedefs
 
 %default total
 %access public export
-
 -- injectivity proofs
 
-tsumInj : {a : Vect (2+n) (TDef k)} -> {b : Vect (2+m) (TDef k)} -> TSum a = TSum b -> a = b
+tsumInj : {a : Vect (2+n) (TDef' k b)} -> {b : Vect (2+m) (TDef' k b)} -> TSum a = TSum b -> a = b
 tsumInj Refl = Refl
 
-tprodInj : {a : Vect (2+n) (TDef k)} -> {b : Vect (2+m) (TDef k)} -> TProd a = TProd b -> a = b
+tprodInj : {a : Vect (2+n) (TDef' k b)} -> {b : Vect (2+m) (TDef' k b)} -> TProd a = TProd b -> a = b
 tprodInj Refl = Refl
 
 tvarInj : {i, j : Fin (S n)} -> TVar i = TVar j -> i = j
 tvarInj Refl = Refl
 
-tmuInj : {a : Vect k1 (Name, TDef (S n))} -> {b : Vect k2 (Name, TDef (S m))} -> TMu a = TMu b -> a = b
+tmuInj : {a : Vect k1 (Name, TDef' (S n) b)} -> {b : Vect k2 (Name, TDef' (S m) b)} -> TMu a = TMu b -> a = b
 tmuInj Refl = Refl
 
-tappInjNamed : {t : TNamed k} -> {u : TNamed k1} -> {a : Vect k (TDef n)} -> {b : Vect k1 (TDef m)} -> TApp t a = TApp u b -> t = u
+tappInjNamed : {t : TNamed' k b} -> {u : TNamed' k1 b} -> {a : Vect k (TDef' n b)} ->
+               {b : Vect k1 (TDef' m b)} -> TApp t a = TApp u b -> t = u
 tappInjNamed Refl = Refl
 
-tappInjVect : {t : TNamed k} -> {u : TNamed k1} -> {a : Vect k (TDef n)} -> {b : Vect k1 (TDef m)} -> TApp t a = TApp u b -> a = b
+tappInjVect : {t : TNamed' k b} -> {u : TNamed' k1 b} -> {a : Vect k (TDef' n b)} ->
+              {c : Vect k1 (TDef' m b)} -> TApp t a = TApp u c -> a = c
 tappInjVect Refl = Refl
 
 vectInj : {xs : Vect n a} -> {xs' : Vect m a} -> xs = xs' -> n = m
@@ -33,7 +34,7 @@ vectInj Refl = Refl
 tnameInjName : {name, name' : String} -> TName name def = TName name' def' -> name = name'
 tnameInjName Refl = Refl
 
-tnameInjDef : {def, def' : TDef k} -> TName name def = TName name' def' -> def = def'
+tnameInjDef : {def, def' : TDef' k b} -> TName name def = TName name' def' -> def = def'
 tnameInjDef Refl = Refl
 
 frefInj : (FRef r = FRef r') -> r = r'
@@ -149,7 +150,7 @@ tAppNotFRef Refl impossible
 -- decidable equality proofs
 
 mutual
-  DecEq (TDef n) where
+  DecEq (TDef' n v) where
     decEq T0              T0                   = Yes Refl
     decEq T1              T1                   = Yes Refl
     decEq (TSum {k} xs)   (TSum {k=k2} xs')    with (decEq k k2)
@@ -238,7 +239,7 @@ mutual
     decEq (FRef x)      (TApp y xs)            = No $ negEqSym tAppNotFRef
     decEq _ _ = No $ believe_me
 
-  DecEq (TNamed n) where
+  DecEq (TNamed' n b) where
     decEq (TName name def) (TName name' def') with (decEq name name')
       decEq (TName name def) (TName name def')  | Yes Refl with (decEq def def')
         decEq (TName name def) (TName name def)   | Yes Refl | Yes Refl = Yes Refl

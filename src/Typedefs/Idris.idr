@@ -4,19 +4,10 @@ import Data.Vect
 
 import public Typedefs.Names
 import public Typedefs.Typedefs
+import public Typedefs.DependentLookup
+import public Typedefs.TypedefsDecEq
 
 %access public export
-
-||| Custom lookup for maps with dependent pairs
-custLookup : DecEq t => {w : t} -> {f, g : t -> Type}
-          -> List (v : t ** (f v, g v)) -> f w -> Eq (f w) => Maybe (g w)
-custLookup [] item = Nothing
-custLookup ((n ** (key, val)) :: xs) item {w} with (decEq n w)
-  -- if indices don't match then values can't possibly match since they have different type
-  custLookup ((n ** (key, val)) :: xs) item {w} | No _ = custLookup xs item
-  custLookup ((n ** (key, val)) :: xs) item {w=n} | Yes Refl =
-    if item == key then Just val -- index & key match, return value and its index
-                   else custLookup xs item -- index match but values differ
 
 TypeConstructor : Nat -> Type
 TypeConstructor Z = Type
@@ -27,8 +18,8 @@ ApplyVect c [] = c
 ApplyVect c (x :: xs) {n = S k} = ApplyVect (c x) xs
 
 ||| A mapping from TDef to idris Type constructor
-SpecialList : Type
-SpecialList = List (n ** (TDefR n, TypeConstructor n))
+SpecialList : Nat -> Type
+SpecialList n = Vect n (v ** (TDefR v, TypeConstructor v))
 
 args : Vect k (String, TDef' (S n) a) -> TDef' (S n) a
 args []                 = T0
@@ -42,12 +33,11 @@ ReverseVect mkType {n = (S k)} = \arg => ReverseVect (popHead mkType arg)
     popHead : (Vect (S n) Type -> Type) -> Type -> Vect n Type -> Type
     popHead f t ts = f (t :: ts)
 
-
 mutual
-  data Mu' : SpecialList -> Vect n Type -> TDef' (S n) a -> Type where
+  data Mu' : SpecialList l -> Vect n Type -> TDef' (S n) a -> Type where
     Inn : Ty' sp (Mu' sp tvars m :: tvars) m -> Mu' sp tvars m
 
-  Tnary' : SpecialList -> Vect n Type -> Vect (2 + k) (TDefR n) -> (Type -> Type -> Type) -> Type
+  Tnary' : SpecialList l -> Vect n Type -> Vect (2 + k) (TDefR n) -> (Type -> Type -> Type) -> Type
   Tnary' sp tvars [x, y]              c = c (Ty' sp tvars x) (Ty' sp tvars y)
   Tnary' sp tvars (x :: y :: z :: zs) c = c (Ty' sp tvars x) (Tnary' sp tvars (y :: z :: zs) c)
 
@@ -58,24 +48,24 @@ mutual
   |||
   ||| @sp : The mapping between TDefs and the specialised version as an Idris type
   ||| @tvars : The list of types that will be used to fill all free variables
-  Ty' : (sp : SpecialList) -> (tvars : Vect n Type) ->  TDefR n -> Type
+  Ty' : (sp : SpecialList l) -> (tvars : Vect n Type) ->  TDefR n -> Type
   Ty' sp tvars T0             = Void
   Ty' sp tvars T1             = Unit
   Ty' sp tvars (TSum xs) {n}  = Tnary' sp tvars xs Either
   Ty' sp tvars (TProd xs) {n} = Tnary' sp tvars xs Pair
   Ty' sp tvars (TVar v)       = Vect.index v tvars
   Ty' sp tvars (RRef i)       = Vect.index i tvars
-  Ty' sp tvars (TMu m) with (custLookup sp (TMu m))
+  Ty' sp tvars (TMu m) with (depLookup sp (TMu m))
     Ty' sp tvars (TMu m) | Nothing = Mu' sp tvars (args m)
-    Ty' sp tvars (TMu m) | Just constr = ApplyVect constr tvars
+    Ty' sp tvars (TMu m) | Just (_ ** constr ** prf) = ApplyVect constr tvars
 
   -- For application we first make a lookup in our mapping from TDef to Type constructors
-  Ty' sp tvars (TApp (TName _ def) xs) with (custLookup sp def)
+  Ty' sp tvars (TApp (TName _ def) xs) with (depLookup sp def)
     -- If we can't find anything, simply apply the type normally
     Ty' sp tvars (TApp (TName _ def) xs) | Nothing = assert_total $ Ty' sp tvars $ def `ap` xs
     -- If we find a match, check the length of the arguments match the arity of the type constructor
     -- we found.
-    Ty' sp tvars (TApp (TName _ def) xs) | Just constr =
+    Ty' sp tvars (TApp (TName _ def) xs) | Just (arity ** constr ** prf) =
         let args = map (assert_total $ Ty' sp tvars) xs in ApplyVect constr args
 
 Ty : Vect n Type -> TDefR n -> Type
@@ -91,7 +81,7 @@ Inn' : Ty (Mu tvars m :: tvars) m -> Mu tvars m
 Inn' v = Inn v
 
 ||| Converts a typedefs of `n` free variables into a type constructor that expects n arguments
-AlphaTy : SpecialList -> TDefR n -> TypeConstructor n
+AlphaTy : SpecialList l -> TDefR n -> TypeConstructor n
 AlphaTy sp tdef = ReverseVect (flip (Ty' sp) tdef)
 
 NatSum : {f : Nat -> Type} -> Vect n (k : Nat ** f k) -> Nat
@@ -100,9 +90,9 @@ NatSum ((x ** _) :: xs) = x + NatSum xs
 
 constructTypes : (types : Vect n (k ** TypeConstructor k)) -> Vect (NatSum types) Type -> Vect n Type
 constructTypes [] [] = []
-constructTypes ((k ** tc) :: xs) args = let
-  (pre, post) = splitAt k args
-  in ApplyVect tc pre :: constructTypes xs post
+constructTypes ((k ** tc) :: xs) args =
+  let (pre, post) = splitAt k args
+   in ApplyVect tc pre :: constructTypes xs post
 
 ||| Given a vector of type constructors and a TDef construct the Idris type
 ||| from it using the second vector to instanciate the constructors
@@ -114,6 +104,10 @@ BetaTy types tdef args = Ty' [] (constructTypes types args) tdef
 GammaTy : (types : Vect n (k ** TypeConstructor k)) -> TDefR n
      -> TypeConstructor (NatSum types)
 GammaTy types tdef = ReverseVect {n=NatSum types} (BetaTy types tdef)
+
+---------------------------------------------------------------------------------------------
+-- Lemmas                                                                                  --
+---------------------------------------------------------------------------------------------
 
 ||| Since `convertTy` is an identity function it is safe to assume this one is too
 convertTy' : Ty' [] ts (TApp f ys) -> Ty' [] ts (ap (def f) ys)
@@ -213,10 +207,8 @@ mutual
           showProd [a, b]        (x, y) = (showTy tvars a x)::[showTy tvars b y]
           showProd (a::b::c::ys) (x, y) = (showTy tvars a x)::showProd (b::c::ys) y
 
--- Can't replace sp by [] for some reason
-Show (Mu' sp [] td) where
+Show (Mu' sp {l=Z} [] td) where
   show y {sp=[]} = showMu [] td y
-  show y {sp=sp} = "cannot show when specialisation context is non-empty"
 
 -------------------------------------------------------------------------------
 -- Type Equality                                                             --
@@ -253,8 +245,6 @@ mutual
   eqTy {n = S (S n')} (_::tvars) (RRef (FS i))   x x' = eqTy {n = S n'} tvars (RRef i) x x'
   eqTy tvars _ _ _ = False
 
--- can't replace `sp` by `[]` for some reason
--- ||| Equality instance for Mu's only hold if the inner TDef is resolved
-Eq (Mu' sp [] td {a = False}) where
+||| Equality instance for Mu's only hold if the inner TDef is resolved
+Eq (Mu' sp {l=Z} [] td {a = False}) where
   (==) y y' {sp=[]} = eqMu [] td y y'
-  (==) y y' {sp=sp} = ?cannotEquateNonEmptySpecialisationContexts

@@ -13,40 +13,34 @@ import Specdris.Spec
 
 %access public export
 
-roundtrip1 : (td : TDefR 0) -> Ty [] td -> Maybe ((Ty [] td), Bytes)
-roundtrip1 td x = deserialiseBinaryClosed td $ serialise [] td x
-
-roundtrip2 : (td : TDefR 0) -> Bytes -> Maybe Bytes
-roundtrip2 td b = map (serialise [] td . fst) (deserialiseBinaryClosed td b)
-
 testSuite : IO ()
 testSuite = spec $ do
 
   describe "TermWrite" $ do
 
     it "serialise unit" $
-      (serialise [] T1 ()) `shouldBe` "()"
+      (serialise [] [] T1 ()) `shouldBe` "()"
 
     it "serialise sum" $
-      (serialise [] (TSum [T1, T1]) (Left ())) `shouldBe` "(left ())"
+      (serialise [] [] (TSum [T1, T1]) (Left ())) `shouldBe` "(left ())"
 
     it "serialise prod with var" $
-      (serialise [show] (TProd [T1, TVar 0]) ((), 2)) `shouldBe` "(both () 2)"
+      (serialise [] [show] (TProd [T1, TVar 0]) ((), 2)) `shouldBe` "(both () 2)"
 
     it "serialise mu" $
-      (serialise [show] TList (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
+      (serialise [] [show] TList (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
       `shouldBe`
       "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))"
 
     it "serialise nested mu" $
-      (serialise [] (TList `ap` [TNat]) (fromList {tdef=TNat} $ map fromNat [3,2,1]))
+      (serialise [] [] (TList `ap` [TNat]) (fromList {tdef=TNat} $ map fromNat [3,2,1]))
         `shouldBe`
       ("(inn (right (both (inn (right (inn (right (inn (right (inn (left ())))))))) " ++
        "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
        "(inn (right (both (inn (right (inn (left ())))) (inn (left ())))))))))))")
 
     it "serialise doubly nested mu specified via partial application" $
-      (serialise [] ((TList `ap` [TList]) `ap` [TNat]) (fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]])))
+      (serialise [] []((TList `ap` [TList]) `ap` [TNat]) (fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]])))
         `shouldBe`
       ("(inn (right (both (inn (right (both (inn (right (inn (left ())))) (inn (left ()))))) " ++
        "(inn (right (both (inn (right (both (inn (right (inn (right (inn (left ())))))) (inn (left ()))))) (inn (left ()))))))))")

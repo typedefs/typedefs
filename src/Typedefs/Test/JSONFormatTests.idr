@@ -1,6 +1,7 @@
 module Typedefs.Test.JSONFormatTests
 
 import Typedefs.Idris
+import Typedefs.Library
 import Typedefs.TermParse
 import Typedefs.TermWrite
 
@@ -16,13 +17,13 @@ import Language.JSON
 %default total
 
 roundtrip1 : (td : TDefR 0) -> Ty [] td -> JSONM (Ty [] td)
-roundtrip1 td x = deserialiseJSON td [] $ serialise [] td x
+roundtrip1 td x = deserialiseJSON td [] $ serialise [] [] td x
 
 shouldBeRoundtrip1 : (td : TDefR 0) -> (Show (Ty [] td), Eq (Ty [] td)) => Ty [] td -> SpecResult
 shouldBeRoundtrip1 td term = (roundtrip1 td term) `shouldBe` (pure term)
 
 roundtrip2 : (td : TDefR 0) -> JSON -> JSONM JSON
-roundtrip2 td x = serialise [] td <$> deserialiseJSON td [] x
+roundtrip2 td x = serialise [] [] td <$> deserialiseJSON td [] x
 
 Eq JSON where
   (JNumber a) == (JNumber b) = a == b
@@ -55,23 +56,23 @@ testSuite = spec $ do
   describe "TermWrite" $ do
 
     it "serialise unit" $
-      (serialise [] T1 ()) `shouldBe` junit
+      (serialise [] [] T1 ()) `shouldBe` junit
 
     it "serialise sum" $
-      (serialise [] (TSum [T1, T1]) (Left ())) `shouldBe` jleft junit
+      (serialise [] [] (TSum [T1, T1]) (Left ())) `shouldBe` jleft junit
 
     it "serialise prod with var" $
-      (serialise [JNumber] (TProd [T1, TVar 0]) ((), 2)) `shouldBe`
+      (serialise [] [JNumber] (TProd [T1, TVar 0]) ((), 2)) `shouldBe`
         (jpair junit (JNumber 2))
 
     it "serialise mu" $
-      (serialise [JNumber] (TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])
+      (serialise [] [JNumber] (TMu [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])])
         (Inn $ Right (1, Inn $ Right (2, Inn $ Left ()))))
       `shouldBe`
         (jinn $ jright $ jpair (JNumber 1)
                                (jinn $ jright $ jpair (JNumber 2) (jinn $ jleft $ JObject [])))
     it "serialise mu step" $
-      (serialise []
+      (serialise [] []
           (TMu [("Nil", T1),
                 ("Cons", TProd [(TMu [("Z", T1),
                                       ("S", TVar 0)]), TVar 0])])
@@ -142,6 +143,21 @@ testSuite = spec $ do
                    ))
                ))
             ))))
+  describe "specialisation tests" $ do
+    it "serialize Specialised list" $
+      serialise StandardContext [] (TApp (TName "List" TList) [TNat]) [1,2,3] `shouldBe`
+        JArray [JNumber 1, JNumber 2, JNumber 3]
+
+    it "serialises hypergraph definition" $
+      serialise StandardContext [] (TApp (TName "" TList)
+                                         [TProd [TApp (TName "" TList) [TNat] , TApp (TName "" TList) [TNat]]])
+                [([1,2], [0]), ([],[1,2,3])] `shouldBe`
+        JArray [ jpair (JArray [JNumber 1, JNumber 2])
+                       (JArray [JNumber 0])
+               , jpair (JArray [])
+                       (JArray [JNumber 1, JNumber 2, JNumber 3])]
+
+
   describe "Binary serialisation/deserialisation" $ do
 
     it "round1 unit" $ shouldBeRoundtrip1 T1 ()
