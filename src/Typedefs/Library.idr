@@ -4,6 +4,9 @@ import Data.Vect
 
 import Typedefs.Idris
 import Typedefs.Names
+import Typedefs.TermWrite
+
+import Language.JSON
 
 %default total
 %access public export
@@ -66,3 +69,35 @@ TRight = Inn . Right
 
 TPair : TDefR 2
 TPair = TProd [TVar 0, TVar 1]
+
+--------------------------------------------------------------------------------------------------------
+-- Specialisations                                                                                    --
+---                                                                                                   --
+-- There probably is a better way to do this but this will do for now                                 --
+--------------------------------------------------------------------------------------------------------
+
+StandardIdris : SpecialList 4
+StandardIdris = [ (0 ** (TNat, Nat))
+                , (1 ** (TMaybe, Maybe))
+                , (2 ** (TEither, Either))
+                , (1 ** (TList, List))
+                ]
+
+writeListJSON : {ts : Vect 1 Type} -> HasGenericWriters JSON ts -> ApplyVect List ts -> JSON
+writeListJSON [f] ls = JArray (map f ls)
+
+writeEitherJSON : {ts : Vect 2 Type} -> HasGenericWriters JSON ts -> ApplyVect Either ts -> JSON
+writeEitherJSON [f, g] (Left l)  = JObject [("Left" , f l)]
+writeEitherJSON [f, g] (Right r) = JObject [("Right", g r)]
+
+writeMaybeJSON : {ts : Vect 1 Type} -> HasGenericWriters JSON ts -> ApplyVect Maybe ts -> JSON
+writeMaybeJSON [f] y = maybe (JObject []) f y
+
+writeNatJSON : {ts : Vect 0 Type} -> HasGenericWriters JSON ts -> ApplyVect Nat ts -> JSON
+writeNatJSON [] n = JNumber (cast n)
+
+-- Idk why the compiler gets super confused about `writeNatJSON` (0 arity is the problem?) so you need
+-- to explicitly annotate which (::) we need.
+StandardContext : HasSpecialisedWriter JSON StandardIdris
+StandardContext = SpecialisedWriters.(::) writeNatJSON [writeMaybeJSON, writeEitherJSON, writeListJSON]
+
