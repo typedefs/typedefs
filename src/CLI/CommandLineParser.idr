@@ -77,23 +77,23 @@ helpMessage = """
 Welcome to Typedefs, programming language for types.
 
 Usage:
-  typedefs_parser (-i INLINE_TDEF | -s SOURCE) [-d DEST | --stdout]
+  typedefs (-i INLINE_TDEF | -s SOURCE) [-d DEST | --stdout]
 
   --source, -s : path to the input file
     example:
-      typedefs_parser -s bool.tdef
+      typedefs -s bool.tdef
 
   --inline, -i : input as a string inline
     example:
-      typedefs_parser -i "(name bool (+ 1 1))" --stdout
+      typedefs -i "(name bool (+ 1 1))" --stdout
 
   --dest, -d : path to the destination file
     example:
-      typedefs_parser -s bool.tdef project/typedefs/types.hs
+      typedefs -s bool.tdef project/typedefs/types.hs
 
   --stdout : print the output on stdout
     example:
-      typedefs_parser -i bool.tdef --stdout | grep "bool"
+      typedefs -i bool.tdef --stdout | grep "bool"
 """
 
 export
