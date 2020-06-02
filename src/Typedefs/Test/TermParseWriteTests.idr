@@ -48,13 +48,13 @@ testSuite = spec $ do
   describe "TermParse" $ do
 
     it "deserialise unit" $
-      (deserialise [] [] T1 "()") `shouldBe` (Just ())
+      (deserialiseStr [] T1 "()") `shouldBe` (Just ())
 
     it "deserialise sum" $
-      (deserialise [] [] (TSum [T1, T1]) "(left ())") `shouldBe` (Just (Left ()))
+      (deserialiseStr [] (TSum [T1, T1]) "(left ())") `shouldBe` (Just (Left ()))
 
     it "deserialise prod with var" $
-      (deserialise [Integer] [decimalInteger] (TProd [T1, TVar 0]) "(both () 2)") `shouldBe` (Just ((), 2))
+      (deserialiseStr [decimalInteger] (TProd [T1, TVar 0]) "(both () 2)") `shouldBe` (Just ((), 2))
 
 --    it "deserialise mu" $
 --      (deserialise [Integer] [decimalInteger] (TMu "List" [("Nil", T1), ("Cons", TProd [TVar 1, TVar 0])]) "(inn (right (both 1 (inn (right (both 2 (inn (left ()))))))))")
@@ -62,7 +62,7 @@ testSuite = spec $ do
 --      (Just (Inn (Right (1, Inn (Right (2, Inn (Left ())))))))
 
     it "deserialise nested mu" $
-      (deserialise [] [] (TList `ap` [TNat])
+      (deserialiseStr [] (TList `ap` [TNat])
         ("(inn (right (both (inn (right (inn (right (inn (right (inn (left ())))))))) " ++
          "(inn (right (both (inn (right (inn (right (inn (left ())))))) " ++
          "(inn (right (both (inn (right (inn (left ())))) (inn (left ())))))))))))"))
@@ -70,7 +70,7 @@ testSuite = spec $ do
       (Just $ fromList {tdef=TNat} $ map fromNat [3,2,1])
 
     it "deserialise doubly nested mu specified via partial application" $
-      (deserialise [] [] ((TList `ap` [TList]) `ap` [TNat])
+      (deserialiseStr [] ((TList `ap` [TList]) `ap` [TNat])
         ("(inn (right (both (inn (right (both (inn (right (inn (left ())))) (inn (left ()))))) " ++
          "(inn (right (both (inn (right (both (inn (right (inn (right (inn (left ())))))) (inn (left ()))))) (inn (left ()))))))))"))
         `shouldBe`
@@ -91,3 +91,4 @@ testSuite = spec $ do
     it "round1 mu step" $ roundtrip1 (TMu [("Nil", T1), ("Cons", TProd [(TMu [("Z", T1), ("S", TVar 0)]), TVar 0])]) (Inn (Right ((Inn (Left ()), Inn (Right ((Inn (Right (Inn (Left ()))), Inn (Right ((Inn (Right (Inn (Right (Inn (Left ()))))), Inn (Left ())))))))))))
       `shouldBe` (Just ((Inn (Right ((Inn (Left ()), Inn (Right ((Inn (Right (Inn (Left ()))), Inn (Right ((Inn (Right (Inn (Right (Inn (Left ()))))), Inn (Left ()))))))))))), empty))
 -}
+
