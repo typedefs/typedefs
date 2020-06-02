@@ -17,13 +17,13 @@ import Language.JSON
 %default total
 
 roundtrip1 : (td : TDefR 0) -> Ty [] td -> JSONM (Ty [] td)
-roundtrip1 td x = deserialiseJSON td [] $ serialise [] [] td x
+roundtrip1 td x = deserialise {format=JSON} {m=Either String} [] td $ serialise  [] [] td x
 
 shouldBeRoundtrip1 : (td : TDefR 0) -> (Show (Ty [] td), Eq (Ty [] td)) => Ty [] td -> SpecResult
 shouldBeRoundtrip1 td term = (roundtrip1 td term) `shouldBe` (pure term)
 
 roundtrip2 : (td : TDefR 0) -> JSON -> JSONM JSON
-roundtrip2 td x = serialise [] [] td <$> deserialiseJSON td [] x
+roundtrip2 td x = serialise [] [] td <$> deserialise [] td x
 
 Eq JSON where
   (JNumber a) == (JNumber b) = a == b
@@ -101,27 +101,27 @@ testSuite = spec $ do
   describe "TermParse" $ do
 
     it "deserialise unit" $
-      (deserialiseJSON T1 [] (JObject [])) `shouldBe` (pure ())
+      (deserialise [] T1 (JObject [])) `shouldBe` (Right ())
 
-    it "deserialiseJSON sum" $
-      (deserialiseJSON (TSum [T1, T1]) [] (JObject [("_0", JObject [])])) `shouldBe` (pure $ Left ())
+    it "deserialise sum" $
+      (deserialise [] (TSum [T1, T1]) (JObject [("_0", JObject [])])) `shouldBe` (Right $ Left ())
 
-    it "deserialiseJSON prod with var" $
-      (deserialiseJSON (TProd [T1, TVar 0]) [MkDPair Int parseInt] (jpair (JObject []) (JNumber 2)))
-      `shouldBe` (pure ((), 2))
+    it "deserialise prod with var" $
+      (deserialise [parseInt] (TProd [T1, TVar 0]) (jpair (JObject []) (JNumber 2)))
+      `shouldBe` (Right ((), 2))
 
-    it "deserialiseJSON mu" $
-      (deserialiseJSON (TMu [("Nil", T1), ("Cons", TProd [T1, TVar 0])]) []
+    it "deserialise mu" $
+      (deserialise [] (TMu [("Nil", T1), ("Cons", TProd [T1, TVar 0])])
         (jinn $ jright $ jpair (JObject [])
                                (jinn $ jright $ jpair (JObject [])
                                                       (jinn $ jleft $ JObject []))))
       `shouldBe`
-        (pure (Inn (Right ((), Inn (Right ((), Inn (Left ())))))))
-    it "deserialiseJSON mu step" $
-      (deserialiseJSON
+        (Right (Inn (Right ((), Inn (Right ((), Inn (Left ())))))))
+    it "deserialise mu step" $
+      (deserialise []
           (TMu [("Nil", T1),
                 ("Cons", TProd [(TMu [("Z", T1),
-                                      ("S", TVar 0)]), TVar 0])]) []
+                                      ("S", TVar 0)]), TVar 0])])
         (jinn (jright (jpair
             (jinn (jleft junit))
             (jinn (jright (jpair
@@ -156,7 +156,6 @@ testSuite = spec $ do
                        (JArray [JNumber 0])
                , jpair (JArray [])
                        (JArray [JNumber 1, JNumber 2, JNumber 3])]
-
 
   describe "Binary serialisation/deserialisation" $ do
 
