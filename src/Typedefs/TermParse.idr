@@ -34,11 +34,6 @@ run (MkSParser p) = p
 runParser : (Functor m) => (src -[m]-> trg) -> src -> m trg
 runParser (MkSParser p) s = Basics.fst <$> p s
 
-||| A proof that each type variable has a suitable parser
-data HasParser : (Type -> Type) -> (format : Type) -> Vect n Type -> Type where
-  Nil : HasParser m format []
-  (::) : Monad m => (src -[m]-> trg) -> HasParser m src ts -> HasParser m src (trg :: ts)
-
 Monad m => Functor (SParser m s) where
   map f (MkSParser ma) = MkSParser $ \bs => do
     (a', bs') <- ma bs
@@ -57,11 +52,52 @@ Monad m => Monad (SParser m s) where
       (a', bs') <- ma bs
       run (g a') bs'
 
-injection : (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDefR n)) -> Ty tvars (index i ts) -> Tnary tvars ts Either
-injection FZ      [a, b]             x = Left x
-injection (FS FZ) [a, b]             x = Right x
-injection FZ     (a :: b :: c :: ts) x = Left x
-injection (FS i) (a :: b :: c :: ts) x = Right (injection i (b :: c :: ts) x)
+alt : Alternative m => SParser m f a -> SParser m f b -> SParser m f (Either a b)
+alt (MkSParser f) (MkSParser g) =
+  MkSParser $ \arg => map (\(a,r) => (Left a, r)) (f arg)
+                  <|> map (\(b,r) => (Right b, r)) (g arg)
+
+||| A proof that each type variable has a suitable parser
+data HasParser : (Type -> Type) -> (format : Type) -> Vect n Type -> Type where
+  Nil : HasParser m format []
+  (::) : Monad m => (src -[m]-> trg) -> HasParser m src ts -> HasParser m src (trg :: ts)
+
+namespace SpecialisedParser
+  ||| Prove that there is a parser function for every type in the specialisation list
+  data HasSpecialisedParser : (m : Type -> Type) -> (format : Type) -> (sp : SpecialList l) -> Type where
+    Nil : HasSpecialisedParser m format []
+    (::) : {n : Nat} -> {def : TDefR n} -> {constr : TypeConstructor n} ->
+           ({args : Vect n Type} -> HasParser m fmt args -> (fmt -[m]-> ApplyVect constr args)) ->
+           HasSpecialisedParser m fmt sps ->
+           HasSpecialisedParser m fmt ((n ** (def, constr)) :: sps)
+
+lookupParser : Monad m => {sp : SpecialList l } -> {format : Type} ->
+               (e : Elem (n ** (td, constr)) sp) ->
+               (spp : HasSpecialisedParser m format sp) ->
+               {args : Vect n Type} -> HasParser m format args ->
+               (format -[m]-> ApplyVect constr args)
+lookupParser Here (p :: sps) = p
+lookupParser (There e) (p :: sps) = lookupParser e sps
+
+FromTDefToTy : {n : Nat} -> SpecialList l -> Vect n Type -> Vect k (TDefR n) -> Vect k Type
+FromTDefToTy sp types vs = map (Ty' sp types) vs
+
+makeParsers : Monad m => {format : Type} -> {sp : SpecialList l} ->
+              (tys : Vect n Type) ->
+              (spp : HasSpecialisedParser m format sp) ->
+              (gen : HasParser m format tys) ->
+              ((tdef : TDefR n) -> (format -[m]-> (Ty' sp tys tdef))) ->
+              (vs : Vect k (TDefR n)) ->
+              HasParser m format (FromTDefToTy sp tys vs)
+makeParsers tys spp gen fn [] = []
+makeParsers tys spp gen fn (td :: tds) = (fn td) :: (makeParsers tys spp gen fn tds)
+
+injection : (sp : SpecialList l) -> (i : Fin (2 + k)) -> (ts : Vect (2 + k) (TDefR n)) ->
+            Ty' sp tvars (index i ts) -> Tnary' sp tvars ts Either
+injection sp FZ      [a, b]             x = Left x
+injection sp (FS FZ) [a, b]             x = Right x
+injection sp FZ     (a :: b :: c :: ts) x = Left x
+injection sp (FS i) (a :: b :: c :: ts) x = Right (injection sp i (b :: c :: ts) x)
 
 failParser : Monad m => (error : m Void) -> s -[m]-> Void
 failParser error = MkSParser $ \arg => void <$> error
@@ -77,37 +113,51 @@ interface (Monad m) => TDefDeserialiser (m : Type -> Type) format where
 
   voidError : m Void
 
-  parseProd : {ts : Vect n Type} -> HasParser m format ts -> (args : Vect (2 + k) (TDefR n)) ->
-             (format -[m]-> (Ty ts (TProd args)))
+  parseProd : {ts : Vect n Type} -> {sp : SpecialList l} -> HasSpecialisedParser m format sp ->
+              HasParser m format ts -> (args : Vect (2 + k) (TDefR n)) ->
+              (format -[m]-> (Ty' sp ts (TProd args)))
 
-  parseSum : {ts : Vect n Type} -> HasParser m format ts -> (args : Vect (2 + k) (TDefR n)) ->
-             (format -[m]-> (Ty ts (TSum args)))
+  parseSum : {ts : Vect n Type} -> {sp : SpecialList l} -> HasSpecialisedParser m format sp ->
+             HasParser m format ts -> (args : Vect (2 + k) (TDefR n)) ->
+             (format -[m]-> (Ty' sp ts (TSum args)))
 
   parseMu : format -[m]-> ()
   parseMu = MkSParser $ pure . MkPair ()
 
-deserialiser : {m : Type -> Type} -> {format : Type} -> (TDefDeserialiser m format) =>
-               {ts : Vect n Type} -> HasParser m format ts ->
-               (td : TDefR n) -> (format -[m]-> (Ty ts td))
-deserialiser ps T0 = failParser (voidError {m} {format})
-deserialiser ps T1 = pure ()
-deserialiser ps (TSum {k = k} tds) = parseSum ps tds
-deserialiser ps (TProd products {k}) = parseProd ps products
-deserialiser ps (TMu tds) {ts} = do
-  () <- parseMu
-  let muParser = assert_total $ deserialiser ps (TMu tds)
-  parsed <- assert_total $ deserialiser (muParser :: ps) (args tds)
-  pure (Inn parsed)
-deserialiser p (TVar i) = getVar i p
-deserialiser p (RRef i) = getVar i p
-deserialiser ps (TApp (TName name def) xs) = assert_total $ deserialiser ps (ap def xs)
 
+deserialiser : {m : Type -> Type} -> {format : Type} -> (TDefDeserialiser m format) =>
+               {sp : SpecialList l} ->
+               {ts : Vect n Type} ->
+               (spp : HasSpecialisedParser m format sp) ->
+               HasParser m format ts -> (td : TDefR n) ->
+               (format -[m]-> (Ty' sp ts td))
+deserialiser spp ps T0 = failParser (voidError {m} {format})
+deserialiser spp ps T1 = pure ()
+deserialiser spp ps (TSum {k = k} tds) = parseSum spp ps tds
+deserialiser spp ps (TProd products {k}) = parseProd spp ps products
+deserialiser spp {sp} ps (TMu tds) {ts} with (depLookup sp (TMu tds))
+  deserialiser spp ps (TMu tds) {ts} | Nothing = do
+    () <- parseMu
+    let muParser = assert_total $ deserialiser spp ps (TMu tds)
+    parsed <- assert_total $ deserialiser spp (muParser :: ps) (args tds)
+    pure (Inn (believe_me parsed))
+  deserialiser spp ps  (TMu tds) {ts} | Just (def ** constr ** el) = do
+    lookupParser el spp ps
+deserialiser spp p (TVar i) = getVar i p
+deserialiser spp p (RRef i) = getVar i p
+deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) with (depLookup sp def)
+  deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) | Nothing =
+    assert_total $ deserialiser spp ps (ap def xs)
+  deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) | Just (_ ** constr ** el) =
+    lookupParser el spp (makeParsers ts spp ps (assert_total $ deserialiser spp ps) xs)
 
 export
-deserialise : (Monad m, TDefDeserialiser m format) =>  {ts : Vect n Type} ->
-              HasParser m format ts -> (td : TDefR n) ->
-              format -> m (Ty ts td)
-deserialise ps td = TermParse.runParser $ deserialiser ps td
+deserialise : (Monad m, TDefDeserialiser m format) =>
+              {sp : SpecialList l} ->
+              {ts : Vect n Type} ->
+              HasSpecialisedParser m format sp -> HasParser m format ts -> (td : TDefR n) ->
+              format -> m (Ty' sp ts td)
+deserialise spp ps td = TermParse.runParser $ deserialiser spp ps td
 
 ---------------------------------------------------------------------------------------------
 -- Strings                                                                                 --
@@ -180,19 +230,19 @@ TDefDeserialiser Maybe Bytes where
 
   voidError = Nothing
 
-  parseSum ps tds {k} = do
+  parseSum spp ps tds {sp} {k} = do
     i <- deserialiseInt (2 + k)
-    t' <- assert_total $ deserialiser ps (index i tds)
-    pure (injection i tds t')
+    t' <- assert_total $ deserialiser spp ps (index i tds)
+    pure (injection sp i tds t')
 
-  parseProd ps [a,b] = do
-    ta <- assert_total $ deserialiser ps a
-    tb <- assert_total $ deserialiser ps b
+  parseProd spp ps [a,b] = do
+    ta <- assert_total $ deserialiser spp ps a
+    tb <- assert_total $ deserialiser spp ps b
     pure (ta, tb)
 
-  parseProd ps (a :: b :: c :: tds) = do
-    ta <- assert_total $ deserialiser ps a
-    t' <- assert_total $ deserialiser ps (TProd (b :: c :: tds))
+  parseProd spp ps (a :: b :: c :: tds) = do
+    ta <- assert_total $ deserialiser spp ps a
+    t' <- assert_total $ deserialiser spp ps (TProd (b :: c :: tds))
     pure (ta, t')
 
 ---------------------------------------------------------------------------------------------
@@ -202,6 +252,11 @@ TDefDeserialiser Maybe Bytes where
 ||| Errors when parsing JSON
 JSONM : Type -> Type
 JSONM = Either String
+
+Alternative (Either String) where
+  empty = Left "JSON Error"
+  (<|>) (Right v) _ = Right v
+  (<|>) _ v = v
 
 ||| Type of parsers that consume JSON
 JParser : Type -> Type
@@ -242,14 +297,15 @@ parseKey k str = do '_' <- safeHead str | Left ("Invalid key: '" ++ str ++ "'")
 
 namespace ParseProduct
   ||| A proof that each element of a product has been successfully parsed
-  data ParseProd : Vect n Type -> Vect l (TDefR n) -> Type where
-    Nil : ParseProd vs []
-    (::) : {td : TDefR n} -> (parsed : Ty vs td) -> ParseProd vs ts -> ParseProd vs (td::ts)
+  data ParseProd : (sp : SpecialList l) -> Vect n Type -> Vect k (TDefR n) -> Type where
+    Nil : ParseProd sp vs []
+    (::) : {td : TDefR n} -> {sp : SpecialList l} -> (parsed : Ty' sp vs td) ->
+           ParseProd sp vs ts -> ParseProd sp vs (td::ts)
 
-injProd : {vs : Vect n Type} -> {vec : Vect (2 + k) (TDefR n)} -> ParseProd vs vec
-       -> Tnary vs vec Pair
-injProd [a, b] = (a, b)
-injProd (a :: b :: x :: xs) = (a , injProd (b :: x :: xs))
+injProd : {vs : Vect n Type} -> {vec : Vect (2 + k) (TDefR n)} -> (sp : SpecialList l) ->
+          ParseProd sp vs vec -> Tnary' sp vs vec Pair
+injProd sp [a, b] = (a, b)
+injProd sp (a :: b :: x :: xs) = (a , injProd sp (b :: x :: xs))
 
 jsonFail : String -> SParser JSONM a b
 jsonFail str = MkSParser (const $ Left str)
@@ -275,35 +331,43 @@ parseSingleObject = do
         | jsonFail "Object doens't contain exactly 1 element"
     MkSParser (const $ pure v)
 
+expectSingleField : String -> JParser ()
+expectSingleField str = do
+  parsed <- parseSingleObject
+  if parsed == str then pure ()
+                   else jsonFail $ "expected with single field " ++ str ++ " got " ++ parsed ++ " instead"
+
+toParsedProd : (sp : SpecialList l) ->
+               (ts : Vect n Type) ->
+               ((td : TDefR n) -> JSON -> JSONM (Ty' sp ts td)) ->
+               (tds : Vect k (TDefR n)) ->
+               (Vect k JSON) -> JSONM (ParseProd sp ts tds)
+toParsedProd sp ts rec [] [] {k = Z} = pure []
+toParsedProd sp ts rec (t::tds) (j::js) {k = (S k)} = do
+  r <- rec t j
+  rs <- toParsedProd sp ts rec tds js
+  pure $ r :: rs
+
 export
 TDefDeserialiser (Either String) JSON where
 
   voidError = Left "parsing Void"
 
   -- mu is an object with a single field called "inn"
-  parseMu = do
-    "inn" <- parseSingleObject
-      | jsonFail "Expected exactly one inner mu value"
-    pure ()
+  parseMu = expectSingleField "inn"
 
-  parseSum ps tds {k} = do
+  parseSum spp ps tds {k} {sp} = do
     key <- parseSingleObject
     let (Right key') = parseKey k key
       | Left err => jsonFail err
-    t' <- assert_total $ deserialiser ps (index key' tds)
-    pure (injection key' tds t')
+    t' <- assert_total $ deserialiser spp ps (index key' tds)
+    pure (injection sp key' tds t')
 
-  parseProd ps tds {n} {k} {ts} = do
+  parseProd spp ps tds {n} {k} {ts} {sp} = do
       keyValues <- parseObject
       vec <- liftVal $ parseVect keyValues (2 + k)
-      res <- liftVal $ toParsedProd tds vec
-      pure $ injProd res
-    where
-      toParsedProd : (tds : Vect l (TDefR n)) -> Vect l JSON -> JSONM (ParseProd ts tds)
-      toParsedProd [] [] {l = Z} = pure []
-      toParsedProd (t::tds) (j::js) {l = (S k)} = do
-        r <- runParser (assert_total $ deserialiser ps t) j
-        rs <- toParsedProd tds js
-        pure $ r :: rs
+      res <- liftVal $ toParsedProd sp ts
+               (\tdef => TermParse.runParser $ assert_total $ deserialiser spp ps tdef) tds vec
+      pure $ injProd sp res
 
 

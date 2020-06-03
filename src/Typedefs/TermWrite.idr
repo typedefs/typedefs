@@ -35,9 +35,10 @@ namespace SpecialisedWriters
 
 ||| Lookup in the specialised context for the function that converts a special type to its target representation
 lookupTypeReplacement : {sp : SpecialList l} -> (e : Elem (n ** (td, constr)) sp) ->
-              {target : Type} ->
-              (sw : HasSpecialisedWriter target sp) ->
-              {args : Vect n Type} -> HasGenericWriters target args -> ApplyVect constr args -> target
+                        {target : Type} ->
+                        (sw : HasSpecialisedWriter target sp) ->
+                        {args : Vect n Type} -> HasGenericWriters target args ->
+                        ApplyVect constr args -> target
 lookupTypeReplacement Here (s :: sp) = s
 lookupTypeReplacement (There e) (s :: sp) = lookupTypeReplacement e sp
 
