@@ -5,6 +5,7 @@ import Data.Vect
 import Typedefs.Idris
 import Typedefs.Names
 import Typedefs.TermWrite
+import Typedefs.TermParse
 
 import Language.JSON
 
@@ -100,4 +101,31 @@ writeNatJSON [] n = JNumber (cast n)
 -- to explicitly annotate which (::) we need.
 StandardContext : HasSpecialisedWriter JSON StandardIdris
 StandardContext = SpecialisedWriters.(::) writeNatJSON [writeMaybeJSON, writeEitherJSON, writeListJSON]
+
+parseNatJSON : {ts : Vect 0 Type} -> HasParser JSONM JSON ts -> (JSON -[JSONM]-> ApplyVect Nat ts)
+parseNatJSON [] = MkSParser $ \arg => case arg of
+                                           JNumber n => pure (toNat (cast {to=Int} n), JNull)
+                                           _ => Left "Expected Double"
+
+parseMaybeJSON : {ts : Vect 1 Type} -> HasParser JSONM JSON ts -> JSON -[JSONM]-> ApplyVect Maybe ts
+parseMaybeJSON [p] = MkSParser $ \arg => case run p arg of
+                                              Left err => case arg of
+                                                               (JObject []) => Right (Nothing, JNull)
+                                                               _ => Left err
+                                              Right (v, rest) => Right (Just v, rest)
+
+parseEitherJSON : {ts : Vect 2 Type} -> HasParser JSONM JSON ts -> JSON -[JSONM]-> ApplyVect Either ts
+parseEitherJSON [p,q] = ((expectSingleField "Left") >>= const p)
+                  `alt` ((expectSingleField "Right") >>= const q)
+
+parseListJSON : {ts : Vect 1 Type} -> HasParser JSONM JSON ts -> JSON -[JSONM]-> ApplyVect List ts
+parseListJSON [MkSParser p] =
+  MkSParser $ \arg =>
+    case arg of
+         (JArray arr) => let
+            f = (map Basics.fst) . p in flip MkPair JNull <$> traverse f arr
+         _  => Left "Expected Array"
+
+StandardParsers : HasSpecialisedParser JSONM JSON StandardIdris
+StandardParsers = SpecialisedParser.(::) parseNatJSON [parseMaybeJSON, parseEitherJSON, parseListJSON]
 
