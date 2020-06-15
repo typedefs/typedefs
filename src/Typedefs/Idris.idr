@@ -68,6 +68,38 @@ mutual
     Ty' sp tvars (TApp (TName _ def) xs) | Just (arity ** constr ** prf) =
         let args = map (assert_total $ Ty' sp tvars) xs in ApplyVect constr args
 
+listFin : (n : Nat) -> Vect n (Fin n)
+listFin Z = []
+listFin (S n) = FZ :: map FS (listFin n)
+
+listVars : (n : Nat) -> Vect n (TDefR n)
+listVars Z = []
+listVars (S n) = map TVar (listFin (S n))
+
+weakenTDefAdd : (m : Nat) -> TDef' n b -> TDef' (n + m) b
+weakenTDefAdd m def {n} = weakenTDef def (n + m) (lteAddRight n)
+
+shiftVars' :  (m : Nat) -> TDefR n -> TDefR (m + n)
+shiftVars' Z tdef = tdef
+shiftVars' (S k) tdef = shiftVars (shiftVars' k tdef)
+
+mkArgs : TDefR m -> Vect (S n) (TDefR (m + n))
+mkArgs def {n} {m} = (weakenTDefAdd n def) :: (map (shiftVars' m) (listVars n))
+
+||| Partial application with substitution
+||| The resulting TDef has the appropriate arity, all variables are offset by the amount of free
+||| variables in the TDef given as argument.
+public export
+ap1 : TDefR (S n) -> TDefR m -> TDefR (m + n)
+ap1 fn arg = fn `ap` (mkArgs arg)
+
+||| Partial Application without subsitution. Creates a new TApp.
+||| The resulting is a new TApp with a new vector of argument, the TDef given as partial application
+||| is used as the first argument, and the rest are variables offset by the arity of the TDef given.
+export
+TApp1 : TDefR (S n) -> TDefR m -> TDefR (m + n)
+TApp1 fn arg = TApp (TName "" fn) (mkArgs arg)
+
 Ty : Vect n Type -> TDefR n -> Type
 Ty = Ty' []
 
