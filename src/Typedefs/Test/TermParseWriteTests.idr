@@ -70,11 +70,11 @@ testSuite = spec $ do
       (Just $ fromList {tdef=TNat} $ map fromNat [3,2,1])
 
     it "deserialise doubly nested mu specified via partial application" $
-      (deserialise [] [] ((TList `ap` [TList]) `ap` [TNat])
+      (deserialise [] [] ((TList `ap1` TList) `ap1` TNat)
         ("(inn (right (both (inn (right (both (inn (right (inn (left ())))) (inn (left ()))))) " ++
          "(inn (right (both (inn (right (both (inn (right (inn (right (inn (left ())))))) (inn (left ()))))) (inn (left ()))))))))"))
         `shouldBe`
-       (Just $ fromList {tdef=TList `ap` [TNat]} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]]))
+       (Just $ fromList {tdef=TList `ap1` TNat} (map (fromList {tdef=TNat} . map fromNat) [[1],[2]]))
 
 {-
   describe "Binary serialisation/deserialisation" $ do
