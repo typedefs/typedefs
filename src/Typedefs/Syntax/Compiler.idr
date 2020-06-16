@@ -232,22 +232,3 @@ export
 compileEither : AST.TopLevelDef -> Either String (n ** TNamed n)
 compileEither ast = run (compileDef ast)
 
-listDef : AST.TopLevelDef
-listDef = MkTopLevelDef (MkDefName "List" ["a"])
-  (Enum [ ("Nil", EEmb $ TEmb $ FEmb $ AEmb $ PLit 1)
-        , ("Cons", EEmb $ TMul (TEmb $ FEmb $ AEmb $ PRef "a")
-                               (FEmb $ appName "List" (PRef "a") ))])
-
--- BinaryTree a b := Left : a | Right : b | Node : (a + b) * BinaryTree a b
-binaryTree : AST.TopLevelDef
-binaryTree = MkTopLevelDef (MkDefName "BinaryTree" ["a", "b"])
-  (Enum [ ("Left", EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
-        , ("Right", EEmb $ TEmb $ FEmb $ AEmb $ PRef "b")
-        , ("Node", EEmb $ TMul (TEmb $ FEmb $ AEmb $ PEmb $ ESum
-                                 (EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
-                                 (       TEmb $ FEmb $ AEmb $ PRef "b"))
-                               (       FEmb $ App (App (AEmb $ PRef "BinaryTree")
-                                                       (PRef "a"))
-                                                  (PRef "b")))
-        ])
-

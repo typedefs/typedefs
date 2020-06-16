@@ -6,6 +6,7 @@ import Typedefs.Either
 import Typedefs.Backend
 import Typedefs.Backend.Utils
 import Typedefs.Backend.Haskell
+import Typedefs.Syntax
 import CLI.CommandLineParser
 
 import Options.Applicative
@@ -29,15 +30,19 @@ getInput : InputFile -> IO (Either FileError String)
 getInput (StringInput x) = pure (Right x)
 getInput (FileInput x)   = readFile x
 
-parseAndGenerateTDef : String -> Either String String
-parseAndGenerateTDef tdef = (resultToEither $ parseTNameds tdef)
+parseAndGenerateTDef : InputFormat -> String -> Either String String
+parseAndGenerateTDef syn tdef = (parserForSyntax syn tdef)
                         >>= printOrShowError . generateDefs Haskell
+  where
+    parserForSyntax : InputFormat -> String -> Either String (NEList (n : Nat ** TNamed n))
+    parserForSyntax Lispy = resultToEither . parseTNameds
+    parserForSyntax IndexFree = parseSyntaxFile
 
 runWithOptions : TypedefOpts -> IO ()
-runWithOptions (MkTypedefOpts input output) = do
-  Right typedef <- getInput input
+runWithOptions (MkTypedefOpts syn input output) = do
+  Right tdefFile <- getInput input
     | Left err => putStrLn ("Filesystem error: " ++ show err)
-  case parseAndGenerateTDef typedef of
+  case parseAndGenerateTDef syn tdefFile of
     Left err => putStrLn ("Typedef error: " ++ err)
     Right defs => writeOutput output defs
 

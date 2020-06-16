@@ -1,10 +1,13 @@
 module Typedefs.Syntax.IndexFree
 
+-- Syntax
 import Typedefs.Syntax.AST
+import Typedefs.Syntax.ParserUtils
+
+-- TParsec
 import TParsec
 import TParsec.Running
 import Data.NEList
-import Typedefs.Syntax.ParserUtils
 
 ||| This consumes at least one space
 whitespaces : (Alternative mn, Monad mn, Subset Char (Tok p), Eq (Tok p), Inspect (Toks p) (Tok p)) =>
