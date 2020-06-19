@@ -10,16 +10,15 @@ data InputFormat =
   ||| Lisp syntax is the traditional lisp-like syntax for Typedefs
   Lispy |
 
-  ||| IndexFree syntax is the new Typedefs syntax
-  ||| That looks more like ml-style data declaration
-  ||| It has some limitations compared to lispy, but is much more
+  ||| MKStyle syntax is the new Typedefs syntax.
+  ||| It has some limitations compared to Lispy, but is much more
   ||| familiar to use.
-  IndexFree
+  MLStyle
 
 export
 Show InputFormat where
   show Lispy = "Lisp-like syntax"
-  show IndexFree = "Typedefs syntax"
+  show MLStyle = "Typedefs syntax"
 
 public export
 data InputFile = StringInput String
@@ -40,10 +39,10 @@ Show OutputFile where
   show (FileOutput str) = str
 
 parseFormat : Parser InputFormat
-parseFormat = indexFreeSyntax <|> lispySyntax <|> pure IndexFree
+parseFormat = indexFreeSyntax <|> lispySyntax <|> pure MLStyle
   where
     indexFreeSyntax : Parser InputFormat
-    indexFreeSyntax = flag' IndexFree (long "tdef-syntax")
+    indexFreeSyntax = flag' MLStyle (long "tdef-syntax")
     lispySyntax : Parser InputFormat
     lispySyntax = flag' Lispy (long "s-exp-syntax")
 

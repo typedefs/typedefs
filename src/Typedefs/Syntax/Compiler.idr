@@ -23,18 +23,18 @@ CompilerM t = Eff t [EXCEPTION String]
 ComputeEffect : {a : Nat -> Type} -> (n ** a n) -> List EFFECT
 ComputeEffect (l ** _) = [EXCEPTION String, STATE (Vect l String)]
 
--- convert a Nat into a sum of T1s
+-- Convert a Nat into a sum of T1s
 fromNat : Nat -> TDef n
 fromNat Z = T0
 fromNat (S Z) = T1
 fromNat (S (S n)) = TSum (replicate (S (S n)) T1)
 
--- Given a proof than an element is in the list, make a TVar with its index in the list
+-- Given a proof that an element is in the list, make a TVar with its index in the list
 makeElem : {e : String} -> Data.List.Elem e ls -> TDef (length ls)
 makeElem Here = TVar FZ
 makeElem (There later) = shiftVars $ makeElem later
 
--- If the string is an element in the list, make a TVar out of it otherwise return a ref
+-- If the string is an element in the list, make a TVar out of it; otherwise return a ref
 findList : String -> (ls : List String) -> TDef (length ls)
 findList name ls with (name `isElem` ls)
   | Yes elem = makeElem elem
@@ -78,13 +78,13 @@ mutual
                                     pure $ TApp (TName (show contructor) contructor) args
     where
       ||| Returns left if the application just wraps an expression
-      ||| otherwise return the details of the app
+      ||| otherwise returns the details of the app
       compileArgs : (acc : List (TDef (length names))) -> AST.Appli -> Val ->
                     CompilerM ((l ** (TDef l, Vect l (TDef (length names)))))
       compileArgs acc (AEmb val) arg = do
         arg' <- compileVal' names arg
         let acc' = arg' :: acc
-        -- we need to reduce here because the type we apply might use less indices than those
+        -- We need to reduce here because the type we apply might use fewer indices than those
         -- in the context.
         (r ** (def, _)) <- reduce <$> compileVal' names val
         let (Yes ltePrf) = isLTE r (length acc')
@@ -96,7 +96,6 @@ mutual
         compileArgs (arg' :: acc) c' a'
 
 -- Flattening of expression trees, 1 + (1 + 1) are flattened as (+ 1 1 1)
-
 plusSuccSucc : (li, ri : Nat) -> plus (S li) (S ri) = S (S (plus li ri))
 plusSuccSucc li ri = cong {f=S} $ sym $ plusSuccRightSucc li ri
 
@@ -129,7 +128,7 @@ flattenExpressionTree (TProd [l, r]) {n} =
    in TProd prd2
 flattenExpressionTree tdef = tdef
 
--- check if a list of TDef is made of TVars of increasing index
+-- Check if a list of TDef is made of TVars of increasing index
 isVarList : Vect k (TDef n) -> Bool
 isVarList vs = isVarList' vs Z
   where
@@ -143,7 +142,7 @@ isRefName : String -> TNamed n -> Bool
 isRefName n (TName name (FRef rn)) = n == name && rn == n
 isRefName _ _ = False
 
--- The next three functions could probably be asbtracted somehow
+-- The next three functions could probably be abstracted somehow
 
 -- Replace all uses of self application with "__self__"
 findSelfApp : String -> TDef i -> TDef i
@@ -169,7 +168,7 @@ findSelfVar x (TApp ndef defs) =
   TApp ndef $ map (assert_total $ findSelfVar x) defs
 findSelfVar x (FRef y) = if x == y then FRef "__self__" else FRef y
 
--- replace all occurences of "__self__" with (TVar FZ)
+-- Replace all occurences of "__self__" with (TVar FZ)
 replaceRef : String -> TDef (S i) -> TDef (S i)
 replaceRef x T0 = T0
 replaceRef x T1 = T1
@@ -231,4 +230,3 @@ compileDef (MkTopLevelDef def (Record xs)) = raise "records are not supported at
 export
 compileEither : AST.TopLevelDef -> Either String (n ** TNamed n)
 compileEither ast = run (compileDef ast)
-

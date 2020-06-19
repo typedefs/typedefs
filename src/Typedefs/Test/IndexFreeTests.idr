@@ -79,21 +79,11 @@ testSuite = spec $ do
              (Enum [ ("Left", EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
                    , ("Right", EEmb $ TEmb $ FEmb $ AEmb $ PRef "b")
                    , ("Node", EEmb $ TMul (TEmb $ FEmb $ AEmb $ PEmb $ ESum
-                                            (EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
-                                            (TEmb $ FEmb $ AEmb $ PRef "b"))
+                                                 (EEmb $ TEmb $ FEmb $ AEmb $ PRef "a")
+                                                 (TEmb $ FEmb $ AEmb $ PRef "b"))
                                           (FEmb $ App (App (AEmb $ PRef "BinaryTree")
                                                            (PRef "a"))
                                                       (PRef "b")))
                    ])) [])
 
 
---    "List a := Nil : 1 | Cons : a + List a"
---      `tdefProgramShouldParseAs`
---        ["List a := Nil : 1 | Cons : a + List a"]
-
---   describe "Parser tests: ill-formed definitions" $ do
---     "(mu nat (Z 1) (S (var 0))) (name mnat (+ 1 nat)) (mu listmnat (nil 1) (cons (* mnat (var 0))))"
---       `tdefProgramShouldParseAs`
---         (SoftFail $ ParseError $ MkPosition 0 2)
---
---     "0" `tdefProgramShouldParseAs` (SoftFail $ ParseError $ MkPosition 0 1)

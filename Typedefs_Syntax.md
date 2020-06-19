@@ -3,20 +3,22 @@
 
 This document explains the brand new Typedefs Syntax for Typedefs.
 
-## Building blocs
+## Building blocks
 
-This new Typedefs syntax only has a couple Building blocks: `0`, `1`, `+`, `*` and `^`
+This new Typedefs syntax only has a couple of building blocks: `0`, `1`, `+`, `*` and `^`.
 
-- `0` represents the empty type, an irrepresentable type with no inhabitant. Most useful when used
-with `+` and type parameters
+- `0` represents the empty type, an irrepresentable type with no inhabitants. Most useful when used
+with `+` and type parameters.
 - `1` represents the unit type. It has a single inhabitant which is trivially constructible.
-- `+` Allows you to pick a single value between two possible types.
-- `*` Allows you to package two types together in a single value.
-- `^` Multiple uses of `*`:  `a * a * a = a ^ 3`
+- `+` Addition: Allows you to pick a single value between two possible types, much like a disjoint
+union.
+- `*` Mutliplication: Allows you to package two types together in a single value, effectively
+making pairs and tuples.
+- `^` Power: Multiple uses of `*`:  `a * a * a = a ^ 3`.
 
 For more details look at the [Theoretical tutorial](TUTORIAL_UNDERSTANDING_TYPEDEFS.md)
 
-You can build Typedefs with those simple building blocs by binding them to a name with `:=` and
+You can build Typedefs with those simple building blocks by binding them to a name with `:=` and
 ending with `;` :
 
 ```
@@ -43,7 +45,7 @@ one or the second one.
 
 ## Type application
 
-If you want to refer to a type that's already been defined you can simply refer to it's name like
+If you want to refer to a type that's already been defined you can simply refer to its name like
 we've seen with the `Byte` example. However, you can only use _fully applied types_.
 
 ```
@@ -74,8 +76,8 @@ syntax:
 List a := Nil : 1 | Cons : (a * List a)
 ```
 
-Where the `|` operator acts like `+` when dealing with named constructors. This syntax is reminicent
-of ML-like languages that allow you to define datatypes with multiple constructors, this is also
+Where the `|` operator acts like `+` when dealing with named constructors. This syntax is reminiscent
+of ML-like languages, which allow you to define data types with multiple constructors. This is also
 the case here:
 
 ```
@@ -86,12 +88,12 @@ Tree a b := Tensor   : (Tree a b) * (Tree a b)
           | Mor      : b
 ```
 
-(An example directly taken from our `FSM-oracle` project)
+(This example was directly taken from our `FSM-oracle` project.)
 
 ## Named fields
 
 You can also use the `|` syntax to include names for your type constructors if you find that `+`
-obscures the meaning of your constructors. However, `|`-declarations cannot be nester, wheras
+obscures the meaning of your constructors. However, `|`-declarations cannot be nested, whereas
 `+`, `*` and `^` can.
 
 ```
@@ -129,10 +131,9 @@ Maybe a = Either 1
 
 ## End remarks
 
-If you are familiar with typedefs, you will notice that `mu`, `app` and `var` are
-missing, this is because the new syntax mostly superseed those constructors and compiles
+If you are familiar with Typedefs, you will notice that `mu`, `app` and `var` are
+missing. This is because the new syntax mostly supersedes those constructors and compiles
 down to a representation that uses them.
 
 If you still want to write your typedefs in terms of `mu`, and `app` you can still use
 the s-expression syntax available with the `--s-exp-syntax` flag
-

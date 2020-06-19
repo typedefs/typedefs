@@ -36,7 +36,7 @@ parseAndGenerateTDef syn tdef = (parserForSyntax syn tdef)
   where
     parserForSyntax : InputFormat -> String -> Either String (NEList (n : Nat ** TNamed n))
     parserForSyntax Lispy = resultToEither . parseTNameds
-    parserForSyntax IndexFree = parseSyntaxFile
+    parserForSyntax MLStyle = parseSyntaxFile
 
 runWithOptions : TypedefOpts -> IO ()
 runWithOptions (MkTypedefOpts syn input output) = do
