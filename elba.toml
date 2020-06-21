@@ -15,17 +15,25 @@ authors = []
 [targets.lib]
 path = "src"
 mods = [ "Typedefs.Names"
+       , "Typedefs.Text"
        , "Typedefs.Parse"
+       , "Typedefs.Idris"
+       , "Typedefs.DependentLookup"
        , "Typedefs.Typedefs"
+       , "Typedefs.Library"
        , "Typedefs.TypedefsDecEq"
        , "Typedefs.TermParse"
        , "Typedefs.TermWrite"
-       , "Typedefs.Provider"
        , "Typedefs.Backend"
+       , "Typedefs.Backend.Data"
+       , "Typedefs.Backend.Effects"
+       , "Typedefs.Backend.Utils"
        , "Typedefs.Backend.Haskell"
+       , "Typedefs.Backend.Haskell.Data"
+       , "Typedefs.Backend.Haskell.Termgen"
+       , "Typedefs.Backend.Haskell.Typegen"
        , "Typedefs.Backend.JSON"
        , "Typedefs.Backend.ReasonML"
-       , "Typedefs.Backend.Utils"
        ]
 idris_opts = ["-p","contrib","-p","effects"]
 
