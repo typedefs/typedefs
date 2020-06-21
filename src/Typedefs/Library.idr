@@ -17,6 +17,9 @@ import Language.JSON
 TNat : TDefR 0
 TNat = TMu [("Z", T1), ("S", TVar 0)]
 
+TNat1 : TDefR 1
+TNat1 = TMu [("Z", T1), ("S", TVar 0)]
+
 toNat : Ty [] TNat -> Nat
 toNat (Inn (Left ()))   = Z
 toNat (Inn (Right inn)) = S $ toNat inn
@@ -71,14 +74,24 @@ TRight = Inn . Right
 TPair : TDefR 2
 TPair = TProd [TVar 0, TVar 1]
 
+-- STRINGS
+TString : TDefR 0
+TString = TMu [("String", T0)]
+
+TString1 : TDefR 1
+TString1 = TMu [("String", T0)]
+
 --------------------------------------------------------------------------------------------------------
 -- Specialisations                                                                                    --
 ---                                                                                                   --
 -- There probably is a better way to do this but this will do for now                                 --
 --------------------------------------------------------------------------------------------------------
 
-StandardIdris : SpecialList 4
+StandardIdris : SpecialList 7
 StandardIdris = [ (0 ** (TNat, Nat))
+                , (0 ** (TString, String))
+                , (1 ** (TNat1, const Nat))
+                , (1 ** (TString1, const String))
                 , (1 ** (TMaybe, Maybe))
                 , (2 ** (TEither, Either))
                 , (1 ** (TList, List))
@@ -94,13 +107,43 @@ writeEitherJSON [f, g] (Right r) = JObject [("Right", g r)]
 writeMaybeJSON : {ts : Vect 1 Type} -> HasGenericWriters JSON ts -> ApplyVect Maybe ts -> JSON
 writeMaybeJSON [f] y = maybe (JObject []) f y
 
+writeString1JSON : {ts : Vect 1 Type} -> HasGenericWriters JSON ts -> ApplyVect (const String) ts -> JSON
+writeString1JSON [_] str = JString str
+
+writeStringJSON : {ts : Vect 0 Type} -> HasGenericWriters JSON ts -> ApplyVect String ts -> JSON
+writeStringJSON [] str = JString str
+
+writeNat1JSON : {ts : Vect 1 Type} -> HasGenericWriters JSON ts -> ApplyVect (const Nat) ts -> JSON
+writeNat1JSON [_] n = JNumber (cast n)
+
 writeNatJSON : {ts : Vect 0 Type} -> HasGenericWriters JSON ts -> ApplyVect Nat ts -> JSON
 writeNatJSON [] n = JNumber (cast n)
 
 -- Idk why the compiler gets super confused about `writeNatJSON` (0 arity is the problem?) so you need
 -- to explicitly annotate which (::) we need.
 StandardContext : HasSpecialisedWriter JSON StandardIdris
-StandardContext = SpecialisedWriters.(::) writeNatJSON [writeMaybeJSON, writeEitherJSON, writeListJSON]
+StandardContext = SpecialisedWriters.(::) writeNatJSON
+                 (SpecialisedWriters.(::) writeStringJSON
+                                         [ writeNat1JSON
+                                         , writeString1JSON
+                                         , writeMaybeJSON
+                                         , writeEitherJSON
+                                         , writeListJSON
+                                         ])
+
+parseString1JSON : {ts : Vect 1 Type} -> HasParser JSONM JSON ts -> (JSON -[JSONM]-> ApplyVect (const String) ts)
+parseString1JSON [_] = MkSParser $ \arg => case arg of
+                                               JString n => pure (n, JNull)
+                                               _ => Left "Expected String"
+parseStringJSON : {ts : Vect 0 Type} -> HasParser JSONM JSON ts -> (JSON -[JSONM]-> ApplyVect String ts)
+parseStringJSON [] = MkSParser $ \arg => case arg of
+                                              JString n => pure (n, JNull)
+                                              _ => Left "Expected String"
+
+parseNat1JSON : {ts : Vect 1 Type} -> HasParser JSONM JSON ts -> (JSON -[JSONM]-> ApplyVect (const Nat) ts)
+parseNat1JSON [_] = MkSParser $ \arg => case arg of
+                                             JNumber n => pure (toNat (cast {to=Int} n), JNull)
+                                             _ => Left "Expected Double"
 
 parseNatJSON : {ts : Vect 0 Type} -> HasParser JSONM JSON ts -> (JSON -[JSONM]-> ApplyVect Nat ts)
 parseNatJSON [] = MkSParser $ \arg => case arg of
@@ -127,5 +170,11 @@ parseListJSON [MkSParser p] =
          _  => Left "Expected Array"
 
 StandardParsers : HasSpecialisedParser JSONM JSON StandardIdris
-StandardParsers = SpecialisedParser.(::) parseNatJSON [parseMaybeJSON, parseEitherJSON, parseListJSON]
+StandardParsers = SpecialisedParser.(::) parseNatJSON
+                 (SpecialisedParser.(::) parseStringJSON
+                                       [ parseNat1JSON
+                                       , parseString1JSON
+                                       , parseMaybeJSON
+                                       , parseEitherJSON
+                                       , parseListJSON])
 
