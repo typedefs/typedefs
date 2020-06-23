@@ -1,5 +1,7 @@
 package typedefs
 
+version = 0.2.0
+
 executable = typedefs
 
 main = CLI.Main

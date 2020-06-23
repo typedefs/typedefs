@@ -1,5 +1,7 @@
 package typedefs-core
 
+version = 0.2.0
+
 modules = Typedefs.Names
         , Typedefs.Text
         , Typedefs.Parse
