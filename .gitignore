@@ -12,3 +12,5 @@ typedefs_parser.js
 typedefs.js
 typedefs_examples
 typedefs_parser
+
+build/
