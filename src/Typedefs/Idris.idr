@@ -19,7 +19,7 @@ ApplyVect c (x :: xs) {n = S k} = ApplyVect (c x) xs
 
 ||| A mapping from TDef to idris Type constructor
 SpecialList : Nat -> Type
-SpecialList n = Vect n (v ** (TDefR v, TypeConstructor v))
+SpecialList n = HMap n {t=Nat} TDefR TypeConstructor
 
 args : Vect k (String, TDef' (S n) a) -> TDef' (S n) a
 args []                 = T0
@@ -55,17 +55,17 @@ mutual
   Ty' sp tvars (TProd xs) {n} = Tnary' sp tvars xs Pair
   Ty' sp tvars (TVar v)       = Vect.index v tvars
   Ty' sp tvars (RRef i)       = Vect.index i tvars
-  Ty' sp tvars (TMu m) with (depLookup sp (TMu m))
+  Ty' sp tvars (TMu m) with (depLookup (TMu m) sp)
     Ty' sp tvars (TMu m) | Nothing = Mu' sp tvars (args m)
-    Ty' sp tvars (TMu m) | Just (_ ** constr ** prf) = ApplyVect constr tvars
+    Ty' sp tvars (TMu m) | Just (constr ** _) = ApplyVect constr tvars
 
   -- For application we first make a lookup in our mapping from TDef to Type constructors
-  Ty' sp tvars (TApp (TName _ def) xs) with (depLookup sp def)
+  Ty' sp tvars (TApp (TName _ def) xs) with (depLookup def sp)
     -- If we can't find anything, simply apply the type normally
     Ty' sp tvars (TApp (TName _ def) xs) | Nothing = assert_total $ Ty' sp tvars $ def `ap` xs
     -- If we find a match, check the length of the arguments match the arity of the type constructor
     -- we found.
-    Ty' sp tvars (TApp (TName _ def) xs) | Just (arity ** constr ** prf) =
+    Ty' sp tvars (TApp (TName _ def) xs) | Just (constr ** _) =
         let args = map (assert_total $ Ty' sp tvars) xs in ApplyVect constr args
 
 Ty : Vect n Type -> TDefR n -> Type

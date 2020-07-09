@@ -72,7 +72,7 @@ namespace SpecialisedParser
            HasSpecialisedParser m fmt ((n ** (def, constr)) :: sps)
 
 lookupParser : Monad m => {sp : SpecialList l } -> {format : Type} ->
-               (e : Elem (n ** (td, constr)) sp) ->
+               (e : HElem (n ** (td, constr)) sp) ->
                (spp : HasSpecialisedParser m format sp) ->
                {args : Vect n Type} -> HasParser m format args ->
                (format -[m]-> ApplyVect constr args)
@@ -135,20 +135,20 @@ deserialiser spp ps T0 = failParser (voidError {m} {format})
 deserialiser spp ps T1 = pure ()
 deserialiser spp ps (TSum {k = k} tds) = parseSum spp ps tds
 deserialiser spp ps (TProd products {k}) = parseProd spp ps products
-deserialiser spp {sp} ps (TMu tds) {ts} with (depLookup sp (TMu tds))
+deserialiser spp {sp} ps (TMu tds) {ts} with (depLookup (TMu tds) sp)
   deserialiser spp ps (TMu tds) {ts} | Nothing = do
     () <- parseMu
     let muParser = assert_total $ deserialiser spp ps (TMu tds)
     parsed <- assert_total $ deserialiser spp (muParser :: ps) (args tds)
     pure (Inn (believe_me parsed))
-  deserialiser spp ps  (TMu tds) {ts} | Just (def ** constr ** el) = do
+  deserialiser spp ps  (TMu tds) {ts} | Just (constr ** el) = do
     lookupParser el spp ps
 deserialiser spp p (TVar i) = getVar i p
 deserialiser spp p (RRef i) = getVar i p
-deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) with (depLookup sp def)
+deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) with (depLookup def sp)
   deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) | Nothing =
     assert_total $ deserialiser spp ps (ap def xs)
-  deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) | Just (_ ** constr ** el) =
+  deserialiser spp ps {sp} {ts} (TApp (TName name def) xs) | Just (constr ** el) =
     lookupParser el spp (makeParsers ts spp ps (assert_total $ deserialiser spp ps) xs)
 
 export

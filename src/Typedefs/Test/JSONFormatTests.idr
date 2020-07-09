@@ -2,6 +2,7 @@ module Typedefs.Test.JSONFormatTests
 
 import Typedefs.Idris
 import Typedefs.Library
+import Typedefs.DependentLookup
 import Typedefs.TermParse
 import Typedefs.TermWrite
 

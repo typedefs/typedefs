@@ -34,7 +34,7 @@ namespace SpecialisedWriters
            HasSpecialisedWriter a ((n ** (def, constr)) :: xs)
 
 ||| Lookup in the specialised context for the function that converts a special type to its target representation
-lookupTypeReplacement : {sp : SpecialList l} -> (e : Elem (n ** (td, constr)) sp) ->
+lookupTypeReplacement : {sp : SpecialList l} -> (e : HElem (n ** (v, constr)) sp) ->
                         {target : Type} ->
                         (sw : HasSpecialisedWriter target sp) ->
                         {args : Vect n Type} -> HasGenericWriters target args ->
@@ -116,13 +116,13 @@ interface TDefSerialiser target where
   serialise spp ws (TVar i)     x = getVariable i ws x
 
   -- first lookup the specialisation context
-  serialise spp {sp} {ts} {n} ws (TApp (TName _ def) ys) x with (depLookup sp def)
+  serialise spp {sp} {ts} {n} ws (TApp (TName _ def) ys) x with (depLookup def sp)
     serialise spp {sp} {ts} {n} ws (TApp (TName _ def) ys) x | Nothing =
 
       -- if there is nothing, proceed as is nothing changed
       -- if we had a proof that no substitutions we performed we could remove the `believe_me`
       assert_total $ serialise spp ws (def `ap` ys) (believe_me x)
-    serialise spp {sp} {ts} {n} ws (TApp (TName _ def) ys) x | (Just (d ** constr ** prf)) =
+    serialise spp {sp} {ts} {n} ws (TApp (TName _ def) ys) x | (Just (constr ** prf)) =
 
       -- Otherwise, replace the type using the magic lookup.
       -- This requires to pass a list of writer functions for the type arguments. Since the
@@ -132,7 +132,7 @@ interface TDefSerialiser target where
       lookupTypeReplacement prf spp (makeWriters ts spp ws (assert_total $ serialise spp ws) ys) x
 
   -- first lookup the specialisation context
-  serialise spp {sp} ws (TMu td) x {ts} with (depLookup sp (TMu td))
+  serialise spp {sp} ws (TMu td) x {ts} with (depLookup (TMu td) sp)
     serialise spp ws (TMu td) (Inn x') {ts = ts} | Nothing =
 
       -- if we didn't find anything we proceed as usual
@@ -143,7 +143,7 @@ interface TDefSerialiser target where
                                            (args td)
                                            (believe_me x')
        in muPrefix inner
-    serialise spp ws (TMu td) x {ts = ts} | (Just (def ** constr ** prf)) =
+    serialise spp ws (TMu td) x {ts = ts} | (Just (constr ** prf)) =
 
       -- Otherwise lookup the type to be replaced and apply it using the vector of types given
       -- in the context

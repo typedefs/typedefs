@@ -1,8 +1,5 @@
 module Typedefs.Names
 
-import Prelude.Chars
-import Prelude.Strings
-
 %default total
 %access public export
 
