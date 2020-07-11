@@ -166,7 +166,7 @@ freeVars   (HsInt i)           = []
 freeVars   (HsConcat xs)       = nub $ concatMap (assert_total $ freeVars) xs
 
 ||| Substitute `a` for `HsTermVar x` in `t`
-substHS : HsTerm -> String -> HsTerm -> HsTerm
+substHS : (a : HsTerm) -> String -> (t : HsTerm) -> HsTerm
 substHS a x  HsUnitTT     = HsUnitTT
 substHS a x (HsTupC xs)   = HsTupC (map (assert_total $ substHS a x) xs)
 substHS a x (HsTermVar y) = if x == y then a else HsTermVar y
