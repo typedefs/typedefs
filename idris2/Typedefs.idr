@@ -17,32 +17,32 @@ mutual
   public export
   data TDef' : (n : Nat) -> (b : Bool) -> Type where
     ||| The empty type
-    T0    :                                                TDef' n b
+    T0    :                                                   TDef' n b
 
     ||| The unit type
-    T1    :                                                TDef' n b
+    T1    :                                                   TDef' n b
 
     ||| The coproduct type
-    TSum  :   {k : Nat} -> Vect (2 + k) (TDef' n b)     -> TDef' n b
+    TSum  : {k : Nat} -> Vect (2 + k) (TDef' n b)          -> TDef' n b
 
     ||| The product type
-    TProd :   {k : Nat} -> Vect (2 + k) (TDef' n b)     -> TDef' n b
+    TProd : {k : Nat} -> Vect (2 + k) (TDef' n b)          -> TDef' n b
 
     ||| A type variable
     ||| @i De Bruijn index
-    TVar  :                (i:Fin (S n))                -> TDef' (S n) b
+    TVar  :                (i:Fin (S n))                   -> TDef' (S n) b
 
     ||| Mu
-    TMu   :              Vect k (String, TDef' (S n) b) -> TDef' n b
+    TMu   : {k : Nat} -> Vect k (String, TDef' (S n) b)    -> TDef' n b
 
     ||| Application of a named type to a vector of arguments.
     TApp  : {k : Nat} -> TNamed' k b -> Vect k (TDef' n b) -> TDef' n b
 
     ||| A resolved reference to an unknown typedef
-    RRef  : Fin (S n)                                   -> TDef' (S n) False
+    RRef  : Fin (S n)                                      -> TDef' (S n) False
 
     ||| A free reference to an unknown typedef
-    FRef  : String                                      -> TDef' n True
+    FRef  : String                                         -> TDef' n True
 
   ||| Named type definition.
   ||| @n The number of type variables in the type.

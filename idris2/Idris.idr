@@ -1,4 +1,4 @@
-module Typedefs.Idris
+module Idris
 
 import Data.Vect
 
@@ -6,7 +6,6 @@ import public Typedefs
 import public DependentLookup
 import public TypedefsDecEq
 
-%access public export
 
 TypeConstructor : Nat -> Type
 TypeConstructor Z = Type
