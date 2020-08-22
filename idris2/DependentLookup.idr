@@ -8,7 +8,7 @@ import Data.Vect.Elem
 
 ||| Lookup for maps with a shared index
 public export
-depLookup : DecEq t => {w : t} -> {f, g : t -> Type} -> DecEq (f w) =>
+depLookup : DecEq t => {w : t} -> {0 f, g : t -> Type} -> DecEq (f w) =>
             (vs : Vect n (v : t ** (f v, g v))) ->
             f w ->
             Maybe (a : f w ** b : g w ** Elem (w ** (a, b)) vs)

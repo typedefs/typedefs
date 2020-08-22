@@ -1,6 +1,5 @@
 module Typedefs
 
-
 import Data.Fin
 import Data.Strings
 import Data.Vect
@@ -92,10 +91,12 @@ alias : {n : Nat} -> String -> TNamed' n b -> TNamed' n b
 alias name tn = TName name (wrap tn)
 
 -- Surrounding character functions
+public export
 parens : String -> String
 parens "" = ""
 parens s = "(" ++ s ++ ")"
 
+public export
 parens' : String -> String
 parens' s = if " " `isInfixOf` s then "(" ++ s ++ ")" else s
 
@@ -109,14 +110,13 @@ square s = "[" ++ s ++ "]"
 
 ||| Generate the canonical name of a closed type.
 makeName : TDef' 0 b -> String
-makeName  T0                     = "void"
-makeName  T1                     = "unit"
-makeName (TSum ts)               = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
-makeName (TProd ts)              = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
-makeName (TMu cases)             = concatMap fst cases
-makeName (TApp f xs)             = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
-makeName (RRef i)    {b = False} impossible
-makeName (FRef i)    {b = True } = "ref"
+makeName  T0         = "void"
+makeName  T1         = "unit"
+makeName (TSum ts)   = "sum" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TProd ts)  = "prod" ++ parens (concat . intersperse "," . map (assert_total makeName) $ ts)
+makeName (TMu cases) = concatMap fst cases
+makeName (TApp f xs) = name f ++ parens (concat . intersperse "," . map (assert_total makeName) $ xs)
+makeName (FRef i)    = "ref"
 
 -- Dealing with variables
 
@@ -142,6 +142,7 @@ rename r         (FRef i)    {b = True}  = FRef i
 
 ||| Add 1 to all de Bruijn-indices in a `TDef`.
 ||| Useful for including a predefined open definition into a `TMu` without touching the recursive variable.
+public export
 shiftVars : {n : Nat} -> TDef' n a -> TDef' (S n) a
 shiftVars = rename FS
 
@@ -160,8 +161,8 @@ getUsedIndices (TMu xs)    = assert_total $ nub $ concatMap ((concatMap weedOutZ
 getUsedIndices (TApp f xs) =
   let fUses = assert_total $ getUsedIndices (def f)
    in nub $ concatMap (assert_total getUsedIndices) $ map (flip index xs) fUses
-getUsedIndices (RRef i)    {a = False} = [i]
-getUsedIndices (FRef i)    {a = True } = []
+getUsedIndices (RRef i)    = [i]
+getUsedIndices (FRef i)    = []
 
 ||| Filter out the entries in an argument vector that are actually referred to by a `TDef`.
 getUsedVars : Vect n a -> (td : TDef' n b) -> Vect (List.length (getUsedIndices td)) a
@@ -169,6 +170,7 @@ getUsedVars e td = map (flip index e) (fromList $ getUsedIndices td)
 
 ||| Substitute all variables in a `TDef` with a vector of arguments.
 ||| This also replaces resolved references
+public export
 ap : {n, m : Nat} -> TDef' n b -> Vect n (TDef' m b) -> TDef' m b
 ap  T0         _     = T0
 ap  T1         _     = T1
@@ -181,6 +183,7 @@ ap (RRef i)    args  = Vect.index i args
 ap (FRef i)    args  = FRef i
 
 ||| Substitute all variables in a `TNamed` with a vector of *closed* arguments.
+public export
 apN : {n : Nat} -> TNamed' n a -> Vect n (TDef' 0 a) -> TNamed' 0 a
 apN (TName name body) ts =
   let vars = getUsedVars ts body
@@ -198,6 +201,7 @@ mutual
   ||| to a `TDef`, without actually changing the variables that are used by it.
   |||
   ||| @m The new amount of variables.
+  public export
   weakenTDef : TDef' n a -> (m : Nat) -> LTE n m -> TDef' m a
   weakenTDef T0             _    _   = T0
   weakenTDef T1             _    _   = T1
@@ -210,10 +214,12 @@ mutual
   weakenTDef (RRef x)    (S m)   prf {a = False} = RRef $ weakenLTE x prf
   weakenTDef (FRef x)       m    prf {a = True } = FRef x
 
+  public export
   weakenTDefs : Vect k (TDef' n a) -> (m : Nat) -> LTE n m -> Vect k (TDef' m a)
   weakenTDefs []      _ _   = []
   weakenTDefs (x::xs) m lte = weakenTDef x m lte :: weakenTDefs xs m lte
 
+  public export
   weakenNTDefs : Vect k (String, TDef' n a) -> (m : Nat) -> LTE n m -> Vect k (String, TDef' m a)
   weakenNTDefs []          _ _   = []
   weakenNTDefs ((n,x)::xs) m lte = (n, weakenTDef x m lte) :: weakenNTDefs xs m lte
@@ -249,6 +255,7 @@ mutual
   heteroEqNamed : {n : Nat} -> {m : Nat} -> TNamed' n a -> TNamed' m a -> Bool
   heteroEqNamed (TName name t) (TName name' t') = name == name' && heteroEq t t'
 
+  public export
   implementation Eq (TDef' n a) where
     (==) T0          T0            {a = a}     = True
     (==) T1          T1            {a = a}     = True
@@ -263,6 +270,7 @@ mutual
     (==) (FRef n)    (FRef n')     {a = True}  = n == n'
     (==) _           _             {a = a} = False
 
+public export
 implementation Eq (TNamed' n a) where
   (TName n t) == (TName n' t')       = n == n' && t == t'
 
