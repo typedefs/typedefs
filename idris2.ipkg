@@ -1,0 +1,12 @@
+package typedefs-core
+
+modules = Typedefs
+        , Typedefs.Names
+        , Typedefs.Idris
+        , Typedefs.TermWrite
+        , Typedefs.TermParse
+        , Typedefs.DecEq
+        , Typedefs.Library
+
+sourcedir = "idris2"
+depends = contrib

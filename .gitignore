@@ -5,6 +5,7 @@
 *.o
 *.hi
 
+build/
 target/
 elba.lock
 
