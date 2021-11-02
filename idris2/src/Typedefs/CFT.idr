@@ -1,10 +1,19 @@
 module Typedefs.CFT
+
+import Data.List
 import Data.Fin
 import Data.Maybe
 import Data.Nat
 import Data.Vect
 
 infixr 1 ~>
+
+record Iso (a, b : Type) where
+  constructor MkIso
+  to : a -> b
+  from : b -> a
+  toFrom : (x : b) -> to (from x) === x
+  fromTo : (x : a) -> from (to x) === x
 
 namespace Telescope
 
@@ -65,6 +74,7 @@ data Ty : CFT n -> Tel n CFT -> Type where
 
 TNat : CFT n
 TNat = µ (One + VZ)
+-- data Nat = Zero | Succ Nat
 
 TList : CFT (S n)
 TList = µ (One + (var 1 * var 0))
@@ -84,6 +94,13 @@ zero = In (InL Void)
 succ : Ty TNat t -> Ty TNat t
 succ x = In (InR (Top x))
 
+cons : Ty a t -> Ty TList (a :: t) -> Ty TList (a :: t)
+cons x y = In (InR (Pair (Pop (Top x)) (Top y)))
+
+tLen : Ty TList t -> Ty TNat t
+tLen (In (InL Void)) = zero
+tLen (In (InR (Pair x (Top y)))) = succ (tLen y)
+
 fromNat : Nat -> Ty TNat t
 fromNat 0 = zero
 fromNat (S k) = succ (fromNat k)
@@ -92,10 +109,80 @@ toNat : Ty TNat t -> Nat
 toNat (In (InL Void)) = Z
 toNat (In (InR (Top x))) = S (toNat x)
 
-
 plus : (m, n : Ty TNat t ) -> Ty TNat t
 plus (In (InL Void)) n = n
 plus (In (InR (Top x))) n = succ (plus x n)
+
+namespace Zipper
+  public export
+  data ZList a = MkZipper (List a) (List a)
+  
+  moveRight : ZList a -> ZList a
+  moveRight ls@(MkZipper xs []) = ls
+  moveRight (MkZipper xs (x :: ys)) = MkZipper (x :: xs) ys
+  
+  moveLeft : ZList a -> ZList a
+  moveLeft ls@(MkZipper [] ys) = ls
+  moveLeft (MkZipper (x :: xs) ys) = MkZipper xs (x :: ys)
+  
+  cycleR : ZList a -> ZList a
+  cycleR (MkZipper xs []) = MkZipper [] (reverse xs)
+  cycleR (MkZipper xs (x :: ys)) = MkZipper (x :: xs) ys
+
+namespace ZipperDescj
+  public export
+  TZip : CFT (S n)
+  TZip = TList * TList 
+  
+  tMoveRight : Ty TZip (a :: t) -> Ty TZip (a :: t)
+  tMoveRight (Pair x (In (InL Void))) = Pair x (In (InL Void))
+  tMoveRight (Pair x (In (InR (Pair (Pop (Top y)) (Top z)))))  = Pair (cons y x) z
+
+toList : Ty TList (a :: t) -> List (Ty a t)
+toList (In (InL Void)) = []
+toList (In (InR (Pair (Pop (Top x)) (Top y)))) = x :: toList y
+
+fromList : List (Ty a t) -> Ty TList (a :: t)
+fromList [] = In (InL Void)
+fromList (x :: xs) = cons x (fromList xs)
+
+pairInj : (f : Ty TList (a :: t) -> Ty TList (a :: t)) -> fromList (toList y) = y -> CFT.fromList (CFT.toList (f y)) = f y
+pairInj f prf = ?pairInj_rhs
+
+toFromList : (x : Ty (Mu (One + (VS VZ * VZ))) (a :: t)) -> fromList (toList x) = x
+toFromList (In (InL Void)) = Refl
+toFromList (In (InR (Pair x (Top y)))) = let result = toFromList y in 
+                                             pairInj (In . InR . Pair x . Top) result
+
+fromToList : (x : List (Ty a t)) -> CFT.toList (fromList x) = x
+fromToList [] = Refl
+fromToList (x :: xs) = let rec = fromToList xs in cong (x :: ) rec
+
+ListTListIso : Iso (List (Ty a t)) (Ty TList (a :: t))
+ListTListIso = MkIso
+  { to = fromList
+  , from = toList
+  , toFrom = toFromList
+  , fromTo = fromToList
+  }
+
+
+fromZList : ZList (Ty a t) -> Ty TZip (a :: t)
+fromZList (MkZipper xs ys) = Pair (fromList xs) (fromList ys)
+
+toZList : Ty TZip (a :: t) -> ZList (Ty a t) 
+toZList (Pair x y) = MkZipper (toList x) (toList y) 
+
+toFromZList : (x : Ty TZip (a :: t)) -> fromZList (toZList x) = x
+toFromZList (Pair x y) = ?toFromZList_rhs_1
+
+ZListTZipIso : Iso (ZList (Ty a t)) (Ty TZip (a :: t))
+ZListTZipIso = MkIso 
+  { to = fromZList
+  , from = toZList
+  , toFrom = toFromZList
+  , fromTo = ?aiod
+  }
 
 
 data Morph : (s, t : Tel n f) -> Type where
@@ -144,6 +231,9 @@ derive n      (a * b) = derive n a * b + a * derive n b
 derive n      (Mu f) = App TList (App (derive FZ f) (Mu f))
                      * App (derive (FS n) f) (Mu f)
 
+DerivedList : CFT 1
+DerivedList = derive FZ TList
+
 Path : CFT (S n) -> CFT n
 Path f = App TList (App (derive FZ f) (Mu f))
 
@@ -158,8 +248,9 @@ SExt (MkSCont shapes seq pos) x =
     DPair shapes (\s => ((i : Fin n) -> (Vect (pos i s) (index i x))))
 
 
-ex : {n : Nat} -> String
-ex {n} = "hello" ++ show n
-
-main : IO ()
-main = putStrLn ex
+-- ex : {n : Nat} -> String
+-- ex {n} = "hello" ++ show n
+-- 
+-- 
+-- main : IO ()
+-- main = putStrLn ex
