@@ -10,6 +10,11 @@ import public Typedefs.DecEq
 %default total
 
 public export
+Constructor : Nat -> Type -> Type
+Constructor Z ret = ret
+Constructor (S n) ret = Type -> Constructor n ret
+
+public export
 TypeConstructor : Nat -> Type
 TypeConstructor Z = Type
 TypeConstructor (S n) = Type -> TypeConstructor n
@@ -41,7 +46,7 @@ ReverseVect mkType {n = (S k)} = \arg => ReverseVect (popHead mkType arg)
 mutual
   public export
   data Mu' : {n : Nat} -> (sp : SpecialList l) -> (tvars : Vect n Type) -> TDef' (S n) a -> Type where
-    Inn : Ty' sp (Mu' sp tvars m :: tvars) m -> Mu' sp tvars m
+    Inn : Lazy (Ty' sp (Mu' sp tvars m :: tvars) m) -> Mu' sp tvars m
 
   public export 0
   Tnary' : {n : Nat} -> (sp : SpecialList l) -> (tvars : Vect n Type) -> Vect (2 + k) (TDefR n) -> (Type -> Type -> Type) -> Type
@@ -64,7 +69,7 @@ mutual
   Ty' sp tvars (TVar v)       = Vect.index v tvars
   Ty' sp tvars (RRef i)       = Vect.index i tvars
   Ty' sp tvars (TMu m) = case (depLookup sp (TMu m)) of
-    Nothing => Mu' sp tvars (args m)
+    Nothing => assert_total $ Mu' sp tvars (args m)
     Just (_ ** constr ** prf) => ApplyVect constr tvars
 
   -- For application we first make a lookup in our mapping from TDef to Type constructors
@@ -76,6 +81,7 @@ mutual
     Ty' sp tvars (TApp name xs) | Just (arity ** constr ** prf) =
         let args = map (assert_total $ Ty' sp tvars) xs in ApplyVect constr args
 
+{-
 -- extractMu : {n,k : Nat} -> {sp : SpecialList l} -> {0 ts : Vect n Type} -> {td : Vect k (String, TDefR (S n))} ->
 --             (prf : depLookup sp (TMu td) = Nothing) ->
 --             Ty' sp ts (TMu td) -> Ty' sp (Ty' [] ts (TMu td) :: ts) (args td)
